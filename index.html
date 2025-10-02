@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>DeepSeek 对话</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- 顶部导航栏 -->
+    <header class="header">
+        <button id="conversationsBtn" class="conversations-btn">
+            <i class="fas fa-history"></i>
+        </button>
+        <h1>DeepSeek 对话</h1>
+        <button id="settingsBtn" class="settings-btn">
+            <i class="fas fa-cog"></i>
+        </button>
+    </header>
+
+    <!-- 聊天内容区域 -->
+    <main class="chat-container">
+        <div id="messageContainer" class="message-container"></div>
+        <div id="statusIndicator" class="status-indicator"></div>
+    </main>
+
+    <!-- 输入区域 -->
+    <footer class="input-container">
+        <textarea 
+            id="messageInput" 
+            class="message-input" 
+            placeholder="输入消息...（换行请按Shift+Enter）"
+            rows="3"
+        ></textarea>
+        <button id="sendBtn" class="send-btn">
+            <i class="fas fa-paper-plane"></i>
+        </button>
+    </footer>
+
+    <script>
+        // 确保路径正确的设置按钮跳转
+        document.getElementById('settingsBtn').addEventListener('click', function() {
+            // 尝试直接访问配置页面
+            window.location.assign('config.html');
+        });
+
+        // 会话管理按钮跳转
+        document.getElementById('conversationsBtn').addEventListener('click', function() {
+            window.location.assign('conversations.html');
+        });
+
+        // 其他核心逻辑（保持不变）
+        let currentConversation = [];
+        const DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions";
+        const messageContainer = document.getElementById('messageContainer');
+        const messageInput = document.getElementById('messageInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const statusIndicator = document.getElementById('statusIndicator');
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadConversation();
+            renderMessages();
+            sendBtn.addEventListener('click', sendMessage);
+            
+            // 输入框支持Shift+Enter换行
+            messageInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                }
+            });
+        });
+
+        function loadConversation() {
+            const savedConversation = localStorage.getItem('deepseekConversation');
+            if (savedConversation) {
+                currentConversation = JSON.parse(savedConversation);
+            }
+        }
+
+        function saveConversation() {
+            localStorage.setItem('deepseekConversation', JSON.stringify(currentConversation));
+        }
+
+        function renderMessages() {
+            messageContainer.innerHTML = '';
+            
+            currentConversation.forEach((message, index) => {
+                const messageElement = document.createElement('div');
+                messageElement.className = `message ${message.role === 'user' ? 'user-message' : 'ai-message'}`;
+                messageElement.textContent = message.content;
+                
+                // 添加消息操作按钮
+                const actionsDiv = document.createElement('div');
+                actionsDiv.className = 'message-actions';
+                
+                // 复制按钮
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'action-btn';
+                copyBtn.innerHTML = '<i class="fas fa-copy"></i>';
+                copyBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    copyToClipboard(message.content);
+                });
+                
+                // 删除按钮
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'action-btn';
+                deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
+                deleteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    deleteMessage(index);
+                });
+                
+                actionsDiv.appendChild(copyBtn);
+                actionsDiv.appendChild(deleteBtn);
+                messageElement.appendChild(actionsDiv);
+                
+                messageContainer.appendChild(messageElement);
+            });
+            
+            scrollToBottom();
+        }
+
+        function sendMessage() {
+            const messageText = messageInput.value.trim();
+            if (!messageText) return;
+            
+            const apiKey = localStorage.getItem('deepseekApiKey');
+            if (!apiKey) {
+                showStatus('请先在设置中配置API Key');
+                return;
+            }
+            
+            currentConversation.push({
+                role: 'user',
+                content: messageText
+            });
+            
+            messageInput.value = '';
+            saveConversation();
+            renderMessages();
+            showStatus('发送中...', true);
+            
+            fetchDeepSeekResponse(apiKey, messageText)
+                .then(aiResponse => {
+                    hideStatus();
+                    currentConversation.push({
+                        role: 'assistant',
+                        content: aiResponse
+                    });
+                    saveConversation();
+                    renderMessages();
+                })
+                .catch(error => {
+                    console.error('API请求错误:', error);
+                    showStatus('发送失败，请重试');
+                    setTimeout(hideStatus, 5000);
+                });
+        }
+
+        async function fetchDeepSeekResponse(apiKey, userMessage) {
+            try {
+                const requestBody = {
+                    model: "deepseek-chat",
+                    messages: [
+                        ...currentConversation.filter(msg => msg.role !== 'assistant' || msg.content),
+                        { role: "user", content: userMessage }
+                    ]
+                };
+                
+                const response = await fetch(DEEPSEEK_API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiKey}`
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`API请求失败: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                return data.choices[0].message.content;
+            } catch (error) {
+                console.error('获取AI响应失败:', error);
+                throw error;
+            }
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                showStatus('已复制到剪贴板');
+                setTimeout(hideStatus, 2000);
+            }).catch(err => {
+                console.error('复制失败:', err);
+                showStatus('复制失败');
+                setTimeout(hideStatus, 2000);
+            });
+        }
+
+        function deleteMessage(index) {
+            currentConversation.splice(index, 1);
+            saveConversation();
+            renderMessages();
+        }
+
+        function showStatus(text, isLoading = false) {
+            statusIndicator.textContent = '';
+            
+            if (isLoading) {
+                const loadingDiv = document.createElement('div');
+                loadingDiv.className = 'loading-animation';
+                
+                const dot1 = document.createElement('div');
+                dot1.className = 'loading-dot';
+                const dot2 = document.createElement('div');
+                dot2.className = 'loading-dot';
+                const dot3 = document.createElement('div');
+                dot3.className = 'loading-dot';
+                
+                loadingDiv.appendChild(dot1);
+                loadingDiv.appendChild(dot2);
+                loadingDiv.appendChild(dot3);
+                
+                const textNode = document.createTextNode(text);
+                statusIndicator.appendChild(loadingDiv);
+                statusIndicator.appendChild(textNode);
+            } else {
+                statusIndicator.textContent = text;
+            }
+        }
+
+        function hideStatus() {
+            statusIndicator.textContent = '';
+        }
+
+        function scrollToBottom() {
+            messageContainer.scrollTop = messageContainer.scrollHeight;
+        }
+    </script>
+</body>
+</html>

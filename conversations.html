@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>会话管理 - DeepSeek 对话</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <header class="header">
+        <button id="backBtn" class="back-btn">
+            <i class="fas fa-arrow-left"></i>
+        </button>
+        <h1>会话管理</h1>
+        <button id="newChatBtn" class="new-chat-btn">
+            <i class="fas fa-plus"></i>
+        </button>
+    </header>
+
+    <main class="conversations-container">
+        <div id="conversationsList" class="conversations-list"></div>
+        <button id="saveCurrentBtn" class="save-current-btn">保存当前会话</button>
+    </main>
+
+    <script>
+        // 页面加载时显示所有保存的会话
+        document.addEventListener('DOMContentLoaded', () => {
+            renderConversationsList();
+            
+            // 返回按钮事件
+            document.getElementById('backBtn').addEventListener('click', () => {
+                window.location.href = 'index.html';
+            });
+            
+            // 新建会话按钮
+            document.getElementById('newChatBtn').addEventListener('click', () => {
+                if (confirm('确定要开始新会话吗？当前会话会被保存。')) {
+                    saveCurrentConversation('新会话');
+                    localStorage.setItem('deepseekConversation', JSON.stringify([]));
+                    window.location.href = 'index.html';
+                }
+            });
+            
+            // 保存当前会话按钮
+            document.getElementById('saveCurrentBtn').addEventListener('click', () => {
+                const currentConversation = localStorage.getItem('deepseekConversation');
+                if (currentConversation && JSON.parse(currentConversation).length > 0) {
+                    const name = prompt('请输入会话名称：', '新会话');
+                    if (name) {
+                        saveCurrentConversation(name);
+                        renderConversationsList();
+                    }
+                } else {
+                    alert('当前没有可保存的会话内容');
+                }
+            });
+        });
+        
+        // 保存当前会话
+        function saveCurrentConversation(name) {
+            const currentConversation = localStorage.getItem('deepseekConversation');
+            if (currentConversation) {
+                let savedConversations = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
+                
+                // 生成唯一ID
+                const conversationId = Date.now().toString();
+                
+                // 添加新会话
+                savedConversations.push({
+                    id: conversationId,
+                    name: name,
+                    content: JSON.parse(currentConversation),
+                    timestamp: new Date().toISOString()
+                });
+                
+                localStorage.setItem('savedDeepseekConversations', JSON.stringify(savedConversations));
+            }
+        }
+        
+        // 渲染会话列表
+        function renderConversationsList() {
+            const conversationsList = document.getElementById('conversationsList');
+            conversationsList.innerHTML = '';
+            
+            const savedConversations = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
+            
+            if (savedConversations.length === 0) {
+                conversationsList.innerHTML = '<div class="no-conversations">暂无保存的会话</div>';
+                return;
+            }
+            
+            // 按时间倒序排列（最新的在前面）
+            savedConversations.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+                .forEach(conversation => {
+                    const conversationItem = document.createElement('div');
+                    conversationItem.className = 'conversation-item';
+                    
+                    // 格式化时间
+                    const date = new Date(conversation.timestamp);
+                    const formattedTime = `${date.getMonth() + 1}月${date.getDate()}日 ${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')}`;
+                    
+                    conversationItem.innerHTML = `
+                        <div class="conversation-info">
+                            <h3 class="conversation-name">${conversation.name}</h3>
+                            <p class="conversation-time">${formattedTime}</p>
+                        </div>
+                        <div class="conversation-actions">
+                            <button class="load-btn" data-id="${conversation.id}">
+                                <i class="fas fa-download"></i> 加载
+                            </button>
+                            <button class="delete-conv-btn" data-id="${conversation.id}">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    `;
+                    
+                    conversationsList.appendChild(conversationItem);
+                });
+            
+            // 添加加载会话事件
+            document.querySelectorAll('.load-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const conversationId = e.currentTarget.getAttribute('data-id');
+                    loadConversation(conversationId);
+                });
+            });
+            
+            // 添加删除会话事件
+            document.querySelectorAll('.delete-conv-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const conversationId = e.currentTarget.getAttribute('data-id');
+                    if (confirm('确定要删除这个会话吗？')) {
+                        deleteConversation(conversationId);
+                        renderConversationsList();
+                    }
+                });
+            });
+        }
+        
+        // 加载会话
+        function loadConversation(conversationId) {
+            const savedConversations = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
+            const conversation = savedConversations.find(c => c.id === conversationId);
+            
+            if (conversation) {
+                localStorage.setItem('deepseekConversation', JSON.stringify(conversation.content));
+                window.location.href = 'index.html';
+            }
+        }
+        
+        // 删除会话
+        function deleteConversation(conversationId) {
+            let savedConversations = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
+            savedConversations = savedConversations.filter(c => c.id !== conversationId);
+            localStorage.setItem('savedDeepseekConversations', JSON.stringify(savedConversations));
+        }
+    </script>
+</body>
+</html>
