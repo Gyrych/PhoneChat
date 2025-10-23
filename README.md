@@ -1,0 +1,51 @@
+# PhoneChat
+
+PhoneChat is a lightweight local web-based chat application that lets users send messages to an external chat API, manage conversations locally, and configure an API key through a settings page.
+
+## Features
+
+- Send and receive messages via the configured external API endpoint (`DEEPSEEK_API_URL`).
+- Persist current conversation to `localStorage`.
+- Save, load, and delete named conversations.
+- Copy and delete individual messages.
+- Configure API Key in `config.html` which stores the key in `localStorage`.
+
+## Quick Start
+
+1. Download or clone the repository.
+2. Open `index.html` in your web browser (no build step required).
+
+## Configuration
+
+- Open `config.html` and paste your DeepSeek API Key, then click “保存设置”. The key is stored in the browser's `localStorage` under `deepseekApiKey`.
+
+## Usage
+
+- Type your message in the input box and press the send button (or press Enter) to send.
+- Use the Conversations button to open `conversations.html` for saving or loading conversations.
+- Saved conversations are stored in `localStorage` under `savedDeepseekConversations`.
+
+## Files
+
+- `index.html` — Main chat UI and core logic.
+- `config.html` — Settings page to store the API Key.
+- `conversations.html` — Conversation manager (save/load/delete).
+- `style.css` — Styling for the application.
+- `script.js` — Small script for navigation buttons.
+
+## Security Notes
+
+- The API Key is stored in `localStorage` and is not encrypted. For production use, consider using a backend to store keys securely or other secure browser storage approaches.
+
+## Contributing
+
+Contributions are welcome. Suggested workflow:
+
+1. Fork the repository.
+2. Create a feature branch.
+3. Make changes and test.
+4. Submit a pull request describing your changes.
+
+## License
+
+This project is provided under the MIT License.
