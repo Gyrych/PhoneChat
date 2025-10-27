@@ -20,6 +20,10 @@
 
     <main class="conversations-container">
         <div id="conversationsList" class="conversations-list"></div>
+        <div class="group-controls">
+            <input id="newGroupName" placeholder="新分组名" />
+            <button id="createGroupBtn">创建分组</button>
+        </div>
         <button id="saveCurrentBtn" class="save-current-btn">保存当前会话</button>
     </main>
 
@@ -27,21 +31,23 @@
         // 页面加载时显示所有保存的会话
         document.addEventListener('DOMContentLoaded', () => {
             renderConversationsList();
-            
+
             // 返回按钮事件
             document.getElementById('backBtn').addEventListener('click', () => {
                 window.location.href = 'index.html';
             });
-            
+
             // 新建会话按钮
             document.getElementById('newChatBtn').addEventListener('click', () => {
                 if (confirm('确定要开始新会话吗？当前会话会被保存。')) {
                     saveCurrentConversation('新会话');
+                    // 清除临时会话与分组关联
                     localStorage.setItem('deepseekConversation', JSON.stringify([]));
+                    localStorage.removeItem('deepseekConversationGroupId');
                     window.location.href = 'index.html';
                 }
             });
-            
+
             // 保存当前会话按钮
             document.getElementById('saveCurrentBtn').addEventListener('click', () => {
                 const currentConversation = localStorage.getItem('deepseekConversation');
@@ -55,79 +61,254 @@
                     alert('当前没有可保存的会话内容');
                 }
             });
+
+            // 创建分组按钮
+            document.getElementById('createGroupBtn').addEventListener('click', () => {
+                const nameInput = document.getElementById('newGroupName');
+                const name = nameInput.value && nameInput.value.trim();
+                if (!name) { alert('请输入分组名称'); return; }
+                const groups = JSON.parse(localStorage.getItem('conversationGroups') || '[]');
+                const id = Date.now().toString();
+                groups.push({ id, name, memorySummary: null, updatedAt: new Date().toISOString() });
+                localStorage.setItem('conversationGroups', JSON.stringify(groups));
+                nameInput.value = '';
+                renderConversationsList();
+            });
         });
-        
-        // 保存当前会话
-        function saveCurrentConversation(name) {
+
+            // 保存当前会话（增强：添加 summary 与 groupId 支持）
+        async function saveCurrentConversation(name) {
             const currentConversation = localStorage.getItem('deepseekConversation');
-            if (currentConversation) {
-                let savedConversations = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
-                
-                // 生成唯一ID
-                const conversationId = Date.now().toString();
-                
-                // 添加新会话
-                savedConversations.push({
-                    id: conversationId,
-                    name: name,
-                    content: JSON.parse(currentConversation),
-                    timestamp: new Date().toISOString()
-                });
-                
-                localStorage.setItem('savedDeepseekConversations', JSON.stringify(savedConversations));
+            if (!currentConversation) return;
+
+            let savedConversations = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
+
+            // 生成唯一ID
+            const conversationId = Date.now().toString();
+
+            const conversationObj = {
+                id: conversationId,
+                name: name,
+                messages: JSON.parse(currentConversation),
+                summary: null,
+                groupId: localStorage.getItem('deepseekConversationGroupId') || null,
+                updatedAt: new Date().toISOString()
+            };
+
+            // 先保存会话主体
+            savedConversations.push(conversationObj);
+            localStorage.setItem('savedDeepseekConversations', JSON.stringify(savedConversations));
+
+            // 异步调用 DeepSeek 生成会话摘要并保存（失败不影响主流程）
+            try {
+                const apiKey = localStorage.getItem('deepseekApiKey');
+                    if (apiKey) {
+                    // 使用更明确的摘要提示词，让模型以要点形式返回摘要
+                    const systemPrompt = `你是一个摘要助手。任务：请对下面的对话内容进行摘要。\n要求：\n- 输出要点列表（每行一个短句），最多6条；\n- 每条不超过40字，整体不超过200字；\n- 保留关键事实、请求、结论与下一步建议，删除寒暄和重复信息。\n内容：`;
+
+                    const userContent = conversationObj.messages.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
+
+                    const resp = await fetch(window.DEEPSEEK_API_URL || 'https://api.deepseek.com/v1/chat/completions', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${apiKey}`
+                        },
+                        body: JSON.stringify({ model: 'deepseek-chat', messages: [ { role: 'system', content: systemPrompt }, { role: 'user', content: userContent } ], temperature: 0.2 })
+                    });
+
+                    if (resp.ok) {
+                        const data = await resp.json();
+                        const summaryText = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content ? data.choices[0].message.content : null;
+                        if (summaryText) {
+                            // 更新对应会话的 summary 字段
+                            let saved = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
+                            const idx = saved.findIndex(c => c.id === conversationId);
+                            if (idx !== -1) {
+                                saved[idx].summary = summaryText;
+                                saved[idx].updatedAt = new Date().toISOString();
+                                localStorage.setItem('savedDeepseekConversations', JSON.stringify(saved));
+                            }
+
+                            // 如果属于分组，则触发分组记忆聚合更新
+                            if (conversationObj.groupId) {
+                                await updateGroupMemory(conversationObj.groupId);
+                            }
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error('生成会话摘要失败：', err);
             }
         }
-        
-        // 渲染会话列表
+
+        // 渲染会话列表为折叠树形结构（文件夹形式）
         function renderConversationsList() {
             const conversationsList = document.getElementById('conversationsList');
             conversationsList.innerHTML = '';
-            
+
             const savedConversations = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
-            
-            if (savedConversations.length === 0) {
+            const groups = JSON.parse(localStorage.getItem('conversationGroups') || '[]');
+
+            if (savedConversations.length === 0 && groups.length === 0) {
                 conversationsList.innerHTML = '<div class="no-conversations">暂无保存的会话</div>';
                 return;
             }
-            
-            // 按时间倒序排列（最新的在前面）
-            savedConversations.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-                .forEach(conversation => {
-                    const conversationItem = document.createElement('div');
-                    conversationItem.className = 'conversation-item';
-                    
-                    // 格式化时间
-                    const date = new Date(conversation.timestamp);
+
+            // 为每个分组创建一个折叠的 details 元素
+            groups.forEach(group => {
+                const groupDetails = document.createElement('details');
+                groupDetails.className = 'conversation-group';
+
+                const summary = document.createElement('summary');
+                summary.innerHTML = `${group.name} <small class="group-meta">${group.memorySummary ? '(有分组记忆)' : ''}</small>`;
+                // 添加重命名与删除按钮到分组标题
+                const renameBtn = document.createElement('button');
+                renameBtn.className = 'group-rename-btn';
+                renameBtn.textContent = '重命名';
+                renameBtn.style.marginLeft = '8px';
+                renameBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const newName = prompt('输入新的分组名称：', group.name);
+                    if (newName) {
+                        let groups = JSON.parse(localStorage.getItem('conversationGroups') || '[]');
+                        const idx = groups.findIndex(g => g.id === group.id);
+                        if (idx !== -1) {
+                            groups[idx].name = newName;
+                            groups[idx].updatedAt = new Date().toISOString();
+                            localStorage.setItem('conversationGroups', JSON.stringify(groups));
+                            renderConversationsList();
+                        }
+                    }
+                });
+
+                const delBtn = document.createElement('button');
+                delBtn.className = 'group-delete-btn';
+                delBtn.textContent = '删除';
+                delBtn.style.marginLeft = '4px';
+                delBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (!confirm('删除分组将把该分组下的会话移动到未分组，确定删除？')) return;
+                    let groups = JSON.parse(localStorage.getItem('conversationGroups') || '[]');
+                    groups = groups.filter(g => g.id !== group.id);
+                    localStorage.setItem('conversationGroups', JSON.stringify(groups));
+                    // 将该组内会话移动到未分组
+                    let saved = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
+                    saved = saved.map(c => c.groupId === group.id ? Object.assign({}, c, { groupId: null, updatedAt: new Date().toISOString() }) : c);
+                    localStorage.setItem('savedDeepseekConversations', JSON.stringify(saved));
+                    renderConversationsList();
+                });
+
+                // 分组记忆显示区（默认隐藏），提供查看分组记忆功能
+                const memoryDiv = document.createElement('div');
+                memoryDiv.className = 'group-memory';
+                memoryDiv.style.display = 'none';
+                memoryDiv.style.padding = '8px 12px';
+                memoryDiv.style.borderLeft = '2px solid #eee';
+                memoryDiv.style.marginBottom = '8px';
+                memoryDiv.innerHTML = group.memorySummary ? `<strong>分组记忆：</strong><div>${group.memorySummary}</div>` : '<i class="small-muted">暂无分组记忆</i>';
+
+                const viewMemoryBtn = document.createElement('button');
+                viewMemoryBtn.className = 'view-memory-btn';
+                viewMemoryBtn.textContent = group.memorySummary ? '查看分组记忆' : '暂无分组记忆';
+                viewMemoryBtn.style.marginLeft = '8px';
+                viewMemoryBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (memoryDiv.style.display === 'none') {
+                        memoryDiv.style.display = 'block';
+                        viewMemoryBtn.textContent = '隐藏分组记忆';
+                    } else {
+                        memoryDiv.style.display = 'none';
+                        viewMemoryBtn.textContent = group.memorySummary ? '查看分组记忆' : '暂无分组记忆';
+                    }
+                });
+                // 将查看按钮添加到 summary（在之后 append）
+
+                summary.appendChild(renameBtn);
+                summary.appendChild(delBtn);
+                summary.appendChild(viewMemoryBtn);
+                groupDetails.appendChild(summary);
+                // 在 summary 后插入分组记忆展示区
+                groupDetails.appendChild(memoryDiv);
+
+                const list = document.createElement('div');
+                list.className = 'group-list';
+
+                // 后续会创建 memoryDiv 和 viewMemoryBtn，避免重复声明
+
+                const groupConvs = savedConversations.filter(c => c.groupId === group.id)
+                    .sort((a, b) => new Date(b.updatedAt || b.timestamp || 0) - new Date(a.updatedAt || a.timestamp || 0));
+
+                groupConvs.forEach(conversation => {
+                    const item = document.createElement('div');
+                    item.className = 'conversation-item';
+                    const date = new Date(conversation.updatedAt || conversation.timestamp);
                     const formattedTime = `${date.getMonth() + 1}月${date.getDate()}日 ${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')}`;
-                    
-                    conversationItem.innerHTML = `
+                    item.innerHTML = `
                         <div class="conversation-info">
                             <h3 class="conversation-name">${conversation.name}</h3>
                             <p class="conversation-time">${formattedTime}</p>
+                            <p class="conversation-summary">${conversation.summary ? conversation.summary : '<i class="small-muted">摘要生成中或不存在</i>'}</p>
                         </div>
                         <div class="conversation-actions">
-                            <button class="load-btn" data-id="${conversation.id}">
-                                <i class="fas fa-download"></i> 加载
-                            </button>
-                            <button class="delete-conv-btn" data-id="${conversation.id}">
-                                <i class="fas fa-trash"></i>
-                            </button>
+                            <button class="load-btn" data-id="${conversation.id}"><i class="fas fa-download"></i> 加载</button>
+                            <button class="rename-conv-btn" data-id="${conversation.id}"><i class="fas fa-edit"></i></button>
+                            <button class="move-conv-btn" data-id="${conversation.id}"><i class="fas fa-folder-open"></i></button>
+                            <button class="delete-conv-btn" data-id="${conversation.id}"><i class="fas fa-trash"></i></button>
                         </div>
                     `;
-                    
-                    conversationsList.appendChild(conversationItem);
+                    list.appendChild(item);
                 });
-            
-            // 添加加载会话事件
-            document.querySelectorAll('.load-btn').forEach(btn => {
+
+                groupDetails.appendChild(list);
+                conversationsList.appendChild(groupDetails);
+            });
+
+            // 未分组项作为单独的折叠栏
+            const ungrouped = savedConversations.filter(c => !c.groupId)
+                .sort((a, b) => new Date(b.updatedAt || b.timestamp || 0) - new Date(a.updatedAt || a.timestamp || 0));
+
+            const ungroupDetails = document.createElement('details');
+            ungroupDetails.className = 'conversation-group';
+            const ungroupSummary = document.createElement('summary');
+            ungroupSummary.textContent = '未分组会话';
+            ungroupDetails.appendChild(ungroupSummary);
+            const ungroupList = document.createElement('div');
+            ungroupList.className = 'group-list';
+
+            ungrouped.forEach(conversation => {
+                const item = document.createElement('div');
+                item.className = 'conversation-item';
+                const date = new Date(conversation.updatedAt || conversation.timestamp);
+                const formattedTime = `${date.getMonth() + 1}月${date.getDate()}日 ${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')}`;
+                item.innerHTML = `
+                    <div class="conversation-info">
+                        <h3 class="conversation-name">${conversation.name}</h3>
+                        <p class="conversation-time">${formattedTime}</p>
+                        <p class="conversation-summary">${conversation.summary ? conversation.summary : '<i class="small-muted">摘要生成中或不存在</i>'}</p>
+                    </div>
+                    <div class="conversation-actions">
+                        <button class="load-btn" data-id="${conversation.id}"><i class="fas fa-download"></i> 加载</button>
+                        <button class="rename-conv-btn" data-id="${conversation.id}"><i class="fas fa-edit"></i></button>
+                        <button class="move-conv-btn" data-id="${conversation.id}"><i class="fas fa-folder-open"></i></button>
+                        <button class="delete-conv-btn" data-id="${conversation.id}"><i class="fas fa-trash"></i></button>
+                    </div>
+                `;
+                ungroupList.appendChild(item);
+            });
+
+            ungroupDetails.appendChild(ungroupList);
+            conversationsList.appendChild(ungroupDetails);
+
+            // 添加事件委托：使用容器选择器以减少查找次数
+            conversationsList.querySelectorAll('.load-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     const conversationId = e.currentTarget.getAttribute('data-id');
                     loadConversation(conversationId);
                 });
             });
-            
-            // 添加删除会话事件
-            document.querySelectorAll('.delete-conv-btn').forEach(btn => {
+
+            conversationsList.querySelectorAll('.delete-conv-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     const conversationId = e.currentTarget.getAttribute('data-id');
                     if (confirm('确定要删除这个会话吗？')) {
@@ -136,19 +317,108 @@
                     }
                 });
             });
+
+            conversationsList.querySelectorAll('.rename-conv-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const conversationId = e.currentTarget.getAttribute('data-id');
+                    const newName = prompt('输入新的会话名称：');
+                    if (newName) {
+                        let saved = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
+                        const idx = saved.findIndex(c => c.id === conversationId);
+                        if (idx !== -1) {
+                            saved[idx].name = newName;
+                            saved[idx].updatedAt = new Date().toISOString();
+                            localStorage.setItem('savedDeepseekConversations', JSON.stringify(saved));
+                            renderConversationsList();
+                        }
+                    }
+                });
+            });
+
+            conversationsList.querySelectorAll('.move-conv-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const conversationId = e.currentTarget.getAttribute('data-id');
+                    const groups = JSON.parse(localStorage.getItem('conversationGroups') || '[]');
+                    const groupOptions = ['无分组'].concat(groups.map(g => g.name));
+                    const choice = prompt(`输入目标分组名称（可选）：\n${groupOptions.join('\n')}`);
+                    if (choice !== null) {
+                        let targetGroupId = null;
+                        if (choice !== '' && choice !== '无分组') {
+                            const g = groups.find(x => x.name === choice);
+                            if (g) targetGroupId = g.id;
+                            else alert('未找到该分组名称');
+                        }
+
+                        let saved = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
+                        const idx = saved.findIndex(c => c.id === conversationId);
+                        if (idx !== -1) {
+                            saved[idx].groupId = targetGroupId;
+                            saved[idx].updatedAt = new Date().toISOString();
+                            localStorage.setItem('savedDeepseekConversations', JSON.stringify(saved));
+                            renderConversationsList();
+                        }
+                    }
+                });
+            });
         }
-        
-        // 加载会话
+
+        // 更新分组记忆（聚合该分组下所有会话的 summary 并向DeepSeek请求二次摘要）
+        async function updateGroupMemory(groupId) {
+            try {
+                const saved = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
+                const groupConvs = saved.filter(c => c.groupId === groupId && c.summary).map(c => c.summary);
+                if (groupConvs.length === 0) return;
+
+                const apiKey = localStorage.getItem('deepseekApiKey');
+                if (!apiKey) return;
+
+                const systemPrompt = `你是一个记忆聚合助手。任务：将以下多条会话摘要合成为该分组的“分组记忆”。\n要求：\n- 提取跨会话的核心主题与长期约束（如偏好、常见问题、重要事实）；\n- 输出 5-8 条要点，每条不超 50 字；\n- 标注任何需要关注的未解决问题或待跟进项。\n内容：`;
+
+                const resp = await fetch(window.DEEPSEEK_API_URL || 'https://api.deepseek.com/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiKey}`
+                    },
+                    body: JSON.stringify({ model: 'deepseek-chat', messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: groupConvs.join('\n\n') }], temperature: 0.2 })
+                });
+
+                if (!resp.ok) return;
+                const data = await resp.json();
+                const memoryText = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content ? data.choices[0].message.content : null;
+                if (memoryText) {
+                    let groups = JSON.parse(localStorage.getItem('conversationGroups') || '[]');
+                    const idx = groups.findIndex(g => g.id === groupId);
+                    if (idx !== -1) {
+                        groups[idx].memorySummary = memoryText;
+                        groups[idx].updatedAt = new Date().toISOString();
+                        localStorage.setItem('conversationGroups', JSON.stringify(groups));
+                        // 更新界面以显示新的分组记忆
+                        try { renderConversationsList(); } catch (e) { console.error('renderConversationsList 调用失败：', e); }
+                    }
+                }
+            } catch (err) {
+                console.error('更新分组记忆失败：', err);
+            }
+        }
+
+        // 加载会话（兼容旧字段 content 与新字段 messages）
         function loadConversation(conversationId) {
             const savedConversations = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
             const conversation = savedConversations.find(c => c.id === conversationId);
-            
+
             if (conversation) {
-                localStorage.setItem('deepseekConversation', JSON.stringify(conversation.content));
+                const payload = conversation.messages || conversation.content || [];
+                localStorage.setItem('deepseekConversation', JSON.stringify(payload));
+                // 记录当前会话所属分组，以便 index 页面注入分组记忆
+                if (conversation.groupId) localStorage.setItem('deepseekConversationGroupId', conversation.groupId);
+                else localStorage.removeItem('deepseekConversationGroupId');
+                // 记录当前已保存会话的ID，供 index 页面在发送/接收时更新对应会话
+                localStorage.setItem('deepseekConversationId', conversation.id);
                 window.location.href = 'index.html';
             }
         }
-        
+
         // 删除会话
         function deleteConversation(conversationId) {
             let savedConversations = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');

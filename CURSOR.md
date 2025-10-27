@@ -58,4 +58,12 @@ PhoneChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 U
 ## 变更记录
 
 - 2025-10-23 初始版本：添加 `README.md`（英文），`README_zh.md`（中文），以及 `CURSOR.md`（项目主体内容与初始变更记录）。
+ - 2025-10-26 实现会话分组与分组记忆功能：
+   - 在 `index.html` 增加 `currentConversationGroupId` 支持，并在发送请求时将分组记忆注入为 system 提示词（若存在）。
+   - 在 `conversations.html` 改写 `saveCurrentConversation`，保存会话时异步调用 DeepSeek 生成会话摘要并写入 `savedDeepseekConversations` 的 `summary` 字段；支持会话重命名、移动分组与展示摘要。
+   - 新增 `updateGroupMemory` 方法：当分组下会话更新后，聚合该分组内所有会话摘要并调用 DeepSeek 进行二次摘要，结果保存到 `conversationGroups[].memorySummary`。
+   - 在 `script.js` 添加 `storageGetJson` / `storageSetJson` 本地存储工具函数。
+   - 在 `conversations.html` 添加分组创建 UI 与逻辑，分组信息保存在 `localStorage` 的 `conversationGroups` 键下。
+   - 在 `conversations.html` 与 `index.html` 中实现了分组关联逻辑（保存会话时记录 groupId、在新会话时清理 groupId）。
+   - 更新 TODO 状态：实现了实时保存扩展、摘要生成、分组 UI 的部分功能，正在完成分组记忆注入与文档同步。
 

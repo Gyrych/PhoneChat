@@ -27,9 +27,9 @@
 
     <!-- 输入区域 -->
     <footer class="input-container">
-        <textarea 
-            id="messageInput" 
-            class="message-input" 
+        <textarea
+            id="messageInput"
+            class="message-input"
             placeholder="输入消息...（换行请按Shift+Enter）"
             rows="3"
         ></textarea>
@@ -52,49 +52,104 @@
 
         // 其他核心逻辑（保持不变）
         let currentConversation = [];
+        // 当前会话所属分组ID（可为 null）
+        let currentConversationGroupId = null;
         const DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions";
         const messageContainer = document.getElementById('messageContainer');
         const messageInput = document.getElementById('messageInput');
         const sendBtn = document.getElementById('sendBtn');
         const statusIndicator = document.getElementById('statusIndicator');
 
-        document.addEventListener('DOMContentLoaded', () => {
+        // 初始化函数，既由 DOMContentLoaded 触发，也由 window.load 作为回退触发
+        function initApp() {
+            if (window._appInitialized) return;
+            window._appInitialized = true;
+
+            console.log('initApp: attaching handlers');
             loadConversation();
             renderMessages();
-            sendBtn.addEventListener('click', sendMessage);
-            
+            if (sendBtn) {
+                sendBtn.addEventListener('click', sendMessage);
+                // 额外绑定 onclick 作为冗余
+                sendBtn.onclick = sendMessage;
+            } else {
+                console.error('sendBtn 未找到');
+            }
+
             // 输入框支持Shift+Enter换行
-            messageInput.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    sendMessage();
-                }
-            });
-        });
+            if (messageInput) {
+                messageInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        sendMessage();
+                    }
+                });
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', initApp);
+        // 如果 DOMContentLoaded 未触发（极少情况），作为回退使用 window load
+        window.addEventListener('load', initApp);
 
         function loadConversation() {
             const savedConversation = localStorage.getItem('deepseekConversation');
-            if (savedConversation) {
-                currentConversation = JSON.parse(savedConversation);
+            if (savedConversation && savedConversation !== 'undefined') {
+                try {
+                    currentConversation = JSON.parse(savedConversation);
+                } catch (err) {
+                    console.error('解析 deepseekConversation 失败，已清理该键：', err, savedConversation);
+                    currentConversation = [];
+                    // 修复不合法值，移除以避免后续解析异常
+                    localStorage.removeItem('deepseekConversation');
+                }
             }
+            // 读取当前会话分组ID（如果有），兼容字符串 'undefined' 与 'null'
+            const grp = localStorage.getItem('deepseekConversationGroupId');
+            currentConversationGroupId = (grp && grp !== 'undefined' && grp !== 'null') ? grp : null;
+        }
+
+        // 提供界面方法：将当前临时会话关联到分组（在会话保存或选择分组时使用）
+        function setCurrentConversationGroup(groupId) {
+            currentConversationGroupId = groupId;
+            if (groupId) localStorage.setItem('deepseekConversationGroupId', groupId);
+            else localStorage.removeItem('deepseekConversationGroupId');
         }
 
         function saveConversation() {
             localStorage.setItem('deepseekConversation', JSON.stringify(currentConversation));
+            // 实时保存为草稿到已保存会话中，方便随时加载历史会话（id: 'autosave'）
+            try {
+                let saved = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
+                const draftId = 'autosave';
+                const idx = saved.findIndex(c => c.id === draftId);
+                const draftObj = {
+                    id: draftId,
+                    name: '草稿',
+                    messages: currentConversation,
+                    summary: null,
+                    groupId: currentConversationGroupId || null,
+                    updatedAt: new Date().toISOString()
+                };
+                if (idx === -1) saved.push(draftObj);
+                else saved[idx] = draftObj;
+                localStorage.setItem('savedDeepseekConversations', JSON.stringify(saved));
+            } catch (e) {
+                console.error('保存草稿失败：', e);
+            }
         }
 
         function renderMessages() {
             messageContainer.innerHTML = '';
-            
+
             currentConversation.forEach((message, index) => {
                 const messageElement = document.createElement('div');
                 messageElement.className = `message ${message.role === 'user' ? 'user-message' : 'ai-message'}`;
                 messageElement.textContent = message.content;
-                
+
                 // 添加消息操作按钮
                 const actionsDiv = document.createElement('div');
                 actionsDiv.className = 'message-actions';
-                
+
                 // 复制按钮
                 const copyBtn = document.createElement('button');
                 copyBtn.className = 'action-btn';
@@ -103,7 +158,7 @@
                     e.stopPropagation();
                     copyToClipboard(message.content);
                 });
-                
+
                 // 删除按钮
                 const deleteBtn = document.createElement('button');
                 deleteBtn.className = 'action-btn';
@@ -112,64 +167,123 @@
                     e.stopPropagation();
                     deleteMessage(index);
                 });
-                
+
                 actionsDiv.appendChild(copyBtn);
                 actionsDiv.appendChild(deleteBtn);
                 messageElement.appendChild(actionsDiv);
-                
+
                 messageContainer.appendChild(messageElement);
             });
-            
+
             scrollToBottom();
         }
 
-        function sendMessage() {
-            const messageText = messageInput.value.trim();
-            if (!messageText) return;
-            
-            const apiKey = localStorage.getItem('deepseekApiKey');
-            if (!apiKey) {
-                showStatus('请先在设置中配置API Key');
-                return;
+        async function sendMessage() {
+            console.log('sendMessage invoked');
+            try {
+                const messageText = messageInput.value.trim();
+                console.log('messageText length:', messageText.length);
+                if (!messageText) return;
+
+                const apiKey = localStorage.getItem('deepseekApiKey');
+                console.log('apiKey present:', !!apiKey);
+                if (!apiKey) {
+                    showStatus('请先在设置中配置API Key');
+                    return;
+                }
+
+                currentConversation.push({ role: 'user', content: messageText });
+                messageInput.value = '';
+                saveConversation();
+                renderMessages();
+
+                showStatus('发送中...', true);
+
+                const aiResponse = await fetchDeepSeekResponse(apiKey, messageText);
+                console.log('received aiResponse length:', aiResponse ? aiResponse.length : 0);
+                hideStatus();
+
+                currentConversation.push({ role: 'assistant', content: aiResponse });
+                saveConversation();
+                renderMessages();
+
+                // 如果当前页面与某条已保存会话有关（deepseekConversationId），则同步到该已保存会话并触发摘要更新
+                const savedConvId = localStorage.getItem('deepseekConversationId');
+                if (savedConvId && savedConvId !== 'autosave') {
+                    try {
+                        let saved = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
+                        const idx = saved.findIndex(c => c.id === savedConvId);
+                        if (idx !== -1) {
+                            // 更新消息并时间戳
+                            saved[idx].messages = currentConversation;
+                            saved[idx].updatedAt = new Date().toISOString();
+                            localStorage.setItem('savedDeepseekConversations', JSON.stringify(saved));
+                            // 触发对该会话的摘要更新（异步）
+                            (async () => {
+                                const apiKey2 = localStorage.getItem('deepseekApiKey');
+                                if (!apiKey2) return;
+                                const systemPrompt = `你是一个摘要助手。任务：请对下面的对话内容进行摘要。\n要求：\n- 输出要点列表（每行一个短句），最多6条；\n- 每条不超过40字，整体不超过200字；\n- 保留关键事实、请求、结论与下一步建议，删除寒暄和重复信息。\n内容：`;
+                                const userContent = currentConversation.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
+                                try {
+                                    const resp2 = await fetch(window.DEEPSEEK_API_URL || 'https://api.deepseek.com/v1/chat/completions', {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                            'Authorization': `Bearer ${apiKey2}`
+                                        },
+                                        body: JSON.stringify({ model: 'deepseek-chat', messages: [ { role: 'system', content: systemPrompt }, { role: 'user', content: userContent } ], temperature: 0.2 })
+                                    });
+                                    if (resp2.ok) {
+                                        const data2 = await resp2.json();
+                                        const summaryText = data2.choices && data2.choices[0] && data2.choices[0].message && data2.choices[0].message.content ? data2.choices[0].message.content : null;
+                                        if (summaryText) {
+                                            let saved2 = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
+                                            const idx2 = saved2.findIndex(c => c.id === savedConvId);
+                                            if (idx2 !== -1) {
+                                                saved2[idx2].summary = summaryText;
+                                                saved2[idx2].updatedAt = new Date().toISOString();
+                                                localStorage.setItem('savedDeepseekConversations', JSON.stringify(saved2));
+                                            }
+                                        }
+                                    }
+                                } catch (err) {
+                                    console.error('同步更新已保存会话摘要失败：', err);
+                                }
+                            })();
+                        }
+                    } catch (e) {
+                        console.error('同步保存会话失败：', e);
+                    }
+                }
+            } catch (error) {
+                console.error('发送消息失败:', error);
+                showStatus('发送失败：' + (error && error.message ? error.message : '请重试'));
+                setTimeout(hideStatus, 5000);
             }
-            
-            currentConversation.push({
-                role: 'user',
-                content: messageText
-            });
-            
-            messageInput.value = '';
-            saveConversation();
-            renderMessages();
-            showStatus('发送中...', true);
-            
-            fetchDeepSeekResponse(apiKey, messageText)
-                .then(aiResponse => {
-                    hideStatus();
-                    currentConversation.push({
-                        role: 'assistant',
-                        content: aiResponse
-                    });
-                    saveConversation();
-                    renderMessages();
-                })
-                .catch(error => {
-                    console.error('API请求错误:', error);
-                    showStatus('发送失败，请重试');
-                    setTimeout(hideStatus, 5000);
-                });
         }
 
         async function fetchDeepSeekResponse(apiKey, userMessage) {
             try {
+                // 在发送给DeepSeek之前，尝试读取所属分组的记忆并作为 system 提示词注入
+                let systemMemoryMessage = null;
+                if (currentConversationGroupId) {
+                    const groups = JSON.parse(localStorage.getItem('conversationGroups') || '[]');
+                    const grp = groups.find(g => g.id === currentConversationGroupId);
+                    if (grp && grp.memorySummary) {
+                        systemMemoryMessage = { role: 'system', content: grp.memorySummary };
+                    }
+                }
+
+                const messagesPayload = [
+                    ...currentConversation.filter(msg => msg.role !== 'assistant' || msg.content),
+                    { role: 'user', content: userMessage }
+                ];
+
                 const requestBody = {
                     model: "deepseek-chat",
-                    messages: [
-                        ...currentConversation.filter(msg => msg.role !== 'assistant' || msg.content),
-                        { role: "user", content: userMessage }
-                    ]
+                    messages: systemMemoryMessage ? [systemMemoryMessage, ...messagesPayload] : messagesPayload
                 };
-                
+
                 const response = await fetch(DEEPSEEK_API_URL, {
                     method: 'POST',
                     headers: {
@@ -178,11 +292,11 @@
                     },
                     body: JSON.stringify(requestBody)
                 });
-                
+
                 if (!response.ok) {
                     throw new Error(`API请求失败: ${response.statusText}`);
                 }
-                
+
                 const data = await response.json();
                 return data.choices[0].message.content;
             } catch (error) {
@@ -210,22 +324,22 @@
 
         function showStatus(text, isLoading = false) {
             statusIndicator.textContent = '';
-            
+
             if (isLoading) {
                 const loadingDiv = document.createElement('div');
                 loadingDiv.className = 'loading-animation';
-                
+
                 const dot1 = document.createElement('div');
                 dot1.className = 'loading-dot';
                 const dot2 = document.createElement('div');
                 dot2.className = 'loading-dot';
                 const dot3 = document.createElement('div');
                 dot3.className = 'loading-dot';
-                
+
                 loadingDiv.appendChild(dot1);
                 loadingDiv.appendChild(dot2);
                 loadingDiv.appendChild(dot3);
-                
+
                 const textNode = document.createTextNode(text);
                 statusIndicator.appendChild(loadingDiv);
                 statusIndicator.appendChild(textNode);
