@@ -6,6 +6,7 @@
     <title>DeepSeek 对话</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="prompts.js"></script>
 </head>
 <body>
     <!-- 顶部导航栏 -->
@@ -115,6 +116,23 @@
             else localStorage.removeItem('deepseekConversationGroupId');
         }
 
+        // 在发送/接收时，如果当前会话对应一个已保存会话ID，向该已保存会话追加并更新存储
+        function syncToSavedConversationIfExists() {
+            const savedConvId = localStorage.getItem('deepseekConversationId');
+            if (!savedConvId) return;
+            try {
+                let saved = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
+                const idx = saved.findIndex(c => c.id === savedConvId);
+                if (idx !== -1) {
+                    saved[idx].messages = currentConversation;
+                    saved[idx].updatedAt = new Date().toISOString();
+                    localStorage.setItem('savedDeepseekConversations', JSON.stringify(saved));
+                }
+            } catch (e) {
+                console.error('同步到已保存会话失败：', e);
+            }
+        }
+
         function saveConversation() {
             localStorage.setItem('deepseekConversation', JSON.stringify(currentConversation));
             // 实时保存为草稿到已保存会话中，方便随时加载历史会话（id: 'autosave'）
@@ -222,7 +240,10 @@
                             (async () => {
                                 const apiKey2 = localStorage.getItem('deepseekApiKey');
                                 if (!apiKey2) return;
-                                const systemPrompt = `你是一个摘要助手。任务：请对下面的对话内容进行摘要。\n要求：\n- 输出要点列表（每行一个短句），最多6条；\n- 每条不超过40字，整体不超过200字；\n- 保留关键事实、请求、结论与下一步建议，删除寒暄和重复信息。\n内容：`;
+                                if (!window.PROMPTS || !window.PROMPTS.SESSION_SUMMARY) {
+                                    throw new Error('PROMPTS.SESSION_SUMMARY 未找到，无法生成会话摘要，请确保 prompts.js 已加载且包含 SESSION_SUMMARY');
+                                }
+                                const systemPrompt = window.PROMPTS.SESSION_SUMMARY;
                                 const userContent = currentConversation.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
                                 try {
                                     const resp2 = await fetch(window.DEEPSEEK_API_URL || 'https://api.deepseek.com/v1/chat/completions', {
@@ -243,6 +264,8 @@
                                                 saved2[idx2].summary = summaryText;
                                                 saved2[idx2].updatedAt = new Date().toISOString();
                                                 localStorage.setItem('savedDeepseekConversations', JSON.stringify(saved2));
+                                // 确保摘要基于该会话的完整历史消息，而不是仅仅最近的几条
+                                console.log('为已保存会话更新摘要，消息数：', saved2[idx2].messages ? saved2[idx2].messages.length : 0);
                                             }
                                         }
                                     }

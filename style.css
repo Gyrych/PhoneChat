@@ -284,6 +284,158 @@ body {
     gap: 12px;
 }
 
+/* 科技感增强样式 */
+.conversation-group summary {
+    cursor: pointer;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: linear-gradient(90deg, rgba(0,122,255,0.06), rgba(88,86,214,0.04));
+    color: #0b3d91;
+    font-weight: 600;
+}
+
+.conversation-group[open] summary {
+    background: linear-gradient(90deg, rgba(0,122,255,0.1), rgba(88,86,214,0.06));
+    box-shadow: 0 4px 16px rgba(13,71,161,0.06);
+}
+
+.conversation-group {
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid rgba(13,71,161,0.06);
+}
+
+.group-list {
+    padding: 10px 12px 18px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.8), rgba(245,248,255,0.6));
+}
+
+/* 分组创建控件美化 */
+.group-controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin: 12px 0;
+}
+
+#newGroupName {
+    flex: 1;
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: 1px solid rgba(13,71,161,0.08);
+    background: linear-gradient(180deg, #ffffff, #fbfdff);
+    box-shadow: 0 4px 12px rgba(6,34,84,0.03) inset;
+    outline: none;
+    font-size: 0.95rem;
+}
+
+#newGroupName:focus {
+    border-color: rgba(13,71,161,0.22);
+    box-shadow: 0 6px 18px rgba(13,71,161,0.06);
+}
+
+#createGroupBtn {
+    background: linear-gradient(90deg,#2f6fe4,#5b8cff);
+    color: white;
+    border: none;
+    padding: 10px 14px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: 600;
+    box-shadow: 0 8px 20px rgba(47,111,228,0.12);
+    transition: transform 0.12s ease, box-shadow 0.12s;
+}
+
+#createGroupBtn:hover { transform: translateY(-2px); box-shadow: 0 14px 30px rgba(47,111,228,0.16); }
+
+.conversation-item {
+    background: linear-gradient(90deg, #ffffff, #fbfdff);
+    border-radius: 12px;
+    padding: 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 6px 18px rgba(6,34,84,0.04);
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.conversation-item:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 28px rgba(6,34,84,0.08);
+}
+
+.conversation-name { color: #082a8a; font-weight: 700; }
+.conversation-time { color: #4b5563; }
+
+.conversation-actions button { border-radius: 8px; padding: 8px 10px; }
+
+.toggle-summary-btn, .view-memory-btn {
+    background: rgba(13,71,161,0.06);
+    border: 1px solid rgba(13,71,161,0.12);
+    color: #08327a;
+    padding: 6px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.85rem;
+}
+
+/* 分组操作图标按钮美化 */
+.group-rename-btn, .group-delete-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    border: 1px solid rgba(13,71,161,0.12);
+    background: white;
+    color: #08327a;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(6,34,84,0.04);
+    transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s;
+}
+
+/* 分组重新摘要按钮 */
+.group-regen-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    border: 1px solid rgba(13,71,161,0.12);
+    background: white;
+    color: #08327a;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(6,34,84,0.04);
+    transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s;
+}
+.group-regen-btn:hover { transform: translateY(-2px); background: linear-gradient(90deg,#f0f7ff,#f7f9ff); }
+
+.group-rename-btn:hover { transform: translateY(-2px); background: linear-gradient(90deg,#f0f7ff,#f7f9ff); }
+.group-delete-btn { border-color: rgba(255,107,107,0.2); color: #c0392b; }
+.group-delete-btn:hover { transform: translateY(-2px); background: linear-gradient(90deg,#fff5f6,#fff7f8); }
+
+.conversation-summary-content, .group-memory {
+    background: linear-gradient(90deg, rgba(240,248,255,0.6), rgba(250,250,255,0.8));
+    border-radius: 8px;
+    padding: 10px;
+    color: #122244;
+    border: 1px solid rgba(13,71,161,0.04);
+}
+
+/* 优化按钮图标样式 */
+.load-btn, .delete-conv-btn { padding: 8px 12px; border-radius: 8px; }
+.load-btn { background: linear-gradient(90deg, #e6f0ff, #f0f7ff); border-color: #2f6fe4; }
+.delete-conv-btn { background: linear-gradient(90deg, #fff5f6, #fff7f8); border-color: #ff6b6b; }
+
 .conversation-item {
     background-color: white;
     border-radius: 10px;
@@ -394,7 +546,7 @@ body {
     .message {
         max-width: 90%;
     }
-    
+
     .conversation-actions {
         flex-direction: column;
     }

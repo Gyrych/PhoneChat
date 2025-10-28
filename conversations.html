@@ -6,6 +6,7 @@
     <title>会话管理 - DeepSeek 对话</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="prompts.js"></script>
 </head>
 <body>
     <header class="header">
@@ -81,14 +82,14 @@
             const currentConversation = localStorage.getItem('deepseekConversation');
             if (!currentConversation) return;
 
-            let savedConversations = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
+                let savedConversations = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
 
-            // 生成唯一ID
-            const conversationId = Date.now().toString();
+                // 生成唯一ID
+                const conversationId = Date.now().toString();
 
             const conversationObj = {
-                id: conversationId,
-                name: name,
+                    id: conversationId,
+                    name: name,
                 messages: JSON.parse(currentConversation),
                 summary: null,
                 groupId: localStorage.getItem('deepseekConversationGroupId') || null,
@@ -104,9 +105,19 @@
                 const apiKey = localStorage.getItem('deepseekApiKey');
                     if (apiKey) {
                     // 使用更明确的摘要提示词，让模型以要点形式返回摘要
-                    const systemPrompt = `你是一个摘要助手。任务：请对下面的对话内容进行摘要。\n要求：\n- 输出要点列表（每行一个短句），最多6条；\n- 每条不超过40字，整体不超过200字；\n- 保留关键事实、请求、结论与下一步建议，删除寒暄和重复信息。\n内容：`;
+                    if (!window.PROMPTS || !window.PROMPTS.SESSION_SUMMARY) {
+                        throw new Error('PROMPTS.SESSION_SUMMARY 未找到，无法生成会话摘要，请确保 prompts.js 已加载且包含 SESSION_SUMMARY');
+                    }
+                    const systemPrompt = window.PROMPTS.SESSION_SUMMARY;
 
-                    const userContent = conversationObj.messages.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
+                    // 使用已保存的完整消息数组作为摘要输入，防止只提交最近一条消息
+                    let savedForSummary = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
+                    const savedIdxForThis = savedForSummary.findIndex(c => c.id === conversationId);
+                    const messagesForSummary = (savedIdxForThis !== -1 && savedForSummary[savedIdxForThis].messages && savedForSummary[savedIdxForThis].messages.length > 0)
+                        ? savedForSummary[savedIdxForThis].messages
+                        : conversationObj.messages;
+                    console.log('生成会话摘要，消息条数：', messagesForSummary.length);
+                    const userContent = messagesForSummary.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
 
                     const resp = await fetch(window.DEEPSEEK_API_URL || 'https://api.deepseek.com/v1/chat/completions', {
                         method: 'POST',
@@ -165,7 +176,8 @@
                 // 添加重命名与删除按钮到分组标题
                 const renameBtn = document.createElement('button');
                 renameBtn.className = 'group-rename-btn';
-                renameBtn.textContent = '重命名';
+                renameBtn.innerHTML = '<i class="fas fa-edit"></i>';
+                renameBtn.title = '重命名分组';
                 renameBtn.style.marginLeft = '8px';
                 renameBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
@@ -184,8 +196,9 @@
 
                 const delBtn = document.createElement('button');
                 delBtn.className = 'group-delete-btn';
-                delBtn.textContent = '删除';
-                delBtn.style.marginLeft = '4px';
+                delBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
+                delBtn.title = '删除分组';
+                delBtn.style.marginLeft = '8px';
                 delBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     if (!confirm('删除分组将把该分组下的会话移动到未分组，确定删除？')) return;
@@ -227,6 +240,26 @@
                 summary.appendChild(renameBtn);
                 summary.appendChild(delBtn);
                 summary.appendChild(viewMemoryBtn);
+                // 分组重新摘要按钮
+                const regenGroupBtn = document.createElement('button');
+                regenGroupBtn.className = 'group-regen-btn';
+                regenGroupBtn.innerHTML = '<i class="fas fa-sync-alt"></i>';
+                regenGroupBtn.title = '重新生成分组记忆';
+                regenGroupBtn.style.marginLeft = '8px';
+                regenGroupBtn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    if (!confirm('确定要为该分组重新生成分组记忆吗？可能产生API调用费用。')) return;
+                    try {
+                        await updateGroupMemory(group.id);
+                        // updateGroupMemory 内会保存 memorySummary
+                        renderConversationsList();
+                        alert('分组记忆已更新');
+                    } catch (err) {
+                        console.error('重新生成分组记忆失败：', err);
+                        alert('重新生成分组记忆失败，请检查控制台');
+                    }
+                });
+                summary.appendChild(regenGroupBtn);
                 groupDetails.appendChild(summary);
                 // 在 summary 后插入分组记忆展示区
                 groupDetails.appendChild(memoryDiv);
@@ -248,16 +281,34 @@
                         <div class="conversation-info">
                             <h3 class="conversation-name">${conversation.name}</h3>
                             <p class="conversation-time">${formattedTime}</p>
-                            <p class="conversation-summary">${conversation.summary ? conversation.summary : '<i class="small-muted">摘要生成中或不存在</i>'}</p>
+                            <button class="toggle-summary-btn">查看会话摘要</button>
+                            <div class="conversation-summary-content" style="display:none; margin-top:6px;">${conversation.summary ? conversation.summary : '<i class="small-muted">摘要生成中或不存在</i>'}</div>
                         </div>
                         <div class="conversation-actions">
                             <button class="load-btn" data-id="${conversation.id}"><i class="fas fa-download"></i> 加载</button>
+                            <button class="regenerate-summary-btn" data-id="${conversation.id}" title="重新生成会话摘要">🔁</button>
                             <button class="rename-conv-btn" data-id="${conversation.id}"><i class="fas fa-edit"></i></button>
                             <button class="move-conv-btn" data-id="${conversation.id}"><i class="fas fa-folder-open"></i></button>
                             <button class="delete-conv-btn" data-id="${conversation.id}"><i class="fas fa-trash"></i></button>
                         </div>
                     `;
                     list.appendChild(item);
+
+                    // 绑定摘要显示切换
+                    const toggleBtn = item.querySelector('.toggle-summary-btn');
+                    const summaryDiv = item.querySelector('.conversation-summary-content');
+                    if (toggleBtn && summaryDiv) {
+                        toggleBtn.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            if (summaryDiv.style.display === 'none') {
+                                summaryDiv.style.display = 'block';
+                                toggleBtn.textContent = '隐藏会话摘要';
+                            } else {
+                                summaryDiv.style.display = 'none';
+                                toggleBtn.textContent = '查看会话摘要';
+                            }
+                        });
+                    }
                 });
 
                 groupDetails.appendChild(list);
@@ -282,19 +333,35 @@
                 const date = new Date(conversation.updatedAt || conversation.timestamp);
                 const formattedTime = `${date.getMonth() + 1}月${date.getDate()}日 ${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')}`;
                 item.innerHTML = `
-                    <div class="conversation-info">
-                        <h3 class="conversation-name">${conversation.name}</h3>
-                        <p class="conversation-time">${formattedTime}</p>
-                        <p class="conversation-summary">${conversation.summary ? conversation.summary : '<i class="small-muted">摘要生成中或不存在</i>'}</p>
-                    </div>
-                    <div class="conversation-actions">
+                        <div class="conversation-info">
+                            <h3 class="conversation-name">${conversation.name}</h3>
+                            <p class="conversation-time">${formattedTime}</p>
+                        <button class="toggle-summary-btn">查看会话摘要</button>
+                        <div class="conversation-summary-content" style="display:none; margin-top:6px;">${conversation.summary ? conversation.summary : '<i class="small-muted">摘要生成中或不存在</i>'}</div>
+                        </div>
+                        <div class="conversation-actions">
                         <button class="load-btn" data-id="${conversation.id}"><i class="fas fa-download"></i> 加载</button>
                         <button class="rename-conv-btn" data-id="${conversation.id}"><i class="fas fa-edit"></i></button>
                         <button class="move-conv-btn" data-id="${conversation.id}"><i class="fas fa-folder-open"></i></button>
                         <button class="delete-conv-btn" data-id="${conversation.id}"><i class="fas fa-trash"></i></button>
-                    </div>
-                `;
+                        </div>
+                    `;
                 ungroupList.appendChild(item);
+
+                const toggleBtn = item.querySelector('.toggle-summary-btn');
+                const summaryDiv = item.querySelector('.conversation-summary-content');
+                if (toggleBtn && summaryDiv) {
+                    toggleBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        if (summaryDiv.style.display === 'none') {
+                            summaryDiv.style.display = 'block';
+                            toggleBtn.textContent = '隐藏会话摘要';
+                        } else {
+                            summaryDiv.style.display = 'none';
+                            toggleBtn.textContent = '查看会话摘要';
+                        }
+                    });
+                }
             });
 
             ungroupDetails.appendChild(ungroupList);
@@ -360,6 +427,48 @@
                     }
                 });
             });
+
+            // 重新摘要会话按钮
+            conversationsList.querySelectorAll('.regenerate-summary-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const conversationId = e.currentTarget.getAttribute('data-id');
+                    if (!confirm('确定要为该会话重新生成摘要吗？可能产生API调用费用。')) return;
+                    try {
+                        const saved = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
+                        const conv = saved.find(c => c.id === conversationId);
+                        if (!conv) return alert('未找到该会话');
+                        const apiKey = localStorage.getItem('deepseekApiKey');
+                        if (!apiKey) return alert('请先在设置中配置API Key');
+
+                        if (!window.PROMPTS || !window.PROMPTS.SESSION_SUMMARY) {
+                            throw new Error('PROMPTS.SESSION_SUMMARY 未找到，无法生成会话摘要，请确保 prompts.js 已加载且包含 SESSION_SUMMARY');
+                        }
+                        const systemPrompt = window.PROMPTS.SESSION_SUMMARY;
+                        const userContent = (conv.messages || conv.content || []).map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
+                        const resp = await fetch(window.DEEPSEEK_API_URL || 'https://api.deepseek.com/v1/chat/completions', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+                            body: JSON.stringify({ model: 'deepseek-chat', messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userContent }], temperature: 0.2 })
+                        });
+                        if (!resp.ok) throw new Error('API请求失败');
+                        const data = await resp.json();
+                        const summaryText = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content ? data.choices[0].message.content : null;
+                        if (summaryText) {
+                            const idx = saved.findIndex(c => c.id === conversationId);
+                            if (idx !== -1) {
+                                saved[idx].summary = summaryText;
+                                saved[idx].updatedAt = new Date().toISOString();
+                                localStorage.setItem('savedDeepseekConversations', JSON.stringify(saved));
+                                renderConversationsList();
+                            }
+                        }
+                    } catch (err) {
+                        console.error('重新生成摘要失败：', err);
+                        alert('重新生成摘要失败，请查看控制台错误');
+                    }
+                });
+            });
         }
 
         // 更新分组记忆（聚合该分组下所有会话的 summary 并向DeepSeek请求二次摘要）
@@ -372,7 +481,10 @@
                 const apiKey = localStorage.getItem('deepseekApiKey');
                 if (!apiKey) return;
 
-                const systemPrompt = `你是一个记忆聚合助手。任务：将以下多条会话摘要合成为该分组的“分组记忆”。\n要求：\n- 提取跨会话的核心主题与长期约束（如偏好、常见问题、重要事实）；\n- 输出 5-8 条要点，每条不超 50 字；\n- 标注任何需要关注的未解决问题或待跟进项。\n内容：`;
+                if (!window.PROMPTS || !window.PROMPTS.GROUP_SUMMARY) {
+                    throw new Error('PROMPTS.GROUP_SUMMARY 未找到，无法生成分组记忆，请确保 prompts.js 已加载且包含 GROUP_SUMMARY');
+                }
+                const systemPrompt = window.PROMPTS.GROUP_SUMMARY;
 
                 const resp = await fetch(window.DEEPSEEK_API_URL || 'https://api.deepseek.com/v1/chat/completions', {
                     method: 'POST',
