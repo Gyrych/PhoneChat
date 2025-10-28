@@ -3,13 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>DeepSeek 对话</title>
+    <title>PhoneChat</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="prompts.js"></script>
     <!-- 引入 marked (Markdown 渲染) 与 DOMPurify (防 XSS) -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@2.4.0/dist/purify.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
 </head>
 <body>
     <!-- 顶部导航栏 -->
@@ -17,7 +18,7 @@
         <button id="conversationsBtn" class="conversations-btn">
             <i class="fas fa-history"></i>
         </button>
-        <h1>DeepSeek 对话</h1>
+        <h1>PhoneChat</h1>
         <button id="settingsBtn" class="settings-btn">
             <i class="fas fa-cog"></i>
         </button>
@@ -58,7 +59,33 @@
         let currentConversation = [];
         // 当前会话所属分组ID（可为 null）
         let currentConversationGroupId = null;
-        const DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions";
+        // 使用 OpenRouter 替换原 DeepSeek 官方接口
+        // 使用 OpenRouter 的 API 域名（恢复为 openrouter.ai）
+        window.DEEPSEEK_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
+        // 默认模型：优先使用用户在设置页面配置的模型，否则回退到 minimax
+        const MODEL_NAME = localStorage.getItem('chatModel') || 'minimax/minimax-m2:free';
+        // 暴露为全局，供其他页面（conversations.html）使用
+        window.MODEL_NAME = MODEL_NAME;
+
+        // 前端本地加密存储（仅用于混淆）。注意：前端加密不能替代后端密钥管理。
+        // 我已将你提供的 Key 加密生成密文，并将密文嵌入到下方（已移除任何明文）。
+        const LOCAL_PASSPHRASE = 'local_obfuscation_passphrase_2025';
+        // 加密后的 API Key（由用户提供的密文）
+        const ENCRYPTED_OPENROUTER_KEY = 'U2FsdGVkX18PSVwBhdx/XQSmTwr5UimvbPYKhcmoMNXytQwT4HgYIMh2Hl/BxCv/0zYPUjEzfprco76j74BEMQIjYwM5iIkP7VMSS1vKYLqbhNjbCqP369SdZlcmikUg';
+
+        function decryptApiKey(encryptedBase64, passphrase) {
+            try {
+                const bytes = CryptoJS.AES.decrypt(encryptedBase64, passphrase);
+                return bytes.toString(CryptoJS.enc.Utf8);
+            } catch (e) {
+                console.error('解密 API Key 失败：', e);
+                return null;
+            }
+        }
+
+        const OPENROUTER_API_KEY = decryptApiKey(ENCRYPTED_OPENROUTER_KEY, LOCAL_PASSPHRASE);
+        // 将解密后的 key 暴露到 window 以便其他页面使用（如 conversations.html）
+        window.OPENROUTER_API_KEY = OPENROUTER_API_KEY;
         const messageContainer = document.getElementById('messageContainer');
         const messageInput = document.getElementById('messageInput');
         const sendBtn = document.getElementById('sendBtn');
@@ -218,10 +245,11 @@
                 console.log('messageText length:', messageText.length);
                 if (!messageText) return;
 
-                const apiKey = localStorage.getItem('deepseekApiKey');
-                console.log('apiKey present:', !!apiKey);
+                // 使用内置解密后的 OpenRouter Key（不再从设置读取 API Key）
+                const apiKey = OPENROUTER_API_KEY;
+                console.log('using built-in OPENROUTER_API_KEY present:', !!apiKey);
                 if (!apiKey) {
-                    showStatus('请先在设置中配置API Key');
+                    showStatus('内置 API Key 未配置，无法发送请求');
                     return;
                 }
 
@@ -253,7 +281,7 @@
                             localStorage.setItem('savedDeepseekConversations', JSON.stringify(saved));
                             // 触发对该会话的摘要更新（异步）
                             (async () => {
-                                const apiKey2 = localStorage.getItem('deepseekApiKey');
+                                const apiKey2 = OPENROUTER_API_KEY;
                                 if (!apiKey2) return;
                                 if (!window.PROMPTS || !window.PROMPTS.SESSION_SUMMARY) {
                                     throw new Error('PROMPTS.SESSION_SUMMARY 未找到，无法生成会话摘要，请确保 prompts.js 已加载且包含 SESSION_SUMMARY');
@@ -318,25 +346,49 @@
                 ];
 
                 const requestBody = {
-                    model: "deepseek-chat",
-                    messages: systemMemoryMessage ? [systemMemoryMessage, ...messagesPayload] : messagesPayload
+                    model: MODEL_NAME,
+                    messages: systemMemoryMessage ? [systemMemoryMessage, ...messagesPayload] : messagesPayload,
+                    temperature: 0.7,
+                    max_tokens: 1000
                 };
+
+                // 构建 headers，避免将非 ASCII 字符放入 header 值（某些浏览器/实现对 headers 值有编码限制）
+                const headers = {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                };
+                // 可选头：仅在值全为 ASCII 时附加
+                function isAscii(s) { return /^[\x00-\x7F]*$/.test(s || ''); }
+                try {
+                    const ref = document.location && document.location.origin ? String(document.location.origin) : '';
+                    if (isAscii(ref)) headers['HTTP-Referer'] = ref;
+                } catch (e) { /* ignore */ }
+                try {
+                    const t = document.title ? String(document.title) : '';
+                    if (isAscii(t)) headers['X-Title'] = t;
+                } catch (e) { /* ignore */ }
 
                 const response = await fetch(DEEPSEEK_API_URL, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${apiKey}`
-                    },
+                    headers,
                     body: JSON.stringify(requestBody)
                 });
 
                 if (!response.ok) {
-                    throw new Error(`API请求失败: ${response.statusText}`);
+                    // 尝试读取响应体以便调试（OpenRouter 会返回 JSON 错误信息）
+                    let errText = '';
+                    try { errText = await response.text(); } catch (e) { errText = '<无法读取响应体>'; }
+                    console.error('API 请求失败，status=', response.status, 'body=', errText);
+                    throw new Error(`API请求失败: ${response.status} ${response.statusText} ${errText}`);
                 }
 
                 const data = await response.json();
-                return data.choices[0].message.content;
+                // 兼容性保护：检查 choices 路径
+                if (data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) {
+                    return data.choices[0].message.content;
+                }
+                // 备用：若返回格式不同，尝试安全地返回字符串化的主体
+                return JSON.stringify(data);
             } catch (error) {
                 console.error('获取AI响应失败:', error);
                 throw error;

@@ -4,7 +4,7 @@ PhoneChat 是一个轻量级的本地 Web 聊天应用，允许用户通过外�
 
 ## 功能
 
-- 通过配置的外部 API 接口（`DEEPSEEK_API_URL`）发送和接收消息。
+- 通过配置的外部 API 接口（`DEEPSEEK_API_URL`）发送和接收消息。默认已切换为 OpenRouter (`https://openrouter.ai/api/v1/chat/completions`)，使用模型 `deepseek/deepseek-chat-v3.1:free`。
 - 将当前会话持久化到 `localStorage`。
 - 保存、加载和删除命名会话。
 - 复制和删除单条消息。
@@ -20,7 +20,11 @@ PhoneChat 是一个轻量级的本地 Web 聊天应用，允许用户通过外�
 
 ## 配置
 
-- 打开 `config.html` 并粘贴你的 DeepSeek API Key，然后点击 “保存设置”。该 Key 将以 `deepseekApiKey` 的键名保存在浏览器的 `localStorage` 中。
+- 打开 `config.html` 并粘贴你的 DeepSeek/OpenRouter API Key，然后点击 “保存设置”。该 Key 将以 `deepseekApiKey` 的键名保存在浏览器的 `localStorage` 中。
+
+- 默认项目已内置一个 OpenRouter Key 的混淆存储，会在没有用户自定义 Key 时作为回退使用（为测试与演示目的）。生产环境请务必使用后端安全存储。
+ - 默认项目已内置一个 OpenRouter Key 的混淆存储，会在没有用户自定义 Key 时作为回退使用（为测试与演示目的）。生产环境请务必使用后端安全存储。
+ - 当前默认调用模型已改为 `minimax/minimax-m2:free`（用户要求）。
 
 ## 使用说明
 

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>设置 - DeepSeek 对话</title>
+    <title>设置 - PhoneChat</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -17,8 +17,8 @@
 
     <main class="config-container">
         <div class="config-item">
-            <label for="apiKeyInput" class="config-label">DeepSeek API Key</label>
-            <input type="password" id="apiKeyInput" class="config-input" placeholder="请输入API Key">
+            <label for="modelInput" class="config-label">模型名称（例如 minimax/minimax-m2:free）</label>
+            <input type="text" id="modelInput" class="config-input" placeholder="请输入模型名称">
         </div>
         <button id="saveConfigBtn" class="save-btn">保存设置</button>
         <div id="saveMessage" class="save-message"></div>
@@ -32,20 +32,20 @@
 
         // 页面加载时获取保存的API Key
         document.addEventListener('DOMContentLoaded', () => {
-            const savedApiKey = localStorage.getItem('deepseekApiKey');
-            if (savedApiKey) {
-                document.getElementById('apiKeyInput').value = savedApiKey;
+            const savedModel = localStorage.getItem('chatModel');
+            if (savedModel) {
+                document.getElementById('modelInput').value = savedModel;
             }
 
             // 保存按钮事件
             document.getElementById('saveConfigBtn').addEventListener('click', () => {
-                const apiKey = document.getElementById('apiKeyInput').value.trim();
-                if (apiKey) {
-                    localStorage.setItem('deepseekApiKey', apiKey);
+                const modelName = document.getElementById('modelInput').value.trim();
+                if (modelName) {
+                    localStorage.setItem('chatModel', modelName);
                     const saveMessage = document.getElementById('saveMessage');
                     saveMessage.textContent = '保存成功！';
                     saveMessage.classList.add('success');
-                    
+
                     // 2秒后隐藏提示消息
                     setTimeout(() => {
                         saveMessage.textContent = '';

@@ -52,6 +52,9 @@ PhoneChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 U
 - API Key 安全：当前实现将密钥以明文形式保存在 `localStorage`，不适合生产环境。建议使用后端代理或浏览器安全存储策略。
 - 错误处理：对网络或 API 错误的提示有限，建议增强错误反馈与重试机制。
 - CORS：运行时可能遇到跨域问题，依赖外部 API 的 CORS 配置。
+ - 已迁移到 OpenRouter：项目已将默认请求端点从 DeepSeek 官方替换为 OpenRouter (`https://openrouter.ai/api/v1/chat/completions`) 并使用模型 `deepseek/deepseek-chat-v3.1:free`（密钥以前端 AES 混淆存储，生产环境建议后端代理）。
+ - 已迁移到 OpenRouter：项目已将默认请求端点从 DeepSeek 官方替换为 OpenRouter (`https://api.openrouter.ai/v1/chat/completions`) 并使用模型 `deepseek/deepseek-chat-v3.1:free`（密钥以前端 AES 混淆存储，生产环境建议后端代理）。
+ - 已迁移到 OpenRouter：项目已将默认请求端点从 DeepSeek 官方替换为 OpenRouter (`https://api.openrouter.ai/v1/chat/completions`) 并使用模型 `minimax/minimax-m2:free`（密钥以前端 AES 混淆存储，生产环境建议后端代理）。
 
 ---
 

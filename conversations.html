@@ -102,7 +102,7 @@
 
             // 异步调用 DeepSeek 生成会话摘要并保存（失败不影响主流程）
             try {
-                const apiKey = localStorage.getItem('deepseekApiKey');
+                const apiKey = localStorage.getItem('deepseekApiKey') || (window.OPENROUTER_API_KEY ? window.OPENROUTER_API_KEY : null);
                     if (apiKey) {
                     // 使用更明确的摘要提示词，让模型以要点形式返回摘要
                     if (!window.PROMPTS || !window.PROMPTS.SESSION_SUMMARY) {
@@ -119,13 +119,15 @@
                     console.log('生成会话摘要，消息条数：', messagesForSummary.length);
                     const userContent = messagesForSummary.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
 
+                    // 使用全局 MODEL_NAME（与主聊天保持一致）
+                    const modelToUse = window.MODEL_NAME || 'minimax/minimax-m2:free';
                     const resp = await fetch(window.DEEPSEEK_API_URL || 'https://api.deepseek.com/v1/chat/completions', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
                             'Authorization': `Bearer ${apiKey}`
                         },
-                        body: JSON.stringify({ model: 'deepseek-chat', messages: [ { role: 'system', content: systemPrompt }, { role: 'user', content: userContent } ], temperature: 0.2 })
+                        body: JSON.stringify({ model: modelToUse, messages: [ { role: 'system', content: systemPrompt }, { role: 'user', content: userContent } ], temperature: 0.2 })
                     });
 
                     if (resp.ok) {
@@ -438,8 +440,9 @@
                         const saved = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
                         const conv = saved.find(c => c.id === conversationId);
                         if (!conv) return alert('未找到该会话');
-                        const apiKey = localStorage.getItem('deepseekApiKey');
-                        if (!apiKey) return alert('请先在设置中配置API Key');
+                        // 摘要调用使用全局 OPENROUTER_API_KEY（不再依赖用户在设置中输入 Key）
+                        const apiKey = window.OPENROUTER_API_KEY || localStorage.getItem('deepseekApiKey');
+                        if (!apiKey) return alert('未配置可用的 OpenRouter API Key');
 
                         if (!window.PROMPTS || !window.PROMPTS.SESSION_SUMMARY) {
                             throw new Error('PROMPTS.SESSION_SUMMARY 未找到，无法生成会话摘要，请确保 prompts.js 已加载且包含 SESSION_SUMMARY');
