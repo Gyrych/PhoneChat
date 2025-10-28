@@ -7,6 +7,9 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="prompts.js"></script>
+    <!-- 引入 marked (Markdown 渲染) 与 DOMPurify (防 XSS) -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@2.4.0/dist/purify.min.js"></script>
 </head>
 <body>
     <!-- 顶部导航栏 -->
@@ -162,7 +165,19 @@
             currentConversation.forEach((message, index) => {
                 const messageElement = document.createElement('div');
                 messageElement.className = `message ${message.role === 'user' ? 'user-message' : 'ai-message'}`;
-                messageElement.textContent = message.content;
+                // 如果是 AI 回复内容，优先渲染 Markdown 并进行安全过滤；否则作为纯文本
+                if (message.role === 'assistant') {
+                    try {
+                        const rawHtml = marked.parse(message.content || '');
+                        const cleanHtml = DOMPurify.sanitize(rawHtml);
+                        messageElement.innerHTML = cleanHtml;
+                    } catch (e) {
+                        console.error('Markdown 渲染失败，退回纯文本显示：', e);
+                        messageElement.textContent = message.content;
+                    }
+                } else {
+                    messageElement.textContent = message.content;
+                }
 
                 // 添加消息操作按钮
                 const actionsDiv = document.createElement('div');

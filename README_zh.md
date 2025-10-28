@@ -36,6 +36,7 @@ PhoneChat 是一个轻量级的本地 Web 聊天应用，允许用户通过外�
  - `conversations.html` — 会话管理页面（保存/加载/删除），支持分组管理、查看会话摘要与分组记忆。
 - `style.css` — 应用样式。
 - `script.js` — 用于导航按钮的小脚本。
+ - `index.html` — 现在将 AI 助手的回复以 Markdown 渲染（使用 `marked`），并用 `DOMPurify` 进行安全过滤以防 XSS。
 
 ## 安全提示
 

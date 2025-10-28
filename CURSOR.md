@@ -65,5 +65,10 @@ PhoneChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 U
    - 在 `script.js` 添加 `storageGetJson` / `storageSetJson` 本地存储工具函数。
    - 在 `conversations.html` 添加分组创建 UI 与逻辑，分组信息保存在 `localStorage` 的 `conversationGroups` 键下。
    - 在 `conversations.html` 与 `index.html` 中实现了分组关联逻辑（保存会话时记录 groupId、在新会话时清理 groupId）。
-   - 更新 TODO 状态：实现了实时保存扩展、摘要生成、分组 UI 的部分功能，正在完成分组记忆注入与文档同步。
+  - 更新 TODO 状态：实现了实时保存扩展、摘要生成、分组 UI 的部分功能，正在完成分组记忆注入与文档同步。
 
+- 2025-10-28: 在 `index.html` 中加入 Markdown 渲染支持：
+  - 在页面头部引入 `marked` 和 `DOMPurify` 用于将 AI 回复渲染为安全的 HTML。
+  - 修改 `renderMessages`：当消息角色为 `assistant` 时，使用 `marked.parse` 转换 Markdown，再用 `DOMPurify.sanitize` 清理，降级到纯文本显示以防渲染失败。
+  - 目的：让 AI 回复可渲染 Markdown（例如代码块、有序列表、强调等）同时防止 XSS 攻击。
+  - 注意：README 文件是否需要同步更新留待确认。

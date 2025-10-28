@@ -36,6 +36,7 @@ PhoneChat is a lightweight local web-based chat application that lets users send
  - `conversations.html` — Conversation manager (save/load/delete), manage groups, view summaries and group memories.
 - `style.css` — Styling for the application.
 - `script.js` — Small script for navigation buttons.
+ - `index.html` — Now renders AI assistant replies as Markdown using `marked` and sanitizes with `DOMPurify` for safety.
 
 ## Security Notes
 
