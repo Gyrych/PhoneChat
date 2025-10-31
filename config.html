@@ -17,8 +17,19 @@
 
     <main class="config-container">
         <div class="config-item">
-            <label for="modelInput" class="config-label">模型名称（例如 minimax/minimax-m2:free）</label>
-            <input type="text" id="modelInput" class="config-input" placeholder="请输入模型名称">
+            <label for="modelSelect" class="config-label">选择模型</label>
+            <select id="modelSelect" class="config-input">
+                <option value="">请选择模型</option>
+                <option value="minimax/minimax-m2:free">minimax/minimax-m2:free</option>
+                <option value="deepseek/deepseek-chat-v3.1:free">deepseek/deepseek-chat-v3.1:free</option>
+                <option value="deepseek/deepseek-chat-v3-0324:free">deepseek/deepseek-chat-v3-0324:free</option>
+                <option value="deepseek/deepseek-r1-0528:free">deepseek/deepseek-r1-0528:free</option>
+                <option value="deepseek/deepseek-r1:free">deepseek/deepseek-r1:free</option>
+                <option value="z-ai/glm-4.5-air:free">z-ai/glm-4.5-air:free</option>
+                <option value="moonshotai/kimi-k2:free">moonshotai/kimi-k2:free</option>
+                <option value="qwen/qwen3-coder:free">qwen/qwen3-coder:free</option>
+                <option value="qwen/qwen3-235b-a22b:free">qwen/qwen3-235b-a22b:free</option>
+            </select>
         </div>
         <button id="saveConfigBtn" class="save-btn">保存设置</button>
         <div id="saveMessage" class="save-message"></div>
@@ -30,16 +41,16 @@
             window.location.assign('index.html');
         });
 
-        // 页面加载时获取保存的API Key
+        // 页面加载时获取保存的模型名称
         document.addEventListener('DOMContentLoaded', () => {
             const savedModel = localStorage.getItem('chatModel');
             if (savedModel) {
-                document.getElementById('modelInput').value = savedModel;
+                document.getElementById('modelSelect').value = savedModel;
             }
 
             // 保存按钮事件
             document.getElementById('saveConfigBtn').addEventListener('click', () => {
-                const modelName = document.getElementById('modelInput').value.trim();
+                const modelName = document.getElementById('modelSelect').value;
                 if (modelName) {
                     localStorage.setItem('chatModel', modelName);
                     const saveMessage = document.getElementById('saveMessage');
