@@ -7,40 +7,36 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="prompts.js"></script>
-    <!-- 引入 marked (Markdown 渲染) 与 DOMPurify (防 XSS) -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@2.4.0/dist/purify.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
     <style>
-      /* 我在页面内加入极少量样式以支持悬浮停止按钮而不改你外部样式文件结构 */
-      .input-container { position: relative; } /* 使 stop 按钮可绝对定位在 footer 内 */
-      .stop-btn-floating {
-        position: absolute;
-        right: 86px; /* 留出发送按钮空间（发送按钮宽度约为 56-70）——如需微调可改这里 */
-        top: 50%;
-        transform: translateY(-50%);
-        width: 36px;
-        height: 36px;
-        border-radius: 50%;
-        border: none;
-        background: #e74c3c;
-        color: #fff;
-        display: none; /* 默认隐藏，生成时显示 */
-        align-items: center;
-        justify-content: center;
-        z-index: 999;
-        cursor: pointer;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-        padding: 0;
-      }
-      .stop-btn-floating:active { transform: translateY(-50%) scale(0.96); }
-      .stop-btn-floating .fa-stop { font-size: 14px; }
-      /* 防止 stop 按钮误触导致滚动中断或 swipe 触发 */
-      .stop-btn-floating { touch-action: manipulation; -webkit-user-select: none; user-select: none; }
+        .input-container { position: relative; }
+        .stop-btn-floating {
+            position: absolute;
+            right: 86px; 
+            top: 50%;
+            transform: translateY(-50%);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: none;
+            background: #e74c3c;
+            color: #fff;
+            display: none; 
+            align-items: center;
+            justify-content: center;
+            z-index: 999;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+            padding: 0;
+        }
+        .stop-btn-floating:active { transform: translateY(-50%) scale(0.96); }
+        .stop-btn-floating .fa-stop { font-size: 14px; }
+        .stop-btn-floating { touch-action: manipulation; -webkit-user-select: none; user-select: none; }
     </style>
 </head>
 <body>
-    <!-- 顶部导航栏 -->
     <header class="header">
         <button id="conversationsBtn" class="conversations-btn">
             <i class="fas fa-history"></i>
@@ -51,13 +47,11 @@
         </button>
     </header>
 
-    <!-- 聊天内容区域 -->
     <main class="chat-container">
         <div id="messageContainer" class="message-container"></div>
         <div id="statusIndicator" class="status-indicator"></div>
     </main>
 
-    <!-- 输入区域 -->
     <footer class="input-container">
         <textarea
             id="messageInput"
@@ -68,41 +62,27 @@
         <button id="sendBtn" class="send-btn">
             <i class="fas fa-paper-plane"></i>
         </button>
-
-        <!-- 浮动圆形停止按钮（默认隐藏） -->
         <button id="stopBtn" class="stop-btn-floating" title="停止生成" aria-label="停止生成">
             <i class="fas fa-stop"></i>
         </button>
     </footer>
 
     <script>
-        // 确保路径正确的设置按钮跳转
         document.getElementById('settingsBtn').addEventListener('click', function() {
-            // 尝试直接访问配置页面
             window.location.assign('config.html');
         });
 
-        // 会话管理按钮跳转
         document.getElementById('conversationsBtn').addEventListener('click', function() {
             window.location.assign('conversations.html');
         });
 
-        // 其他核心逻辑（保持不变）
         let currentConversation = [];
-        // 当前会话所属分组ID（可为 null）
         let currentConversationGroupId = null;
-        // 使用 OpenRouter 替换原 DeepSeek 官方接口
-        // 使用 OpenRouter 的 API 域名（恢复为 openrouter.ai）
         window.DEEPSEEK_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
-        // 默认模型：优先使用用户在设置页面配置的模型，否则回退到 minimax
         const MODEL_NAME = localStorage.getItem('chatModel') || 'minimax/minimax-m2:free';
-        // 暴露为全局，供其他页面（conversations.html）使用
         window.MODEL_NAME = MODEL_NAME;
 
-        // 前端本地加密存储（仅用于混淆）。注意：前端加密不能替代后端密钥管理。
-        // 我已将你提供的 Key 加密生成密文，并将密文嵌入到下方（已移除任何明文）。
         const LOCAL_PASSPHRASE = 'local_obfuscation_passphrase_2025';
-        // 加密后的 API Key（由用户提供的密文）
         const ENCRYPTED_OPENROUTER_KEY = 'U2FsdGVkX18PSVwBhdx/XQSmTwr5UimvbPYKhcmoMNXytQwT4HgYIMh2Hl/BxCv/0zYPUjEzfprco76j74BEMQIjYwM5iIkP7VMSS1vKYLqbhNjbCqP369SdZlcmikUg';
 
         function decryptApiKey(encryptedBase64, passphrase) {
@@ -116,7 +96,6 @@
         }
 
         const OPENROUTER_API_KEY = decryptApiKey(ENCRYPTED_OPENROUTER_KEY, LOCAL_PASSPHRASE);
-        // 将解密后的 key 暴露到 window 以便其他页面使用（如 conversations.html）
         window.OPENROUTER_API_KEY = OPENROUTER_API_KEY;
         const messageContainer = document.getElementById('messageContainer');
         const messageInput = document.getElementById('messageInput');
@@ -124,7 +103,6 @@
         const stopBtn = document.getElementById('stopBtn');
         const statusIndicator = document.getElementById('statusIndicator');
 
-        // 初始化函数，既由 DOMContentLoaded 触发，也由 window.load 作为回退触发
         function initApp() {
             if (window._appInitialized) return;
             window._appInitialized = true;
@@ -134,13 +112,11 @@
             renderMessages();
             if (sendBtn) {
                 sendBtn.addEventListener('click', sendMessage);
-                // 额外绑定 onclick 作为冗余
                 sendBtn.onclick = sendMessage;
             } else {
                 console.error('sendBtn 未找到');
             }
 
-            // 输入框支持Shift+Enter换行
             if (messageInput) {
                 messageInput.addEventListener('keydown', (e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
@@ -150,22 +126,18 @@
                 });
             }
 
-            // 停止按钮：使用 pointerdown（覆盖 mouse/touch）并阻止冒泡，避免滑动误触
             stopBtn.addEventListener('pointerdown', (e) => {
                 e.stopPropagation();
                 e.preventDefault();
-                // 明确调用 stop 逻辑
                 stopGeneration();
             });
 
-            // 防止 stopBtn 导致 parent 的 touch 事件误触（额外保险）
             stopBtn.addEventListener('touchstart', (e) => {
                 e.stopPropagation();
             }, { passive: true });
         }
 
         document.addEventListener('DOMContentLoaded', initApp);
-        // 如果 DOMContentLoaded 未触发（极少情况），作为回退使用 window load
         window.addEventListener('load', initApp);
 
         function loadConversation() {
@@ -176,60 +148,21 @@
                 } catch (err) {
                     console.error('解析 deepseekConversation 失败，已清理该键：', err, savedConversation);
                     currentConversation = [];
-                    // 修复不合法值，移除以避免后续解析异常
                     localStorage.removeItem('deepseekConversation');
                 }
             }
-            // 读取当前会话分组ID（如果有），兼容字符串 'undefined' 与 'null'
             const grp = localStorage.getItem('deepseekConversationGroupId');
             currentConversationGroupId = (grp && grp !== 'undefined' && grp !== 'null') ? grp : null;
         }
 
-        // 提供界面方法：将当前临时会话关联到分组（在会话保存或选择分组时使用）
         function setCurrentConversationGroup(groupId) {
             currentConversationGroupId = groupId;
             if (groupId) localStorage.setItem('deepseekConversationGroupId', groupId);
             else localStorage.removeItem('deepseekConversationGroupId');
         }
 
-        // 在发送/接收时，如果当前会话对应一个已保存会话ID，向该已保存会话追加并更新存储
-        function syncToSavedConversationIfExists() {
-            const savedConvId = localStorage.getItem('deepseekConversationId');
-            if (!savedConvId) return;
-            try {
-                let saved = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
-                const idx = saved.findIndex(c => c.id === savedConvId);
-                if (idx !== -1) {
-                    saved[idx].messages = currentConversation;
-                    saved[idx].updatedAt = new Date().toISOString();
-                    localStorage.setItem('savedDeepseekConversations', JSON.stringify(saved));
-                }
-            } catch (e) {
-                console.error('同步到已保存会话失败：', e);
-            }
-        }
-
         function saveConversation() {
             localStorage.setItem('deepseekConversation', JSON.stringify(currentConversation));
-            // 实时保存为草稿到已保存会话中，方便随时加载历史会话（id: 'autosave'）
-            try {
-                let saved = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
-                const draftId = 'autosave';
-                const idx = saved.findIndex(c => c.id === draftId);
-                const draftObj = {
-                    id: draftId,
-                    name: '草稿',
-                    messages: currentConversation,
-                    summary: null,
-                    groupId: currentConversationGroupId || null,
-                    updatedAt: new Date().toISOString()
-                };
-                if (idx === -1) saved.push(draftObj);
-                else saved[idx] = draftObj;
-                localStorage.setItem('savedDeepseekConversations', JSON.stringify(saved));
-            } catch (e) {
-                console.error('保存草稿失败：', e);
-            }
         }
 
         function renderMessages() {
@@ -238,7 +171,6 @@
             currentConversation.forEach((message, index) => {
                 const messageElement = document.createElement('div');
                 messageElement.className = `message ${message.role === 'user' ? 'user-message' : 'ai-message'}`;
-                // 如果是 AI 回复内容，优先渲染 Markdown 并进行安全过滤；否则作为纯文本
                 if (message.role === 'assistant') {
                     try {
                         const rawHtml = marked.parse(message.content || '');
@@ -252,11 +184,9 @@
                     messageElement.textContent = message.content;
                 }
 
-                // 添加消息操作按钮
                 const actionsDiv = document.createElement('div');
                 actionsDiv.className = 'message-actions';
 
-                // 复制按钮
                 const copyBtn = document.createElement('button');
                 copyBtn.className = 'action-btn';
                 copyBtn.innerHTML = '<i class="fas fa-copy"></i>';
@@ -265,7 +195,6 @@
                     copyToClipboard(message.content);
                 });
 
-                // 删除按钮
                 const deleteBtn = document.createElement('button');
                 deleteBtn.className = 'action-btn';
                 deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
@@ -284,9 +213,6 @@
             scrollToBottom();
         }
 
-        // 全局 AbortController，用于中止生成
-        let _currentAbortController = null;
-
         async function sendMessage() {
             console.log('sendMessage invoked');
             try {
@@ -294,7 +220,6 @@
                 console.log('messageText length:', messageText.length);
                 if (!messageText) return;
 
-                // 使用内置解密后的 OpenRouter Key（不再从设置读取 API Key）
                 const apiKey = OPENROUTER_API_KEY;
                 console.log('using built-in OPENROUTER_API_KEY present:', !!apiKey);
                 if (!apiKey) {
@@ -308,214 +233,89 @@
                 renderMessages();
 
                 showStatus('发送中...', true);
-
-                // 显示并激活停止按钮
                 stopBtn.style.display = 'flex';
-                _currentAbortController = new AbortController();
 
-                // 在 conversation 中先插入一个占位 assistant 消息对象（用来流式更新）
                 const aiMsgObj = { role: 'assistant', content: '' };
                 currentConversation.push(aiMsgObj);
                 saveConversation();
-                renderMessages(); // 让占位消息显示在界面上
-
-                // 流式获取并实时更新 aiMsgObj.content（流式实现见下）
-                await fetchDeepSeekResponseStream(apiKey, messageText, aiMsgObj, _currentAbortController.signal);
-
-                // 隐藏停止按钮
-                stopBtn.style.display = 'none';
-                _currentAbortController = null;
-                hideStatus();
-
-                // 保存并渲染最终结果
-                saveConversation();
                 renderMessages();
 
-                // 同步与摘要（保留原有异步逻辑）
-                const savedConvId = localStorage.getItem('deepseekConversationId');
-                if (savedConvId && savedConvId !== 'autosave') {
-                    try {
-                        let saved = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
-                        const idx = saved.findIndex(c => c.id === savedConvId);
-                        if (idx !== -1) {
-                            saved[idx].messages = currentConversation;
-                            saved[idx].updatedAt = new Date().toISOString();
-                            localStorage.setItem('savedDeepseekConversations', JSON.stringify(saved));
-                            // 触发对该会话的摘要更新（异步）
-                            (async () => {
-                                const apiKey2 = OPENROUTER_API_KEY;
-                                if (!apiKey2) return;
-                                if (!window.PROMPTS || !window.PROMPTS.SESSION_SUMMARY) {
-                                    throw new Error('PROMPTS.SESSION_SUMMARY 未找到，无法生成会话摘要，请确保 prompts.js 已加载且包含 SESSION_SUMMARY');
-                                }
-                                const systemPrompt = window.PROMPTS.SESSION_SUMMARY;
-                                const userContent = currentConversation.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
-                                try {
-                                    const resp2 = await fetch(window.DEEPSEEK_API_URL || 'https://api.deepseek.com/v1/chat/completions', {
-                                        method: 'POST',
-                                        headers: {
-                                            'Content-Type': 'application/json',
-                                            'Authorization': `Bearer ${apiKey2}`
-                                        },
-                                        body: JSON.stringify({ model: 'deepseek-chat', messages: [ { role: 'system', content: systemPrompt }, { role: 'user', content: userContent } ], temperature: 0.2 })
-                                    });
-                                    if (resp2.ok) {
-                                        const data2 = await resp2.json();
-                                        const summaryText = data2.choices && data2.choices[0] && data2.choices[0].message && data2.choices[0].message.content ? data2.choices[0].message.content : null;
-                                        if (summaryText) {
-                                            let saved2 = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
-                                            const idx2 = saved2.findIndex(c => c.id === savedConvId);
-                                            if (idx2 !== -1) {
-                                                saved2[idx2].summary = summaryText;
-                                                saved2[idx2].updatedAt = new Date().toISOString();
-                                                localStorage.setItem('savedDeepseekConversations', JSON.stringify(saved2));
-                                                console.log('为已保存会话更新摘要，消息数：', saved2[idx2].messages ? saved2[idx2].messages.length : 0);
-                                            }
-                                        }
-                                    }
-                                } catch (err) {
-                                    console.error('同步更新已保存会话摘要失败：', err);
-                                }
-                            })();
-                        }
-                    } catch (e) {
-                        console.error('同步保存会话失败：', e);
-                    }
-                }
+                await fetchDeepSeekResponseStream(apiKey, messageText, aiMsgObj);
+
+                stopBtn.style.display = 'none';
+                hideStatus();
+                saveConversation();
+                renderMessages();
             } catch (error) {
                 console.error('发送消息失败:', error);
                 showStatus('发送失败：' + (error && error.message ? error.message : '请重试'));
                 setTimeout(hideStatus, 5000);
-                // 隐藏停止按钮
                 stopBtn.style.display = 'none';
-                if (_currentAbortController) { try { _currentAbortController.abort(); } catch(e){}; _currentAbortController = null; }
             }
         }
 
-        // 中止生成
         function stopGeneration() {
-            if (_currentAbortController) {
-                try {
-                    _currentAbortController.abort();
-                } catch (e) { console.warn('abort 失败：', e); }
-                _currentAbortController = null;
-            }
-            // 视觉提示
+            console.log("生成已中止");
             showStatus('已中止生成');
-            // 隐藏停止按钮（避免二次触发）
             stopBtn.style.display = 'none';
-            // 保留占位消息（用户可删除或继续会话）
         }
 
-        // 流式读取实现（基于 SSE 风格 chunked stream）
-        async function fetchDeepSeekResponseStream(apiKey, userMessage, aiMsgObj, abortSignal) {
-            try {
-                // 在发送给DeepSeek之前，尝试读取所属分组的记忆并作为 system 提示词注入
-                let systemMemoryMessage = null;
-                if (currentConversationGroupId) {
-                    const groups = JSON.parse(localStorage.getItem('conversationGroups') || '[]');
-                    const grp = groups.find(g => g.id === currentConversationGroupId);
-                    if (grp && grp.memorySummary) {
-                        systemMemoryMessage = { role: 'system', content: grp.memorySummary };
-                    }
-                }
+        async function fetchDeepSeekResponseStream(apiKey, userMessage, aiMsgObj) {
+            const messagesPayload = [
+                ...currentConversation.filter(msg => msg.role !== 'assistant' || msg.content),
+                { role: 'user', content: userMessage }
+            ];
 
-                const messagesPayload = [
-                    ...currentConversation.filter(msg => msg.role !== 'assistant' || msg.content),
-                    { role: 'user', content: userMessage }
-                ];
+            const requestBody = {
+                model: MODEL_NAME,
+                messages: messagesPayload,
+                temperature: 0.7,
+                max_tokens: 40000,
+                stream: true
+            };
 
-                const requestBody = {
-                    model: MODEL_NAME,
-                    messages: systemMemoryMessage ? [systemMemoryMessage, ...messagesPayload] : messagesPayload,
-                    temperature: 0.7,
-                    max_tokens: 40000,
-                    stream: true
-                };
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+            };
 
-                const headers = {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${apiKey}`
-                };
-                // 可选头：仅在值全为 ASCII 时附加（和你原逻辑保持一致）
-                function isAscii(s) { return /^[\x00-\x7F]*$/.test(s || ''); }
-                try {
-                    const ref = document.location && document.location.origin ? String(document.location.origin) : '';
-                    if (isAscii(ref)) headers['HTTP-Referer'] = ref;
-                } catch (e) { /* ignore */ }
-                try {
-                    const t = document.title ? String(document.title) : '';
-                    if (isAscii(t)) headers['X-Title'] = t;
-                } catch (e) { /* ignore */ }
+            const response = await fetch(DEEPSEEK_API_URL, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(requestBody)
+            });
 
-                const response = await fetch(DEEPSEEK_API_URL, {
-                    method: 'POST',
-                    headers,
-                    body: JSON.stringify(requestBody),
-                    signal: abortSignal
-                });
+            if (!response.ok) {
+                let errText = '';
+                try { errText = await response.text(); } catch (e) { errText = '<无法读取响应体>'; }
+                console.error('API 请求失败，status=', response.status, 'body=', errText);
+                throw new Error(`API请求失败: ${response.status} ${response.statusText} ${errText}`);
+            }
 
-                if (!response.ok) {
-                    let errText = '';
-                    try { errText = await response.text(); } catch (e) { errText = '<无法读取响应体>'; }
-                    console.error('API 请求失败，status=', response.status, 'body=', errText);
-                    throw new Error(`API请求失败: ${response.status} ${response.statusText} ${errText}`);
-                }
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder('utf-8');
+            let buffer = '';
+            let finished = false;
 
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder('utf-8');
-                let buffer = '';
-                let finished = false;
+            while (!finished) {
+                const { value, done } = await reader.read();
+                if (done) break;
+                buffer += decoder.decode(value, { stream: true });
 
-                // 为打字机效果：我们逐字符（或逐 token）追加并在 UI 上渲染
-                while (!finished) {
-                    const { value, done } = await reader.read();
-                    if (done) break;
-                    buffer += decoder.decode(value, { stream: true });
+                const parts = buffer.split('\n\n');
+                buffer = parts.pop();
 
-                    // OpenAI/OpenRouter 风格的流通常以 "\n\n" 或每行 "data: ..." 分割
-                    // 先用换行分割并处理以 "data:" 开头的行
-                    const parts = buffer.split('\n\n');
-                    buffer = parts.pop(); // 留下未完成的部分
-
-                    for (const part of parts) {
-                        const line = part.trim();
-                        if (!line) continue;
-                        // 每个 part 可能包含多行，挑出以 data: 开头的行
-                        const lines = line.split('\n').map(l => l.trim()).filter(Boolean);
-                        for (const l of lines) {
-                            if (!l.startsWith('data:')) continue;
-                            const data = l.slice(5).trim();
-                            if (data === '[DONE]') {
-                                finished = true;
-                                break;
-                            }
-                            try {
-                                const json = JSON.parse(data);
-                                // 不同 API 可能在 choices[*].delta.content 或 choices[*].text
-                                const delta = json.choices && json.choices[0] && (json.choices[0].delta ? json.choices[0].delta.content : (json.choices[0].text || ''));
-                                if (delta) {
-                                    // 追加 token（可以是片段、单词或字符）
-                                    aiMsgObj.content += delta;
-                                    // 实时更新界面：直接替换最后一个 assistant 消息 DOM 内容，避免完整渲染重建导致光标/滚动问题
-                                    updateLastAssistantMessage(aiMsgObj.content);
-                                }
-                            } catch (err) {
-                                // 有时 data 部分不是 JSON（忽略）
-                                console.debug('解析流片段失败（可能不是 JSON）：', err);
-                            }
-                        }
-                        if (finished) break;
-                    }
-                }
-
-                // 尝试处理 buffer 中可能残余的一小段 JSON（若有）
-                if (buffer && buffer.trim()) {
-                    const lines = buffer.split('\n').map(l => l.trim()).filter(Boolean);
+                for (const part of parts) {
+                    const line = part.trim();
+                    if (!line) continue;
+                    const lines = line.split('\n').map(l => l.trim()).filter(Boolean);
                     for (const l of lines) {
                         if (!l.startsWith('data:')) continue;
                         const data = l.slice(5).trim();
-                        if (data === '[DONE]') break;
+                        if (data === '[DONE]') {
+                            finished = true;
+                            break;
+                        }
                         try {
                             const json = JSON.parse(data);
                             const delta = json.choices && json.choices[0] && (json.choices[0].delta ? json.choices[0].delta.content : (json.choices[0].text || ''));
@@ -523,37 +323,21 @@
                                 aiMsgObj.content += delta;
                                 updateLastAssistantMessage(aiMsgObj.content);
                             }
-                        } catch (err) { /* ignore */ }
+                        } catch (err) {
+                            console.debug('解析流片段失败（可能不是 JSON）：', err);
+                        }
                     }
+                    if (finished) break;
                 }
-
-                // 最终返回完整内容（函数上层会保存）
-                return aiMsgObj.content;
-            } catch (error) {
-                // 如果是中止，fetch 会抛出 AbortError
-                if (error && error.name === 'AbortError') {
-                    console.warn('流式请求已中止：', error);
-                    // 在占位消息上追加说明（不影响原消息内容）
-                    aiMsgObj.content += '\n\n[已中止]';
-                    updateLastAssistantMessage(aiMsgObj.content);
-                    return aiMsgObj.content;
-                }
-                console.error('获取AI响应失败:', error);
-                throw error;
             }
         }
 
         function updateLastAssistantMessage(content) {
-            // 尽量只更新最后一个 assistant 消息节点（这样不会破坏消息操作按钮）
-            // 找到最后一个 .ai-message 元素（renderMessages 创建时保证顺序）
             const nodes = messageContainer.querySelectorAll('.message.ai-message');
             const last = nodes && nodes.length ? nodes[nodes.length - 1] : null;
             if (!last) {
-                // 作为后备：重新 render
-                try {
-                    renderMessages();
-                    return;
-                } catch (e) { console.error(e); return; }
+                renderMessages();
+                return;
             }
             try {
                 const rawHtml = marked.parse(content || '');
@@ -562,8 +346,6 @@
                 last.textContent = content;
             }
 
-            // 重新附加动作按钮（因为我们直接替换 innerHTML 可能覆盖了之前的 actions）
-            // 为避免重复添加，先移除已有 .message-actions 再添加
             const existingActions = last.querySelector('.message-actions');
             if (existingActions) existingActions.remove();
 
@@ -575,9 +357,7 @@
             copyBtn.innerHTML = '<i class="fas fa-copy"></i>';
             copyBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                // 拿到纯文本版本进行复制
-                const plain = content;
-                copyToClipboard(plain);
+                copyToClipboard(content);
             });
 
             const deleteBtn = document.createElement('button');
@@ -585,19 +365,12 @@
             deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
             deleteBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                // 删除最后一条消息（我们假定是最后一个 assistant）
-                // 找到对应索引并删除
-                const allMsgs = Array.from(messageContainer.querySelectorAll('.message'));
-                const idx = allMsgs.indexOf(last);
-                if (idx !== -1) {
-                    deleteMessage(idx);
-                }
+                deleteMessage(Array.from(messageContainer.children).indexOf(last));
             });
 
             actionsDiv.appendChild(copyBtn);
             actionsDiv.appendChild(deleteBtn);
             last.appendChild(actionsDiv);
-
             scrollToBottom();
         }
 
@@ -614,7 +387,7 @@
 
         function deleteMessage(index) {
             currentConversation.splice(index, 1);
-            saveConversation();
+            saveConversation(); // 确保在删除后保存对话
             renderMessages();
         }
 
