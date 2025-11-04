@@ -1,5 +1,5 @@
 <!-- 9d4761b5-7638-460e-bd11-404bc01c75b3 864e1b22-2881-4def-930b-620254f0a6e8 -->
-# PhoneChat — README 与 CURSOR.md 更新计划
+# FreeChat — README 与 CURSOR.md 更新计划
 
 **目标**
 

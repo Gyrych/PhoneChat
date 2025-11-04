@@ -1,6 +1,6 @@
-# PhoneChat
+# FreeChat
 
-PhoneChat 是一个轻量级的本地 Web 聊天应用，允许用户通过外部聊天 API 发送消息、本地管理会话，并通过设置页面配置 API Key。
+FreeChat 是一个轻量级的本地 Web 聊天应用，允许用户通过外部聊天 API 发送消息、本地管理会话，并通过设置页面配置 API Key。
 
 ## 功能
 

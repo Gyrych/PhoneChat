@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PhoneChat</title>
+    <title>FreeChat</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="prompts.js"></script>
@@ -41,7 +41,7 @@
         <button id="conversationsBtn" class="conversations-btn">
             <i class="fas fa-history"></i>
         </button>
-        <h1>PhoneChat</h1>
+        <h1>FreeChat</h1>
         <button id="settingsBtn" class="settings-btn">
             <i class="fas fa-cog"></i>
         </button>
@@ -365,7 +365,7 @@
             deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
             deleteBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                deleteMessage(Array.from(messageContainer.children).indexOf(last));
+                deleteMessage(currentConversation.indexOf(aiMsgObj)); // 更新为使用正确的索引
             });
 
             actionsDiv.appendChild(copyBtn);

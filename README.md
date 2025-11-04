@@ -1,6 +1,6 @@
-# PhoneChat
+# FreeChat
 
-PhoneChat is a lightweight local web-based chat application that lets users send messages to an external chat API, manage conversations locally, and configure an API key through a settings page.
+FreeChat is a lightweight local web-based chat application that lets users send messages to an external chat API, manage conversations locally, and configure an API key through a settings page.
 
 ## Features
 
