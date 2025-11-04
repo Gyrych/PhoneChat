@@ -14,7 +14,7 @@
         .input-container { position: relative; }
         .stop-btn-floating {
             position: absolute;
-            right: 86px; 
+            right: 86px;
             top: 50%;
             transform: translateY(-50%);
             width: 36px;
@@ -23,7 +23,7 @@
             border: none;
             background: #e74c3c;
             color: #fff;
-            display: none; 
+            display: none;
             align-items: center;
             justify-content: center;
             z-index: 999;
@@ -216,6 +216,8 @@
         async function sendMessage() {
             console.log('sendMessage invoked');
             try {
+                // 在发送期间禁用发送按钮，防止用户重复触发并发发送
+                if (sendBtn) sendBtn.disabled = true;
                 const messageText = messageInput.value.trim();
                 console.log('messageText length:', messageText.length);
                 if (!messageText) return;
@@ -246,11 +248,13 @@
                 hideStatus();
                 saveConversation();
                 renderMessages();
+                if (sendBtn) sendBtn.disabled = false;
             } catch (error) {
                 console.error('发送消息失败:', error);
                 showStatus('发送失败：' + (error && error.message ? error.message : '请重试'));
                 setTimeout(hideStatus, 5000);
                 stopBtn.style.display = 'none';
+                if (sendBtn) sendBtn.disabled = false;
             }
         }
 
@@ -261,10 +265,9 @@
         }
 
         async function fetchDeepSeekResponseStream(apiKey, userMessage, aiMsgObj) {
-            const messagesPayload = [
-                ...currentConversation.filter(msg => msg.role !== 'assistant' || msg.content),
-                { role: 'user', content: userMessage }
-            ];
+            // 使用 currentConversation 的可用消息作为请求体。sendMessage 已经把用户消息加入 currentConversation，
+            // 因此不需要再次追加 userMessage，避免重复发送同一条用户消息导致模型重复响应或上下文膨胀。
+            const messagesPayload = currentConversation.filter(msg => msg.role !== 'assistant' || msg.content);
 
             const requestBody = {
                 model: MODEL_NAME,
@@ -365,12 +368,22 @@
             deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
             deleteBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                deleteMessage(currentConversation.indexOf(aiMsgObj)); // 更新为使用正确的索引
+                // 计算当前会话中最后一个 assistant 消息的索引并删除，避免依赖外部闭包变量导致引用错误
+                let lastAssistantIndex = -1;
+                for (let i = currentConversation.length - 1; i >= 0; i--) {
+                    if (currentConversation[i] && currentConversation[i].role === 'assistant') {
+                        lastAssistantIndex = i;
+                        break;
+                    }
+                }
+                if (lastAssistantIndex !== -1) deleteMessage(lastAssistantIndex);
             });
 
             actionsDiv.appendChild(copyBtn);
             actionsDiv.appendChild(deleteBtn);
             last.appendChild(actionsDiv);
+            // 将实时更新的 assistant 内容保存到 localStorage，防止在生成过程中页面刷新/跳转导致内容丢失
+            try { saveConversation(); } catch (e) { console.error('保存会话失败：', e); }
             scrollToBottom();
         }
 
