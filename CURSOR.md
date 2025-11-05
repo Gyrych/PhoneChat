@@ -47,33 +47,21 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
 - CORS 与端点：客户端直接调用外部 API 可能遇到 CORS 限制，部署时请确认目标 API 的 CORS 配置或通过后端代理绕过。
 
 ---
-
 ## 变更记录
 
-- 2025-10-23 初始版本：创建仓库并添加基础文档与源文件。
-- 2025-10-26：实现会话分组与分组记忆功能（分组 ID 支持、摘要生成、分组记忆聚合等）。
-- 2025-10-28：在 `index.html` 中加入 Markdown 渲染支持（`marked` + `DOMPurify`）。
-- 2025-11-04：文档同步与规范化（本次修改）：
-  - 目的：统一项目文档中默认 API 端点与模型，清理重复信息，补充项目结构说明并在 README 中加入 Mermaid 可视化结构图以便阅读。
-  - 修改项：
-    - 在 `CURSOR.md`、`README.md` 与 `README_zh.md` 中统一默认端点为 `https://api.openrouter.ai/v1/chat/completions`，默认模型为 `minimax/minimax-m2:free`（仅作演示回退）。
-    - 在 `README`（中/英）中增加项目结构 Mermaid 图、补充依赖说明（如 `marked`, `DOMPurify`）与安全建议。
-    - 目的说明及后续建议已写入对应文档主体。
-  - 2025-11-04 追加（文档最终化）：
-    - 本次已完成 `CURSOR.md`、`README.md` 与 `README_zh.md` 的同步更新与格式化。
-    - 变更范围：统一默认端点/模型说明，新增 Mermaid 项目结构图，并补充依赖与安全提示。
-    - 建议：如需进一步将回退 Key 移出前端或添加后端示例，请回复确认，我将继续实现对应示例或文档调整。
-
- - 2025-11-04（代码修正）：修复会话自动存储与保存逻辑
-   - 目的：修正可能导致请求体中重复用户消息、生成中内容丢失和并发发送导致的数据重复/丢失问题。
-   - 修改点：
-     1. 在 `index.html` 的 `fetchDeepSeekResponseStream` 中，不再重复追加当前用户消息到请求体（原实现会在请求中出现两次相同的用户消息）；
-     2. 在 `updateLastAssistantMessage` 中，新增实时保存调用 `saveConversation()`，将流式生成的 assistant 内容写入 `localStorage`，以降低页面刷新或导航导致的数据丢失风险；
-     3. 修复 `updateLastAssistantMessage` 中删除按钮的索引计算，避免依赖外部闭包变量导致的引用错误；
-     4. 在 `sendMessage` 中发送期间禁用发送按钮，避免并发发送造成重复或竞态条件。
-   - 风险与建议：
-     - 目前已尽量保持前端纯静态实现，实时保存会多次写入 `localStorage`，在非常高频的流更新下可能有性能影响（通常可以接受）；
-     - 若需更严格的并发控制或中断流的能力，建议后续引入 `AbortController` 中止请求并改进生成中止逻辑。
+- 2025-11-05（文档与代码一致性审查）：
+  - 目的：修复项目中的不一致问题，确保文档与代码的统一性
+  - 修复内容：
+    1. 修复了conversations.html中的标题不一致问题：
+       - 将页面标题从"会话管理 - DeepSeek 对话"更正为"会话管理 - FreeChat"
+       - 将页面标题从"DeepSeek 对话管理"更正为"FreeChat 会话管理"
+    2. 更新了README.md和README_zh.md中的API端点描述：
+       - 将API端点从"https://api.openrouter.ai/v1/chat/completions"更正为"https://openrouter.ai/api/v1/chat/completions"
+       - 确保文档中的端点描述与实际代码中的端点保持一致
+    3. 完善了README.md和README_zh.md中的功能说明：
+       - 添加了config.html页面的模型选择功能说明，描述如何使用设置页面选择不同的AI模型
+       - 添加了停止生成按钮的功能说明，解释如何在AI响应生成过程中提前终止响应
+       - 重新组织了使用说明部分，使其更加清晰和结构化
 
 - 2025-11-05（代码注释添加）：
   - 目的：为所有代码文件添加文档头部注释和函数头部注释，提高代码可读性和可维护性。
@@ -88,3 +76,31 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
     - 使用简洁中文注释风格，不使用 JSDoc 标签（如 @param、@returns）；
     - 文件头部注释包含文件名和功能描述；
     - 函数头部注释包含功能描述、参数说明和返回值说明。
+
+- 2025-11-04（代码修正）：修复会话自动存储与保存逻辑
+  - 目的：修正可能导致请求体中重复用户消息、生成中内容丢失和并发发送导致的数据重复/丢失问题。
+  - 修改点：
+    1. 在 `index.html` 的 `fetchDeepSeekResponseStream` 中，不再重复追加当前用户消息到请求体（原实现会在请求中出现两次相同的用户消息）；
+    2. 在 `updateLastAssistantMessage` 中，新增实时保存调用 `saveConversation()`，将流式生成的 assistant 内容写入 `localStorage`，以降低页面刷新或导航导致的数据丢失风险；
+    3. 修复 `updateLastAssistantMessage` 中删除按钮的索引计算，避免依赖外部闭包变量导致的引用错误；
+    4. 在 `sendMessage` 中发送期间禁用发送按钮，避免并发发送造成重复或竞态条件。
+  - 风险与建议：
+    - 目前已尽量保持前端纯静态实现，实时保存会多次写入 `localStorage`，在非常高频的流更新下可能有性能影响（通常可以接受）；
+    - 若需更严格的并发控制或中断流的能力，建议后续引入 `AbortController` 中止请求并改进生成中止逻辑。
+
+- 2025-11-04：文档同步与规范化（本次修改）：
+  - 目的：统一项目文档中默认 API 端点与模型，清理重复信息，补充项目结构说明并在 README 中加入 Mermaid 可视化结构图以便阅读。
+  - 修改项：
+    - 在 `CURSOR.md`、`README.md` 与 `README_zh.md` 中统一默认端点为 `https://api.openrouter.ai/v1/chat/completions`，默认模型为 `minimax/minimax-m2:free`（仅作演示回退）。
+    - 在 `README`（中/英）中增加项目结构 Mermaid 图、补充依赖说明（如 `marked`, `DOMPurify`）与安全建议。
+    - 目的说明及后续建议已写入对应文档主体。
+  - 2025-11-04 追加（文档最终化）：
+    - 本次已完成 `CURSOR.md`、`README.md` 与 `README_zh.md` 的同步更新与格式化。
+    - 变更范围：统一默认端点/模型说明，新增 Mermaid 项目结构图，并补充依赖与安全提示。
+    - 建议：如需进一步将回退 Key 移出前端或添加后端示例，请回复确认，我将继续实现对应示例或文档调整。
+
+- 2025-10-28：在 `index.html` 中加入 Markdown 渲染支持（`marked` + `DOMPurify`）。
+
+- 2025-10-26：实现会话分组与分组记忆功能（分组 ID 支持、摘要生成、分组记忆聚合等）。
+
+- 2025-10-23 初始版本：创建仓库并添加基础文档与源文件。

@@ -13,7 +13,7 @@ FreeChat is a lightweight local web-based chat application for local prototyping
 
 ## Default (Demo) API Configuration
 
-- Default demo endpoint: `https://api.openrouter.ai/v1/chat/completions`
+- Default demo endpoint: `https://openrouter.ai/api/v1/chat/completions`
 - Default demo model: `minimax/minimax-m2:free`
 
 Note: The above defaults are provided only as a convenient demo/fallback. For production, use your own API key and a backend proxy to keep secrets off the client.
@@ -30,9 +30,25 @@ Note: The above defaults are provided only as a convenient demo/fallback. For pr
 
 ## Usage
 
-- Type your message in the input box and press the send button (or press Enter) to send.
-- Use the Conversations button to open `conversations.html` to save or load conversations.
-- Saved conversations are stored in `localStorage` under `savedDeepseekConversations`.
+### Basic Chat
+1. Type your message in the input field at the bottom
+2. Press Enter or click the send button
+3. The AI response will appear in the chat area
+4. You can copy or delete messages using the buttons next to each message
+5. During response generation, a stop button appears that allows you to terminate the response early
+
+### Model Configuration
+1. Click the settings button in the top navigation bar
+2. Select your preferred model from the dropdown menu (options include minimax, deepseek, glm, and more)
+3. Save your configuration
+4. Return to the chat page to use the selected model
+
+### Conversation Management
+1. Click the conversations button in the top navigation bar
+2. View all your chat histories organized by date
+3. Create conversation groups for better organization
+4. Generate automatic summaries for conversations
+5. Load previous conversations or create new ones
 
 ## Project Structure
 
