@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="prompts.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
 </head>
 <body>
     <header class="header">
@@ -33,6 +34,20 @@
          * 文件名：conversations.html
          * 功能描述：FreeChat 会话管理页面，提供会话列表展示、保存、加载、删除、分组管理、会话摘要生成等功能
          */
+        // 与 index 保持一致的模型与端点配置
+        window.DEEPSEEK_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
+        window.MODEL_NAME = localStorage.getItem('chatModel') || 'minimax/minimax-m2:free';
+
+        // 可选的内置 OpenRouter Key 解密（仅演示用途）
+        const LOCAL_PASSPHRASE = 'local_obfuscation_passphrase_2025';
+        const ENCRYPTED_OPENROUTER_KEY = 'U2FsdGVkX18PSVwBhdx/XQSmTwr5UimvbPYKhcmoMNXytQwT4HgYIMh2Hl/BxCv/0zYPUjEzfprco76j74BEMQIjYwM5iIkP7VMSS1vKYLqbhNjbCqP369SdZlcmikUg';
+        function decryptApiKey(encryptedBase64, passphrase) {
+            try {
+                const bytes = CryptoJS.AES.decrypt(encryptedBase64, passphrase);
+                return bytes.toString(CryptoJS.enc.Utf8);
+            } catch (_) { return null; }
+        }
+        window.OPENROUTER_API_KEY = decryptApiKey(ENCRYPTED_OPENROUTER_KEY, LOCAL_PASSPHRASE);
         // 页面加载时显示所有保存的会话
         document.addEventListener('DOMContentLoaded', () => {
             renderConversationsList();
@@ -111,7 +126,7 @@
 
             // 异步调用 DeepSeek 生成会话摘要并保存（失败不影响主流程）
             try {
-                const apiKey = localStorage.getItem('deepseekApiKey') || (window.OPENROUTER_API_KEY ? window.OPENROUTER_API_KEY : null);
+                const apiKey = (window.OPENROUTER_API_KEY || localStorage.getItem('deepseekApiKey'));
                     if (apiKey) {
                     // 使用更明确的摘要提示词，让模型以要点形式返回摘要
                     if (!window.PROMPTS || !window.PROMPTS.SESSION_SUMMARY) {
@@ -130,7 +145,7 @@
 
                     // 使用全局 MODEL_NAME（与主聊天保持一致）
                     const modelToUse = window.MODEL_NAME || 'minimax/minimax-m2:free';
-                    const resp = await fetch(window.DEEPSEEK_API_URL || 'https://api.deepseek.com/v1/chat/completions', {
+                    const resp = await fetch(window.DEEPSEEK_API_URL || 'https://openrouter.ai/api/v1/chat/completions', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -463,10 +478,11 @@
                         }
                         const systemPrompt = window.PROMPTS.SESSION_SUMMARY;
                         const userContent = (conv.messages || conv.content || []).map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
-                        const resp = await fetch(window.DEEPSEEK_API_URL || 'https://api.deepseek.com/v1/chat/completions', {
+                        const modelToUse = window.MODEL_NAME || 'minimax/minimax-m2:free';
+                        const resp = await fetch(window.DEEPSEEK_API_URL || 'https://openrouter.ai/api/v1/chat/completions', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-                            body: JSON.stringify({ model: 'deepseek-chat', messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userContent }], temperature: 0.2 })
+                            body: JSON.stringify({ model: modelToUse, messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userContent }], temperature: 0.2 })
                         });
                         if (!resp.ok) throw new Error('API请求失败');
                         const data = await resp.json();
@@ -500,7 +516,7 @@
                 const groupConvs = saved.filter(c => c.groupId === groupId && c.summary).map(c => c.summary);
                 if (groupConvs.length === 0) return;
 
-                const apiKey = localStorage.getItem('deepseekApiKey');
+                const apiKey = (window.OPENROUTER_API_KEY || localStorage.getItem('deepseekApiKey'));
                 if (!apiKey) return;
 
                 if (!window.PROMPTS || !window.PROMPTS.GROUP_SUMMARY) {
@@ -508,13 +524,14 @@
                 }
                 const systemPrompt = window.PROMPTS.GROUP_SUMMARY;
 
-                const resp = await fetch(window.DEEPSEEK_API_URL || 'https://api.deepseek.com/v1/chat/completions', {
+                const modelToUse = window.MODEL_NAME || 'minimax/minimax-m2:free';
+                const resp = await fetch(window.DEEPSEEK_API_URL || 'https://openrouter.ai/api/v1/chat/completions', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${apiKey}`
                     },
-                    body: JSON.stringify({ model: 'deepseek-chat', messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: groupConvs.join('\n\n') }], temperature: 0.2 })
+                    body: JSON.stringify({ model: modelToUse, messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: groupConvs.join('\n\n') }], temperature: 0.2 })
                 });
 
                 if (!resp.ok) return;

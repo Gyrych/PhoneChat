@@ -5,10 +5,11 @@ FreeChat is a lightweight local web-based chat application for local prototyping
 ## Features
 
 - Send and receive messages via a configurable external API endpoint.
-- Persist current conversation to `localStorage`.
+- Auto-persist the current conversation to `localStorage` and a durable list (no manual save needed).
 - Save, load, delete and rename conversations.
 - Organize conversations into groups and generate per-conversation summaries.
-- Aggregate group-level memory summaries and inject them as system prompts when chatting within the same group.
+- Auto-generate per-conversation summaries after each round and refresh group-level memory automatically.
+- Inject memory as a single system message before each request: group memory (always) + session summary (only within the same group).
 - Render AI assistant replies as Markdown using `marked` and sanitize with `DOMPurify` for safety.
 
 ## Default (Demo) API Configuration
@@ -48,8 +49,9 @@ Note: The above defaults are provided only as a convenient demo/fallback. For pr
 1. Click the conversations button in the top navigation bar
 2. View all your chat histories organized by date
 3. Create conversation groups for better organization
-4. Generate automatic summaries for conversations
-5. Load previous conversations or create new ones
+4. Summaries are now generated automatically after each assistant reply finishes
+5. Group memory is automatically refreshed when conversation summaries update
+6. Load previous conversations or create new ones
 
 ## Project Structure
 

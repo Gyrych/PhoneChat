@@ -199,6 +199,38 @@
         }
 
         /**
+         * 持久会话节流更新
+         * 功能：将当前会话内容按节流策略写回 savedDeepseekConversations 对应条目，降低频繁写入
+         * 参数：无（内部获取 deepseekConversationId）
+         * 返回值：无
+         */
+        const UPSERT_INTERVAL_MS = 1500;
+        let upsertTimer = null;
+        function upsertSavedConversationNow() {
+            const conversationId = localStorage.getItem('deepseekConversationId');
+            if (!conversationId) return;
+            try {
+                let saved = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
+                const idx = saved.findIndex(c => c.id === conversationId);
+                if (idx === -1) return;
+                saved[idx].messages = currentConversation.slice();
+                saved[idx].updatedAt = new Date().toISOString();
+                // 保持分组ID与当前内存一致
+                saved[idx].groupId = currentConversationGroupId || null;
+                localStorage.setItem('savedDeepseekConversations', JSON.stringify(saved));
+            } catch (e) {
+                console.error('upsertSavedConversationNow 失败：', e);
+            }
+        }
+        function scheduleUpsertSavedConversation() {
+            if (upsertTimer) return;
+            upsertTimer = setTimeout(() => {
+                upsertTimer = null;
+                upsertSavedConversationNow();
+            }, UPSERT_INTERVAL_MS);
+        }
+
+        /**
          * 渲染消息列表
          * 功能：将当前会话中的所有消息渲染到页面上，AI消息使用Markdown渲染，用户消息显示纯文本，每条消息包含复制和删除按钮
          * 参数：无
@@ -277,7 +309,33 @@
                 currentConversation.push({ role: 'user', content: messageText });
                 messageInput.value = '';
                 saveConversation();
+
+                // 若这是当前页面内首次发送（尚无持久会话ID），则自动创建持久会话条目
+                try {
+                    const existingId = localStorage.getItem('deepseekConversationId');
+                    if (!existingId) {
+                        const saved = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
+                        const newId = Date.now().toString();
+                        const namePrefix = messageText.slice(0, 20) || '新会话';
+                        const newEntry = {
+                            id: newId,
+                            name: namePrefix,
+                            messages: JSON.parse(localStorage.getItem('deepseekConversation') || '[]'),
+                            summary: null,
+                            groupId: currentConversationGroupId || null,
+                            updatedAt: new Date().toISOString(),
+                            lastSummarizedMessageCount: 0
+                        };
+                        saved.push(newEntry);
+                        localStorage.setItem('savedDeepseekConversations', JSON.stringify(saved));
+                        localStorage.setItem('deepseekConversationId', newId);
+                    }
+                } catch (e) {
+                    console.error('自动创建持久会话失败：', e);
+                }
                 renderMessages();
+                // 节流写回持久会话
+                scheduleUpsertSavedConversation();
 
                 showStatus('发送中...', true);
                 stopBtn.style.display = 'flex';
@@ -285,6 +343,7 @@
                 const aiMsgObj = { role: 'assistant', content: '' };
                 currentConversation.push(aiMsgObj);
                 saveConversation();
+                scheduleUpsertSavedConversation();
                 renderMessages();
 
                 await fetchDeepSeekResponseStream(apiKey, messageText, aiMsgObj);
@@ -326,9 +385,39 @@
             // 因此不需要再次追加 userMessage，避免重复发送同一条用户消息导致模型重复响应或上下文膨胀。
             const messagesPayload = currentConversation.filter(msg => msg.role !== 'assistant' || msg.content);
 
+            // 构造记忆注入：分组记忆（对所有消息有效）+ 会话摘要（仅同组有效）
+            let systemContentParts = [];
+            try {
+                const convId = localStorage.getItem('deepseekConversationId');
+                const saved = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
+                const entry = saved.find(c => c.id === convId) || null;
+                // 分组记忆：读取当前分组的 memorySummary
+                if (currentConversationGroupId) {
+                    const groups = JSON.parse(localStorage.getItem('conversationGroups') || '[]');
+                    const g = groups.find(x => x.id === currentConversationGroupId);
+                    if (g && g.memorySummary) {
+                        systemContentParts.push(`分组记忆:\n${g.memorySummary}`);
+                    }
+                }
+                // 会话摘要：仅当 entry 的 groupId 与当前分组一致（包括两者都为 null）时注入
+                if (entry && entry.summary) {
+                    const a = entry.groupId || null;
+                    const b = currentConversationGroupId || null;
+                    if (a === b) {
+                        systemContentParts.push(`会话摘要:\n${entry.summary}`);
+                    }
+                }
+            } catch (e) {
+                console.warn('记忆注入构造失败，已忽略：', e);
+            }
+
+            const messagesForRequest = systemContentParts.length > 0
+                ? [{ role: 'system', content: systemContentParts.join('\n\n') }].concat(messagesPayload)
+                : messagesPayload;
+
             const requestBody = {
                 model: MODEL_NAME,
-                messages: messagesPayload,
+                messages: messagesForRequest,
                 temperature: 0.7,
                 max_tokens: 40000,
                 stream: true
@@ -390,6 +479,111 @@
                     if (finished) break;
                 }
             }
+            // 流结束后进行一次最终的持久写回，避免丢失最后片段
+            try { upsertSavedConversationNow(); } catch (e) { /* 忽略上报 */ }
+            // 流结束后自动尝试生成会话摘要（具备去重判断）
+            try { await autoSummarizeIfNeeded(); } catch (e) { console.error('自动会话摘要失败：', e); }
+        }
+
+        /**
+         * 自动摘要（防抖/去重）
+         * 功能：当会话新增消息后，在流结束时触发自动摘要；仅当消息条数较上次摘要更多或此前无摘要时执行
+         * 参数：无
+         * 返回值：Promise
+         */
+        async function autoSummarizeIfNeeded() {
+            const conversationId = localStorage.getItem('deepseekConversationId');
+            if (!conversationId) return;
+            let saved = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
+            const idx = saved.findIndex(c => c.id === conversationId);
+            if (idx === -1) return;
+
+            const entry = saved[idx];
+            const msgCount = currentConversation.length;
+            const lastCount = entry.lastSummarizedMessageCount || 0;
+            if (entry.summary && msgCount <= lastCount) return;
+
+            const apiKey = (window.OPENROUTER_API_KEY || localStorage.getItem('deepseekApiKey'));
+            if (!apiKey) return;
+            if (!window.PROMPTS || !window.PROMPTS.SESSION_SUMMARY) return;
+
+            const systemPrompt = window.PROMPTS.SESSION_SUMMARY;
+            const userContent = currentConversation.map(m => `${(m.role||'').toUpperCase()}: ${m.content||''}`).join('\n');
+
+            const modelToUse = window.MODEL_NAME || 'minimax/minimax-m2:free';
+            const url = (window.DEEPSEEK_API_URL || 'https://openrouter.ai/api/v1/chat/completions');
+            const resp = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+                body: JSON.stringify({
+                    model: modelToUse,
+                    messages: [ { role: 'system', content: systemPrompt }, { role: 'user', content: userContent } ],
+                    temperature: 0.2
+                })
+            });
+            if (!resp.ok) return;
+            const data = await resp.json();
+            const summaryText = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content ? data.choices[0].message.content : null;
+            if (!summaryText) return;
+
+            // 更新会话摘要与计数
+            saved = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
+            const idx2 = saved.findIndex(c => c.id === conversationId);
+            if (idx2 !== -1) {
+                saved[idx2].summary = summaryText;
+                saved[idx2].lastSummarizedMessageCount = msgCount;
+                saved[idx2].updatedAt = new Date().toISOString();
+                localStorage.setItem('savedDeepseekConversations', JSON.stringify(saved));
+                // 若存在分组，则同步刷新分组记忆
+                if (saved[idx2].groupId) {
+                    try { await updateGroupMemory(saved[idx2].groupId); } catch (_) {}
+                }
+            }
+        }
+
+        /**
+         * 更新分组记忆（index 侧）
+         * 功能：聚合指定分组内所有会话的摘要，生成分组级记忆并写回 conversationGroups
+         * 参数：groupId - 分组ID
+         * 返回值：Promise
+         */
+        async function updateGroupMemory(groupId) {
+            try {
+                const saved = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
+                const groupSummaries = saved.filter(c => c.groupId === groupId && c.summary).map(c => c.summary);
+                if (groupSummaries.length === 0) return;
+
+                const apiKey = (window.OPENROUTER_API_KEY || localStorage.getItem('deepseekApiKey'));
+                if (!apiKey) return;
+                if (!window.PROMPTS || !window.PROMPTS.GROUP_SUMMARY) return;
+
+                const systemPrompt = window.PROMPTS.GROUP_SUMMARY;
+                const modelToUse = window.MODEL_NAME || 'minimax/minimax-m2:free';
+                const url = (window.DEEPSEEK_API_URL || 'https://openrouter.ai/api/v1/chat/completions');
+                const resp = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+                    body: JSON.stringify({
+                        model: modelToUse,
+                        messages: [ { role: 'system', content: systemPrompt }, { role: 'user', content: groupSummaries.join('\n\n') } ],
+                        temperature: 0.2
+                    })
+                });
+                if (!resp.ok) return;
+                const data = await resp.json();
+                const memoryText = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content ? data.choices[0].message.content : null;
+                if (!memoryText) return;
+
+                let groups = JSON.parse(localStorage.getItem('conversationGroups') || '[]');
+                const gi = groups.findIndex(g => g.id === groupId);
+                if (gi !== -1) {
+                    groups[gi].memorySummary = memoryText;
+                    groups[gi].updatedAt = new Date().toISOString();
+                    localStorage.setItem('conversationGroups', JSON.stringify(groups));
+                }
+            } catch (e) {
+                console.error('updateGroupMemory 失败：', e);
+            }
         }
 
         /**
@@ -447,6 +641,8 @@
             last.appendChild(actionsDiv);
             // 将实时更新的 assistant 内容保存到 localStorage，防止在生成过程中页面刷新/跳转导致内容丢失
             try { saveConversation(); } catch (e) { console.error('保存会话失败：', e); }
+            // 节流写回持久会话
+            try { scheduleUpsertSavedConversation(); } catch (e) { /* 忽略上报 */ }
             scrollToBottom();
         }
 

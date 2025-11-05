@@ -31,15 +31,21 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
 ### 核心数据流
 
 1. 用户在 `index.html` 输入消息并发送。
-2. 新消息被追加到当前会话数组并保存到 `localStorage`（键名示例：`deepseekConversation`）。
-3. 应用构造请求体并通过 `fetch` 向配置的 API 端点发送请求，使用 `Authorization: Bearer <apiKey>` 头。当前实现的 `apiKey` 来源为内置加密的演示 Key（`OPENROUTER_API_KEY`）；会话摘要与分组记忆在 `conversations.html` 中也可读取 `localStorage` 的 `deepseekApiKey` 作为替代（若自行设置）。设置页目前不提供 Key 输入项。
-4. 收到 AI 响应后将回复追加到会话并渲染，同时保存会话状态到本地存储。
+2. 新消息被追加到当前会话数组并保存到 `localStorage`（键名：`deepseekConversation`）。若尚无 `deepseekConversationId`，则自动创建持久会话条目写入 `savedDeepseekConversations`，并记录该 ID（无须手动保存）。
+3. 在发送请求前，若存在记忆则自动注入为一条 system 消息：
+   - 分组记忆（`conversationGroups[].memorySummary`）：对所有消息有效；
+   - 会话摘要（`savedDeepseekConversations[].summary`）：仅当该会话与当前分组相同（含均为未分组）时注入；
+   注入顺序为“分组记忆 → 会话摘要 → 历史消息”，且不污染可见的 `currentConversation`。
+4. 应用构造请求体并通过 `fetch` 向配置的 API 端点发送请求，使用 `Authorization: Bearer <apiKey>` 头。`apiKey` 优先使用内置加密的演示 Key（`OPENROUTER_API_KEY`），回退到 `localStorage.deepeekApiKey`（若存在）。
+5. 收到 AI 响应后将回复流式追加与渲染，并实时保存会话；同时以 1.5s 节流策略将内容回写到持久会话条目（避免高频写入）。
+6. 每轮流式结束后自动触发会话摘要：当消息条数超过上次已摘要计数或此前未有摘要时调用模型生成摘要，保存到 `savedDeepseekConversations[].summary` 并更新 `lastSummarizedMessageCount`；若会话属于某分组，则随后自动聚合并刷新该分组的 `memorySummary`。
 
 ### 关键功能说明（已实现/部分实现）
 
 - 会话分组：支持将会话归类到分组（文件夹），支持重命名与在分组之间移动会话。
-- 会话摘要：保存会话时可异步调用外部 API 生成会话摘要并保存到会话元数据中，用于快速检索与展示。
-- 分组记忆：可将分组内会话的摘要聚合为分组级别的记忆摘要，并在发送请求时将该摘要注入为 system 提示词以增强上下文一致性。
+- 会话自动无感存储：首次发送消息自动创建持久会话条目；其后对会话的更改以节流（约 1.5s）写回，避免重复与遗忘。
+- 会话自动摘要：每轮生成结束后自动判定是否需要摘要（去重），将结果保存到会话元数据。
+- 分组记忆：自动聚合分组内所有会话摘要生成分组级记忆；请求前自动注入“分组记忆 + 当前会话摘要”（一条 system 消息）。
 - Markdown 渲染：AI 回复通过 `marked` 渲染为 HTML，并使用 `DOMPurify` 进行消毒以降低 XSS 风险。
 
 ### 已知限制与建议
@@ -57,6 +63,13 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
 
 ---
 ## 变更记录
+- 2025-11-05（自动无感存储/摘要与记忆注入改造）
+  - 目的：避免手动保存遗漏与重复保存；确保记忆进入推理上下文。
+  - 修改项：
+    1. index：首条用户消息自动创建 `savedDeepseekConversations` 条目；节流回写；流结束触发自动摘要；同组时注入“会话摘要”，并全局注入“分组记忆”。
+    2. index：新增本页 `updateGroupMemory`，并在自动摘要成功后刷新分组记忆。
+    3. conversations：统一 API Key 优先级（内置 OPENROUTER → 本地存储）；统一模型与端点；重新摘要/分组记忆均使用 `MODEL_NAME`。
+    4. 文档：同步 CURSOR.md 与 README（中/英）以反映上述机制。
 - 2025-11-05（文档与代码一致性修复：默认端点、文件说明、依赖与数据流）
   - 目的：使文档与当前实现完全一致，减少读者误解。
   - 修改项：
