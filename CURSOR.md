@@ -37,6 +37,7 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
    - 会话摘要（`savedDeepseekConversations[].summary`）：仅当该会话与当前分组相同（含均为未分组）时注入；
    注入顺序为“分组记忆 → 会话摘要 → 历史消息”，且不污染可见的 `currentConversation`。
 4. 应用构造请求体并通过 `fetch` 向配置的 API 端点发送请求，使用 `Authorization: Bearer <apiKey>` 头。`apiKey` 优先使用内置加密的演示 Key（`OPENROUTER_API_KEY`），回退到 `localStorage.deepeekApiKey`（若存在）。
+5. 每个持久会话条目会记录 `model` 字段（来源于 `localStorage.chatModel`/`window.MODEL_NAME`），在 `conversations.html` 加载会话时若存在该字段，会自动恢复到 `chatModel`，确保历史会话按其当时模型继续。
 5. 收到 AI 响应后将回复流式追加与渲染，并实时保存会话；同时以 1.5s 节流策略将内容回写到持久会话条目（避免高频写入）。
 6. 每轮流式结束后自动触发会话摘要：当消息条数超过上次已摘要计数或此前未有摘要时调用模型生成摘要，保存到 `savedDeepseekConversations[].summary` 并更新 `lastSummarizedMessageCount`；若会话属于某分组，则随后自动聚合并刷新该分组的 `memorySummary`。
 
@@ -47,6 +48,7 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
 - 会话自动摘要：每轮生成结束后自动判定是否需要摘要（去重），将结果保存到会话元数据。
 - 分组记忆：自动聚合分组内所有会话摘要生成分组级记忆；请求前自动注入“分组记忆 + 当前会话摘要”（一条 system 消息）。
 - Markdown 渲染：AI 回复通过 `marked` 渲染为 HTML，并使用 `DOMPurify` 进行消毒以降低 XSS 风险。
+ - 会话模型持久化与恢复：保存会话时写入 `model` 字段；加载会话时自动恢复该模型；会话列表在名称旁显示模型徽标。
 
 ### 已知限制与建议
 
@@ -63,6 +65,13 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
 
 ---
 ## 变更记录
+ - 2025-11-05（会话模型持久化/恢复与UI徽标）
+  - 目的：保证历史会话按其创建/使用时的模型继续，避免模型切换导致风格与能力不一致；提升可见性。
+  - 修改项：
+    1. index：首次创建及节流写回时同步保存 `model` 字段；
+    2. conversations：保存会话写入 `model`，加载会话时若存在则恢复 `chatModel`；在列表中显示模型徽标；
+    3. 样式：新增 `.model-badge`；
+    4. 文档：同步 CURSOR.md 与 README（中/英）。
 - 2025-11-05（自动无感存储/摘要与记忆注入改造）
   - 目的：避免手动保存遗漏与重复保存；确保记忆进入推理上下文。
   - 修改项：

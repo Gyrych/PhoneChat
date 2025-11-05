@@ -27,8 +27,9 @@ Note: The above defaults are provided only as a convenient demo/fallback. For pr
 ## Configuration
 
 1. Open `config.html` and select a model, then click “Save”. The model is stored in `localStorage` under the key `chatModel`.
-2. Demo uses a built-in encrypted OpenRouter API key inside `index.html` (for demonstration only; do not rely on it for production).
-3. To use your own key, either replace the encrypted string in `index.html` or set `localStorage.setItem('deepseekApiKey', 'YOUR_KEY')` via the browser DevTools; conversation summaries and group memory can read this value as an alternative.
+2. Each saved conversation stores its model in `savedDeepseekConversations[].model`. When you load a conversation from `conversations.html`, if `model` exists it will restore `localStorage.chatModel` automatically.
+3. Demo uses a built-in encrypted OpenRouter API key inside `index.html` (for demonstration only; do not rely on it for production).
+4. To use your own key, either replace the encrypted string in `index.html` or set `localStorage.setItem('deepseekApiKey', 'YOUR_KEY')` via the browser DevTools; conversation summaries and group memory can read this value as an alternative.
 
 ## Usage
 
@@ -52,6 +53,7 @@ Note: The above defaults are provided only as a convenient demo/fallback. For pr
 4. Summaries are now generated automatically after each assistant reply finishes
 5. Group memory is automatically refreshed when conversation summaries update
 6. Load previous conversations or create new ones
+7. The conversation list shows a model badge next to the name; loading a conversation restores its model
 
 ## Project Structure
 

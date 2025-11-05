@@ -26,8 +26,9 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，适用于本地演示和
 ## 配置
 
 1. 打开 `config.html`，从下拉菜单选择模型并点击“保存”，模型会以 `chatModel` 键写入 `localStorage`。
-2. 演示默认使用内置的加密 OpenRouter Key（仅用于演示，不可用于生产）。
-3. 如需使用你自己的 Key，可在浏览器控制台执行 `localStorage.setItem('deepseekApiKey', 'YOUR_KEY')`，或替换 `index.html` 中的加密串；会话摘要与分组记忆也会读取该值作为替代。
+2. 每个已保存会话会在 `savedDeepseekConversations[].model` 记录其所用模型；在 `conversations.html` 加载该会话时，如存在 `model` 字段，会自动恢复到 `localStorage.chatModel`。
+3. 演示默认使用内置的加密 OpenRouter Key（仅用于演示，不可用于生产）。
+4. 如需使用你自己的 Key，可在浏览器控制台执行 `localStorage.setItem('deepseekApiKey', 'YOUR_KEY')`，或替换 `index.html` 中的加密串；会话摘要与分组记忆也会读取该值作为替代。
 
 ## 使用说明
 
@@ -51,6 +52,7 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，适用于本地演示和
 4. 会话摘要会在每轮 AI 回复结束后自动生成
 5. 分组记忆会在摘要更新后自动刷新
 6. 加载之前的会话或创建新会话
+7. 会话列表在名称旁显示模型徽标；加载会话时会恢复其模型
 
 ## 文件说明
 

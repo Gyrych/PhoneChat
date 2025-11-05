@@ -117,6 +117,7 @@
                 messages: JSON.parse(currentConversation),
                 summary: null,
                 groupId: localStorage.getItem('deepseekConversationGroupId') || null,
+                model: window.MODEL_NAME,
                 updatedAt: new Date().toISOString()
             };
 
@@ -310,7 +311,7 @@
                     const formattedTime = `${date.getMonth() + 1}月${date.getDate()}日 ${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')}`;
                     item.innerHTML = `
                         <div class="conversation-info">
-                            <h3 class="conversation-name">${conversation.name}</h3>
+                            <h3 class="conversation-name">${conversation.name}<span class="model-badge">${conversation.model || '未记录'}</span></h3>
                             <p class="conversation-time">${formattedTime}</p>
                             <button class="toggle-summary-btn">查看会话摘要</button>
                             <div class="conversation-summary-content" style="display:none; margin-top:6px;">${conversation.summary ? conversation.summary : '<i class="small-muted">摘要生成中或不存在</i>'}</div>
@@ -365,7 +366,7 @@
                 const formattedTime = `${date.getMonth() + 1}月${date.getDate()}日 ${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')}`;
                 item.innerHTML = `
                         <div class="conversation-info">
-                            <h3 class="conversation-name">${conversation.name}</h3>
+                            <h3 class="conversation-name">${conversation.name}<span class="model-badge">${conversation.model || '未记录'}</span></h3>
                             <p class="conversation-time">${formattedTime}</p>
                         <button class="toggle-summary-btn">查看会话摘要</button>
                         <div class="conversation-summary-content" style="display:none; margin-top:6px;">${conversation.summary ? conversation.summary : '<i class="small-muted">摘要生成中或不存在</i>'}</div>
@@ -571,6 +572,10 @@
                 else localStorage.removeItem('deepseekConversationGroupId');
                 // 记录当前已保存会话的ID，供 index 页面在发送/接收时更新对应会话
                 localStorage.setItem('deepseekConversationId', conversation.id);
+                // 如果会话记录了使用的模型，则恢复到 chatModel，保证加载会话时模型一致
+                if (conversation.model) {
+                    try { localStorage.setItem('chatModel', conversation.model); } catch (e) { /* 忽略异常避免打断流程 */ }
+                }
                 window.location.href = 'index.html';
             }
         }

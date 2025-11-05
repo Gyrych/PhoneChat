@@ -215,6 +215,8 @@
                 if (idx === -1) return;
                 saved[idx].messages = currentConversation.slice();
                 saved[idx].updatedAt = new Date().toISOString();
+                // 同步保存当前使用的模型，保证会话记录模型可被恢复
+                saved[idx].model = window.MODEL_NAME;
                 // 保持分组ID与当前内存一致
                 saved[idx].groupId = currentConversationGroupId || null;
                 localStorage.setItem('savedDeepseekConversations', JSON.stringify(saved));
@@ -323,6 +325,7 @@
                             messages: JSON.parse(localStorage.getItem('deepseekConversation') || '[]'),
                             summary: null,
                             groupId: currentConversationGroupId || null,
+                            model: window.MODEL_NAME,
                             updatedAt: new Date().toISOString(),
                             lastSummarizedMessageCount: 0
                         };
