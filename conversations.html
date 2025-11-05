@@ -29,6 +29,24 @@
         <button id="saveCurrentBtn" class="save-current-btn">保存当前会话</button>
     </main>
 
+    <!-- 新建会话分组选择模态（默认隐藏） -->
+    <div id="newChatGroupModal" class="modal-overlay" style="display:none;">
+        <div class="modal">
+            <h3 class="modal-title">是否将新会话加入已有分组？</h3>
+            <p class="modal-desc">可从下拉列表中选择一个分组（可选），并为新会话命名。</p>
+            <input id="newChatNameInput" class="modal-input" placeholder="输入会话名称（可选）" maxlength="50" />
+            <select id="groupSelect" class="modal-select">
+                <option value="">未加入分组</option>
+            </select>
+            <div id="noGroupHint" class="modal-desc" style="display:none;">当前没有可用分组，可直接点击“跳过”。</div>
+            <div class="modal-actions">
+                <button id="groupModalConfirmBtn">确认</button>
+                <button id="groupModalSkipBtn">跳过</button>
+                <button id="groupModalCancelBtn">取消</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         /**
          * 文件名：conversations.html
@@ -48,6 +66,49 @@
             } catch (_) { return null; }
         }
         window.OPENROUTER_API_KEY = decryptApiKey(ENCRYPTED_OPENROUTER_KEY, LOCAL_PASSPHRASE);
+
+        /**
+         * 填充分组下拉
+         * 功能：从 localStorage 读取分组并填充下拉框，若无分组则显示提示
+         * 参数：无
+         * 返回值：无
+         */
+        function populateGroupSelect() {
+            const select = document.getElementById('groupSelect');
+            const hint = document.getElementById('noGroupHint');
+            if (!select) return;
+            // 保留第一个“未加入分组”选项，清理其后项
+            while (select.options.length > 1) select.remove(1);
+            try {
+                const groups = JSON.parse(localStorage.getItem('conversationGroups') || '[]');
+                if (groups.length === 0) {
+                    if (hint) hint.style.display = 'block';
+                    return;
+                }
+                if (hint) hint.style.display = 'none';
+                groups.forEach(g => {
+                    const opt = document.createElement('option');
+                    opt.value = g.id;
+                    opt.textContent = g.name;
+                    select.appendChild(opt);
+                });
+            } catch (_) {
+                if (hint) hint.style.display = 'block';
+            }
+        }
+
+        /**
+         * 打开/关闭 模态
+         */
+        function openNewChatGroupModal() {
+            populateGroupSelect();
+            const modal = document.getElementById('newChatGroupModal');
+            if (modal) modal.style.display = 'flex';
+        }
+        function closeNewChatGroupModal() {
+            const modal = document.getElementById('newChatGroupModal');
+            if (modal) modal.style.display = 'none';
+        }
         // 页面加载时显示所有保存的会话
         document.addEventListener('DOMContentLoaded', () => {
             renderConversationsList();
@@ -57,14 +118,10 @@
                 window.location.href = 'index.html';
             });
 
-            // 新建会话按钮
-            document.getElementById('newChatBtn').addEventListener('click', () => {
-                if (confirm('确定要开始新会话吗？当前会话会被保存。')) {
-                    saveCurrentConversation('新会话');
-                    // 清除临时会话与分组关联
-                    localStorage.setItem('deepseekConversation', JSON.stringify([]));
-                    localStorage.removeItem('deepseekConversationGroupId');
-                    window.location.href = 'index.html';
+            // 新建会话按钮：直接弹出分组选择（不再强制保存当前会话）
+            document.getElementById('newChatBtn').addEventListener('click', async () => {
+                if (confirm('确定要开始新会话吗？')) {
+                    openNewChatGroupModal();
                 }
             });
 
@@ -94,6 +151,40 @@
                 nameInput.value = '';
                 renderConversationsList();
             });
+
+            // 绑定模态按钮事件
+            try {
+                document.getElementById('groupModalConfirmBtn').addEventListener('click', () => {
+                    // 根据选择设置分组
+                    const sel = document.getElementById('groupSelect');
+                    const val = sel ? (sel.value || '') : '';
+                    if (val) localStorage.setItem('deepseekConversationGroupId', val);
+                    else localStorage.removeItem('deepseekConversationGroupId');
+                    // 读取名称输入并暂存到 localStorage，供 index 首次创建持久会话时使用
+                    const nameEl = document.getElementById('newChatNameInput');
+                    const nameVal = nameEl && nameEl.value ? nameEl.value.trim() : '';
+                    if (nameVal) localStorage.setItem('deepseekNewConversationName', nameVal);
+                    else localStorage.removeItem('deepseekNewConversationName');
+                    // 清空当前临时会话与旧ID，进入新会话
+                    localStorage.setItem('deepseekConversation', JSON.stringify([]));
+                    localStorage.removeItem('deepseekConversationId');
+                    closeNewChatGroupModal();
+                    window.location.href = 'index.html';
+                });
+                document.getElementById('groupModalSkipBtn').addEventListener('click', () => {
+                    // 跳过：不设置分组
+                    localStorage.setItem('deepseekConversation', JSON.stringify([]));
+                    localStorage.removeItem('deepseekConversationGroupId');
+                    localStorage.removeItem('deepseekConversationId');
+                    localStorage.removeItem('deepseekNewConversationName');
+                    closeNewChatGroupModal();
+                    window.location.href = 'index.html';
+                });
+                document.getElementById('groupModalCancelBtn').addEventListener('click', () => {
+                    // 取消：仅关闭模态
+                    closeNewChatGroupModal();
+                });
+            } catch (e) { /* 忽略事件绑定异常 */ }
         });
 
         /**

@@ -318,7 +318,9 @@
                     if (!existingId) {
                         const saved = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
                         const newId = Date.now().toString();
-                        const namePrefix = messageText.slice(0, 20) || '新会话';
+                        // 优先使用会话管理页预先输入的名称；否则回退为首条消息前缀
+                        const presetNameRaw = (localStorage.getItem('deepseekNewConversationName') || '').trim();
+                        const namePrefix = presetNameRaw || (messageText.slice(0, 20) || '新会话');
                         const newEntry = {
                             id: newId,
                             name: namePrefix,
@@ -332,6 +334,8 @@
                         saved.push(newEntry);
                         localStorage.setItem('savedDeepseekConversations', JSON.stringify(saved));
                         localStorage.setItem('deepseekConversationId', newId);
+                        // 清理临时名称键，避免影响下一次新建
+                        try { localStorage.removeItem('deepseekNewConversationName'); } catch (_) {}
                     }
                 } catch (e) {
                     console.error('自动创建持久会话失败：', e);

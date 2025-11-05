@@ -640,3 +640,80 @@ body {
         flex-direction: column;
     }
 }
+
+/* 模态与遮罩样式（新建会话分组选择） */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: none; /* 通过脚本切换为 flex */
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.35);
+    z-index: 9999;
+}
+
+.modal {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 16px;
+    width: min(92vw, 420px);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+}
+
+.modal-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #1d1d1f;
+    margin-bottom: 8px;
+}
+
+.modal-desc {
+    font-size: 0.9rem;
+    color: #555;
+    margin: 6px 0 10px;
+}
+
+.modal-select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    outline: none;
+    font-size: 0.95rem;
+    background: linear-gradient(180deg, #ffffff, #fbfdff);
+}
+
+.modal-input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    outline: none;
+    font-size: 0.95rem;
+    background: #fff;
+    margin-bottom: 10px;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.modal-actions button {
+    border: 1px solid #e0e0e0;
+    background: #fff;
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+#groupModalConfirmBtn {
+    background-color: #007aff;
+    color: #fff;
+    border-color: #007aff;
+}

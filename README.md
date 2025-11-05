@@ -11,6 +11,7 @@ FreeChat is a lightweight local web-based chat application for local prototyping
 - Auto-generate per-conversation summaries after each round and refresh group-level memory automatically.
 - Inject memory as a single system message before each request: group memory (always) + session summary (only within the same group).
 - Render AI assistant replies as Markdown using `marked` and sanitize with `DOMPurify` for safety.
+- When creating a new conversation from the manager page, a modal asks whether to add it to an existing group (with a dropdown selector) and lets you set a name.
 
 ## Default (Demo) API Configuration
 
@@ -53,6 +54,7 @@ Note: The above defaults are provided only as a convenient demo/fallback. For pr
 4. Summaries are now generated automatically after each assistant reply finishes
 5. Group memory is automatically refreshed when conversation summaries update
 6. Load previous conversations or create new ones
+7. When creating a new conversation, you'll be prompted to choose a group via dropdown (optional) and set a conversation name (optional)
 7. The conversation list shows a model badge next to the name; loading a conversation restores its model
 
 ## Project Structure
