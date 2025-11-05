@@ -1,3 +1,7 @@
+/**
+ * 文件名：prompts.js
+ * 功能描述：FreeChat 提示词配置文件，集中管理会话摘要和分组记忆生成所需的提示词模板
+ */
 // 集中管理所有摘要提示词（全局变量，供页面脚本使用）
 window.PROMPTS = window.PROMPTS || {};
 
