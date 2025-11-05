@@ -24,8 +24,9 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，适用于本地演示和
 
 ## 配置
 
-1. 打开 `config.html` 并粘贴你的 API Key，然后点击“保存”。
-2. 演示模式下 Key 会保存在浏览器的 `localStorage`（键名 `deepseekApiKey`）。
+1. 打开 `config.html`，从下拉菜单选择模型并点击“保存”，模型会以 `chatModel` 键写入 `localStorage`。
+2. 演示默认使用内置的加密 OpenRouter Key（仅用于演示，不可用于生产）。
+3. 如需使用你自己的 Key，可在浏览器控制台执行 `localStorage.setItem('deepseekApiKey', 'YOUR_KEY')`，或替换 `index.html` 中的加密串；会话摘要与分组记忆也会读取该值作为替代。
 
 ## 使用说明
 
@@ -51,28 +52,33 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，适用于本地演示和
 
 ## 文件说明
 
-- `index.html` — 主聊天页面与核心逻辑。
-- `config.html` — 设置页面，用于保存 API Key（演示用途）。
-- `conversations.html` — 会话管理页面（保存/加载/删除、分组管理、摘要查看）。
+- `index.html` — 主聊天页面与核心逻辑；包含演示用加密 OpenRouter Key。
+- `config.html` — 模型选择器（保存到 `localStorage` 键 `chatModel`）。
+- `conversations.html` — 会话管理页面（保存/加载/删除、分组管理、摘要查看/重新生成）。
+- `prompts.js` — 提示词模板，集中管理会话摘要与分组记忆提示词。
 - `style.css` — 应用样式。
-- `script.js` — 页面间的小型共用脚本（导航、存储助手等）。
+- `script.js` — 可选的共用脚本（导航、JSON 存储助手），当前默认未引入。
+- `tools/encrypt_key.js` — API 密钥加密工具占位文件。
 
 Mermaid 项目结构图：
 
 ```mermaid
 flowchart TB
-  A[index.html] --> B[script.js]
-  A --> C[style.css]
+  A[index.html] --> C[style.css]
   A --> D[config.html]
   A --> E[conversations.html]
+  A --> F[prompts.js]
+  E --> F
 ```
 
 ## 依赖
 
 - `marked` — Markdown 解析器，用于渲染 AI 回复中的 Markdown 内容。
 - `DOMPurify` — 对渲染的 HTML 进行消毒以防 XSS。
+- `CryptoJS` — 用于对演示 OpenRouter Key 进行 AES 解密。
+- `Font Awesome` — 界面使用的图标库。
 
-如果这些库通过 CDN 在 `index.html` 中引入，则无需构建步骤。
+所有库均通过 HTML 文件中的 CDN 引入，无需构建步骤。
 
 ## 安全提示
 

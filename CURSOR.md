@@ -8,7 +8,7 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
 
 ### 统一的默认 API 配置（已在文档中说明）
 
-- 默认演示/回退端点（可替换）：`https://api.openrouter.ai/v1/chat/completions`
+- 默认演示/回退端点（可替换）：`https://openrouter.ai/api/v1/chat/completions`
 - 默认演示/回退模型：`minimax/minimax-m2:free`
 
 > 说明：文档中声明的默认端点与模型仅用于演示与回退。生产环境强烈建议使用后端代理服务并使用您自己的 API Key 管理策略，不要将敏感 Key 以明文形式保存在前端。
@@ -20,17 +20,19 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
 
 ### 主要文件说明
 
-- `index.html`：主页面，包含聊天界面、消息渲染、发送逻辑与消息持久化。
-- `config.html`：设置页面，用户可在此输入并保存 API Key（默认保存在 `localStorage` 的 `deepseekApiKey` 键下，用于演示）。
-- `conversations.html`：会话管理页面，支持保存/加载/删除会话、会话分组以及查看会话摘要与分组记忆。
+- `index.html`：主页面，包含聊天界面、消息渲染、发送逻辑与消息持久化；内置加密的 OpenRouter API Key（仅演示用途）。
+- `config.html`：设置页面，仅提供“模型选择并保存到 localStorage（键名 `chatModel`）”，当前不提供 API Key 输入项。
+- `conversations.html`：会话管理页面，支持保存/加载/删除会话、分组管理、查看/重新生成会话摘要与分组记忆。
+- `prompts.js`：提示词模板，集中管理“会话摘要（SESSION_SUMMARY）/分组记忆（GROUP_SUMMARY）”等提示词常量。
 - `style.css`：应用样式与响应式布局。
-- `script.js`：页面间的小型共用脚本（导航、存储工具函数等）。
+- `script.js`：可选的共用脚本（导航、localStorage JSON 助手等）；当前页面未默认引入。
+- `tools/encrypt_key.js`：API 密钥加密工具（占位，当前无实现）。
 
 ### 核心数据流
 
 1. 用户在 `index.html` 输入消息并发送。
 2. 新消息被追加到当前会话数组并保存到 `localStorage`（键名示例：`deepseekConversation`）。
-3. 应用构造请求体并通过 `fetch` 向配置的 API 端点发送请求，使用 `Authorization: Bearer <apiKey>` 头（`apiKey` 来源于 `config.html` 中保存的值或项目内置回退 Key）。
+3. 应用构造请求体并通过 `fetch` 向配置的 API 端点发送请求，使用 `Authorization: Bearer <apiKey>` 头。当前实现的 `apiKey` 来源为内置加密的演示 Key（`OPENROUTER_API_KEY`）；会话摘要与分组记忆在 `conversations.html` 中也可读取 `localStorage` 的 `deepseekApiKey` 作为替代（若自行设置）。设置页目前不提供 Key 输入项。
 4. 收到 AI 响应后将回复追加到会话并渲染，同时保存会话状态到本地存储。
 
 ### 关键功能说明（已实现/部分实现）
@@ -46,8 +48,23 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
 - 错误与重试：当前错误提示较为基础，建议增强网络错误、API 限流及重试策略的处理。
 - CORS 与端点：客户端直接调用外部 API 可能遇到 CORS 限制，部署时请确认目标 API 的 CORS 配置或通过后端代理绕过。
 
+### 依赖说明
+
+- `marked`：Markdown 渲染（通过 CDN 注入）。
+- `DOMPurify`：Markdown 渲染结果的安全消毒（通过 CDN 注入）。
+- `CryptoJS`：对内置演示 OpenRouter Key 进行 AES 解密（通过 CDN 注入）。
+- `Font Awesome`：图标库（通过 CDN 注入）。
+
 ---
 ## 变更记录
+- 2025-11-05（文档与代码一致性修复：默认端点、文件说明、依赖与数据流）
+  - 目的：使文档与当前实现完全一致，减少读者误解。
+  - 修改项：
+    1. 将主文档中的默认端点统一为 `https://openrouter.ai/api/v1/chat/completions`（与代码一致）。
+    2. 更新“主要文件说明”：明确 `config.html` 仅提供模型选择；补充 `prompts.js` 与 `tools/encrypt_key.js`；标注 `script.js` 为可选且当前未默认引入。
+    3. 更新“核心数据流”：明确演示 Key 的来源与 `deepseekApiKey` 的可替代读取方式，并指出设置页不提供 Key 输入。
+    4. 新增“依赖说明”：补充 `CryptoJS` 与 `Font Awesome`。
+
 
 - 2025-11-05（文档与代码一致性审查）：
   - 目的：修复项目中的不一致问题，确保文档与代码的统一性

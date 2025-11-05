@@ -25,8 +25,9 @@ Note: The above defaults are provided only as a convenient demo/fallback. For pr
 
 ## Configuration
 
-1. Open `config.html` and paste your API Key, then click “Save” (the UI label may be localized).
-2. The key is stored in the browser's `localStorage` under `deepseekApiKey` for demo purposes.
+1. Open `config.html` and select a model, then click “Save”. The model is stored in `localStorage` under the key `chatModel`.
+2. Demo uses a built-in encrypted OpenRouter API key inside `index.html` (for demonstration only; do not rely on it for production).
+3. To use your own key, either replace the encrypted string in `index.html` or set `localStorage.setItem('deepseekApiKey', 'YOUR_KEY')` via the browser DevTools; conversation summaries and group memory can read this value as an alternative.
 
 ## Usage
 
@@ -54,28 +55,33 @@ Note: The above defaults are provided only as a convenient demo/fallback. For pr
 
 The core files are:
 
-- `index.html` — Main chat UI and core logic.
-- `config.html` — Settings page to store the API Key.
+- `index.html` — Main chat UI and core logic. Includes a demo encrypted OpenRouter key.
+- `config.html` — Model selector (stores to `localStorage` key `chatModel`).
 - `conversations.html` — Conversation manager (save/load/delete), group management and summaries.
+- `prompts.js` — Centralized prompt templates for session summary and group memory.
 - `style.css` — Styling for the application.
-- `script.js` — Small script for navigation and local storage helpers.
+- `script.js` — Optional shared helpers (navigation, JSON storage). Not included by default.
+- `tools/encrypt_key.js` — Placeholder for key encryption utilities.
 
 Mermaid visualization of the main front-end structure:
 
 ```mermaid
 flowchart TB
-  A[index.html] --> B[script.js]
-  A --> C[style.css]
+  A[index.html] --> C[style.css]
   A --> D[config.html]
   A --> E[conversations.html]
+  A --> F[prompts.js]
+  E --> F
 ```
 
 ## Dependencies
 
 - `marked` — Markdown parser for rendering assistant replies.
 - `DOMPurify` — Sanitizer to prevent XSS when rendering Markdown output.
+- `CryptoJS` — AES decryption for the built-in demo OpenRouter key.
+- `Font Awesome` — Icon set used in the UI.
 
-If those libraries are used via CDN includes in `index.html`, no build step is required.
+All libraries are pulled via CDN includes in the HTML files, so no build step is required.
 
 ## Security Notes
 
