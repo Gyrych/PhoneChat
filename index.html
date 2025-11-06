@@ -265,9 +265,44 @@
                 messageElement.className = `message ${message.role === 'user' ? 'user-message' : 'ai-message'}`;
                 if (message.role === 'assistant') {
                     try {
+                        // 优先渲染思考过程（若有），再渲染正文
+                        messageElement.innerHTML = '';
+                        const reasoningText = (message.reasoning || '').trim();
+                        if (reasoningText) {
+                            const reasoningBlock = document.createElement('div');
+                            reasoningBlock.className = 'reasoning-block';
+
+                            const toggleBtn = document.createElement('button');
+                            toggleBtn.className = 'reasoning-toggle';
+                            toggleBtn.textContent = '收起思考过程'; // 默认展开
+
+                            const rDiv = document.createElement('div');
+                            rDiv.className = 'reasoning-content';
+                            try {
+                                const rHtml = marked.parse(reasoningText);
+                                rDiv.innerHTML = DOMPurify.sanitize(rHtml);
+                            } catch (_) {
+                                rDiv.textContent = reasoningText;
+                            }
+                            rDiv.style.display = 'block';
+
+                            toggleBtn.addEventListener('click', (e) => {
+                                e.stopPropagation();
+                                const willShow = (rDiv.style.display === 'none');
+                                rDiv.style.display = willShow ? 'block' : 'none';
+                                toggleBtn.textContent = willShow ? '收起思考过程' : '展开思考过程';
+                            });
+
+                            reasoningBlock.appendChild(toggleBtn);
+                            reasoningBlock.appendChild(rDiv);
+                            messageElement.appendChild(reasoningBlock);
+                        }
+
                         const rawHtml = marked.parse(message.content || '');
                         const cleanHtml = DOMPurify.sanitize(rawHtml);
-                        messageElement.innerHTML = cleanHtml;
+                        const contentHolder = document.createElement('div');
+                        contentHolder.innerHTML = cleanHtml;
+                        messageElement.appendChild(contentHolder);
                     } catch (e) {
                         console.error('Markdown 渲染失败，退回纯文本显示：', e);
                         messageElement.textContent = message.content;
@@ -368,7 +403,8 @@
 
                 // 重置本轮思考过程缓存
                 window._currentAssistantReasoning = '';
-                const aiMsgObj = { role: 'assistant', content: '' };
+                window._reasoningCollapsed = false; // 默认展开
+                const aiMsgObj = { role: 'assistant', content: '', reasoning: '' };
                 currentConversation.push(aiMsgObj);
                 saveConversation();
                 scheduleUpsertSavedConversation();
@@ -509,8 +545,12 @@
                                 )) ||
                                 (json.choices && json.choices[0] && json.choices[0].message && json.choices[0].message.reasoning_content) || '';
                             if (rDelta) {
-                                try { window._currentAssistantReasoning = (window._currentAssistantReasoning || '') + String(rDelta); } catch (_) {}
-                                // 触发界面刷新以（在存在时）显示思考过程折叠区
+                                const rStr = String(rDelta);
+                                try { window._currentAssistantReasoning = (window._currentAssistantReasoning || '') + rStr; } catch (_) {}
+                                try { aiMsgObj.reasoning = (aiMsgObj.reasoning || '') + rStr; } catch (_) {}
+                                try { saveConversation(); } catch (_) {}
+                                try { scheduleUpsertSavedConversation(); } catch (_) {}
+                                // 触发界面刷新以（在存在时）显示思考过程
                                 updateLastAssistantMessage(aiMsgObj.content);
                             }
                         } catch (err) {
@@ -689,7 +729,7 @@
             // 节流写回持久会话
             try { scheduleUpsertSavedConversation(); } catch (e) { /* 忽略上报 */ }
 
-            // 渲染思考过程（仅当存在思考内容时显示，默认折叠）
+            // 渲染思考过程（仅当存在思考内容时显示，默认展开，置于正文前）
             try {
                 const rText = (window._currentAssistantReasoning || '').trim();
                 if (rText) {
@@ -698,7 +738,8 @@
 
                     const toggleBtn = document.createElement('button');
                     toggleBtn.className = 'reasoning-toggle';
-                    toggleBtn.textContent = '查看思考过程';
+                    const collapsed = !!window._reasoningCollapsed;
+                    toggleBtn.textContent = collapsed ? '展开思考过程' : '收起思考过程';
 
                     const contentDiv = document.createElement('div');
                     contentDiv.className = 'reasoning-content';
@@ -708,22 +749,20 @@
                     } catch (_) {
                         contentDiv.textContent = rText;
                     }
-                    contentDiv.style.display = 'none';
+                    contentDiv.style.display = collapsed ? 'none' : 'block';
 
                     toggleBtn.addEventListener('click', (e) => {
                         e.stopPropagation();
-                        if (contentDiv.style.display === 'none') {
-                            contentDiv.style.display = 'block';
-                            toggleBtn.textContent = '隐藏思考过程';
-                        } else {
-                            contentDiv.style.display = 'none';
-                            toggleBtn.textContent = '查看思考过程';
-                        }
+                        const willShow = (contentDiv.style.display === 'none');
+                        contentDiv.style.display = willShow ? 'block' : 'none';
+                        window._reasoningCollapsed = !willShow;
+                        toggleBtn.textContent = willShow ? '收起思考过程' : '展开思考过程';
                     });
 
                     reasoningBlock.appendChild(toggleBtn);
                     reasoningBlock.appendChild(contentDiv);
-                    last.appendChild(reasoningBlock);
+                    // 插入到消息内容最前面（位于正文之前）
+                    last.insertBefore(reasoningBlock, last.firstChild);
                 }
             } catch (_) { /* 忽略思考过程渲染异常 */ }
             scrollToBottom();
