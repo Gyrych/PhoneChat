@@ -41,7 +41,10 @@
         <button id="conversationsBtn" class="conversations-btn">
             <i class="fas fa-history"></i>
         </button>
-        <h1>FreeChat</h1>
+        <div class="brand">
+            <h1>FreeChat</h1>
+            <span id="currentModelBadge" class="model-badge"></span>
+        </div>
         <button id="settingsBtn" class="settings-btn">
             <i class="fas fa-cog"></i>
         </button>
@@ -123,6 +126,7 @@
             window._appInitialized = true;
 
             console.log('initApp: attaching handlers');
+            try { updateCurrentModelBadge(); } catch (e) { /* 忽略徽标更新异常 */ }
             loadConversation();
             renderMessages();
             if (sendBtn) {
@@ -174,6 +178,8 @@
             }
             const grp = localStorage.getItem('deepseekConversationGroupId');
             currentConversationGroupId = (grp && grp !== 'undefined' && grp !== 'null') ? grp : null;
+            // 加载时尝试同步更新当前模型徽标（若用户从会话管理页恢复了模型）
+            try { updateCurrentModelBadge(); } catch (e) { /* 忽略异常 */ }
         }
 
         /**
@@ -196,6 +202,19 @@
          */
         function saveConversation() {
             localStorage.setItem('deepseekConversation', JSON.stringify(currentConversation));
+        }
+
+        /**
+         * 更新当前模型徽标
+         * 功能：将 window.MODEL_NAME 或 localStorage.chatModel 显示在页面头部徽标处
+         * 参数：无
+         * 返回值：无
+         */
+        function updateCurrentModelBadge() {
+            const badge = document.getElementById('currentModelBadge');
+            if (!badge) return;
+            const name = (window.MODEL_NAME || localStorage.getItem('chatModel') || '').trim();
+            badge.textContent = name || '未选择模型';
         }
 
         /**
@@ -347,6 +366,8 @@
                 showStatus('发送中...', true);
                 stopBtn.style.display = 'flex';
 
+                // 重置本轮思考过程缓存
+                window._currentAssistantReasoning = '';
                 const aiMsgObj = { role: 'assistant', content: '' };
                 currentConversation.push(aiMsgObj);
                 saveConversation();
@@ -474,9 +495,22 @@
                         }
                         try {
                             const json = JSON.parse(data);
+                            // 内容增量
                             const delta = json.choices && json.choices[0] && (json.choices[0].delta ? json.choices[0].delta.content : (json.choices[0].text || ''));
                             if (delta) {
                                 aiMsgObj.content += delta;
+                                updateLastAssistantMessage(aiMsgObj.content);
+                            }
+                            // 思考过程增量（兼容多种字段命名）
+                            const rDelta =
+                                (json.choices && json.choices[0] && json.choices[0].delta && (
+                                    json.choices[0].delta.reasoning_content ||
+                                    (json.choices[0].delta.reasoning && (json.choices[0].delta.reasoning.content || json.choices[0].delta.reasoning))
+                                )) ||
+                                (json.choices && json.choices[0] && json.choices[0].message && json.choices[0].message.reasoning_content) || '';
+                            if (rDelta) {
+                                try { window._currentAssistantReasoning = (window._currentAssistantReasoning || '') + String(rDelta); } catch (_) {}
+                                // 触发界面刷新以（在存在时）显示思考过程折叠区
                                 updateLastAssistantMessage(aiMsgObj.content);
                             }
                         } catch (err) {
@@ -616,6 +650,10 @@
             const existingActions = last.querySelector('.message-actions');
             if (existingActions) existingActions.remove();
 
+            // 若已存在思考过程容器，移除以避免重复追加
+            const existingReasoning = last.querySelector('.reasoning-block');
+            if (existingReasoning) existingReasoning.remove();
+
             const actionsDiv = document.createElement('div');
             actionsDiv.className = 'message-actions';
 
@@ -650,6 +688,44 @@
             try { saveConversation(); } catch (e) { console.error('保存会话失败：', e); }
             // 节流写回持久会话
             try { scheduleUpsertSavedConversation(); } catch (e) { /* 忽略上报 */ }
+
+            // 渲染思考过程（仅当存在思考内容时显示，默认折叠）
+            try {
+                const rText = (window._currentAssistantReasoning || '').trim();
+                if (rText) {
+                    const reasoningBlock = document.createElement('div');
+                    reasoningBlock.className = 'reasoning-block';
+
+                    const toggleBtn = document.createElement('button');
+                    toggleBtn.className = 'reasoning-toggle';
+                    toggleBtn.textContent = '查看思考过程';
+
+                    const contentDiv = document.createElement('div');
+                    contentDiv.className = 'reasoning-content';
+                    try {
+                        const rHtml = marked.parse(rText);
+                        contentDiv.innerHTML = DOMPurify.sanitize(rHtml);
+                    } catch (_) {
+                        contentDiv.textContent = rText;
+                    }
+                    contentDiv.style.display = 'none';
+
+                    toggleBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        if (contentDiv.style.display === 'none') {
+                            contentDiv.style.display = 'block';
+                            toggleBtn.textContent = '隐藏思考过程';
+                        } else {
+                            contentDiv.style.display = 'none';
+                            toggleBtn.textContent = '查看思考过程';
+                        }
+                    });
+
+                    reasoningBlock.appendChild(toggleBtn);
+                    reasoningBlock.appendChild(contentDiv);
+                    last.appendChild(reasoningBlock);
+                }
+            } catch (_) { /* 忽略思考过程渲染异常 */ }
             scrollToBottom();
         }
 

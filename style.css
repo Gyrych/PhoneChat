@@ -32,6 +32,14 @@ body {
     color: #1d1d1f;
 }
 
+/* 顶部标题与模型徽标上下排列容器 */
+.header .brand {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
 .settings-btn, .back-btn, .conversations-btn, .new-chat-btn {
     background: none;
     border: none;
@@ -506,6 +514,30 @@ body {
     padding: 10px;
     color: #122244;
     border: 1px solid rgba(13,71,161,0.04);
+}
+
+/* 思考过程折叠显示（默认隐藏，点击切换） */
+.reasoning-block {
+    margin-top: 8px;
+}
+
+.reasoning-toggle {
+    background: rgba(13,71,161,0.06);
+    border: 1px solid rgba(13,71,161,0.12);
+    color: #08327a;
+    padding: 6px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.85rem;
+}
+
+.reasoning-content {
+    background: linear-gradient(90deg, rgba(240,248,255,0.6), rgba(250,250,255,0.8));
+    border-radius: 8px;
+    padding: 10px;
+    color: #122244;
+    border: 1px solid rgba(13,71,161,0.04);
+    margin-top: 6px;
 }
 
 /* 优化按钮图标样式 */

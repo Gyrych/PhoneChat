@@ -12,6 +12,8 @@ FreeChat is a lightweight local web-based chat application for local prototyping
 - Inject memory as a single system message before each request: group memory (always) + session summary (only within the same group).
 - Render AI assistant replies as Markdown using `marked` and sanitize with `DOMPurify` for safety.
 - When creating a new conversation from the manager page, a modal asks whether to add it to an existing group (with a dropdown selector) and lets you set a name.
+- Show the current model as a badge on the chat header.
+- For reasoning-capable models (e.g., DeepSeek-R1), optionally view the model's reasoning process via a collapsible panel (hidden by default; shown only if the API returns reasoning content).
 
 ## Default (Demo) API Configuration
 
@@ -40,6 +42,8 @@ Note: The above defaults are provided only as a convenient demo/fallback. For pr
 3. The AI response will appear in the chat area
 4. You can copy or delete messages using the buttons next to each message
 5. During response generation, a stop button appears that allows you to terminate the response early
+6. The current model is shown as a badge in the top header
+7. If you use a reasoning-capable model and the provider returns reasoning content, a "View reasoning" toggle appears under the assistant message; click to expand/collapse
 
 ### Model Configuration
 1. Click the settings button in the top navigation bar
