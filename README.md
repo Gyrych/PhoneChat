@@ -9,7 +9,9 @@ FreeChat is a lightweight local web-based chat application for local prototyping
 - Save, load, delete and rename conversations.
 - Organize conversations into groups and generate per-conversation summaries.
 - Auto-generate per-conversation summaries after each round and refresh group-level memory automatically.
-- Inject memory as a single system message before each request: group memory (always) + session summary (only within the same group).
+- Inject memory as a single system message before each request:
+  - All groups' group memories are injected (configurable), and
+  - All session summaries within the current group are injected (configurable).
 - Render AI assistant replies as Markdown using `marked` and sanitize with `DOMPurify` for safety.
 - When creating a new conversation from the manager page, a modal asks whether to add it to an existing group (with a dropdown selector) and lets you set a name.
 - Show the current model as a badge on the chat header.
@@ -35,6 +37,14 @@ Note: The above defaults are provided only as a convenient demo/fallback. For pr
 3. Demo uses a built-in encrypted OpenRouter API key inside `index.html` (for demonstration only; do not rely on it for production).
 4. To use your own key, either replace the encrypted string in `index.html` or set `localStorage.setItem('deepseekApiKey', 'YOUR_KEY')` via the browser DevTools; conversation summaries and group memory can read this value as an alternative.
 
+### Memory injection toggles (via localStorage)
+
+- `freechat.memory.inject.allGroups` — `true`/`false` (default `true`): inject all groups' memories (or only current group).
+- `freechat.memory.inject.groupSessions` — `true`/`false` (default `true`): inject all session summaries within the current group.
+- `freechat.memory.maxConvPerGroup` — number limit for session summaries in the current group (default `10`).
+- `freechat.memory.maxCharsPerSection` — character cap per injected section (default `4000`).
+- `freechat.memory.preSummarize` — `true`/`false` (default `false`): optionally pre-summarize the current conversation before the first round so its summary can be injected immediately.
+
 ## Usage
 
 ### Basic Chat
@@ -56,8 +66,8 @@ Note: The above defaults are provided only as a convenient demo/fallback. For pr
 1. Click the conversations button in the top navigation bar
 2. View all your chat histories organized by date
 3. Create conversation groups for better organization
-4. Summaries are now generated automatically after each assistant reply finishes
-5. Group memory is automatically refreshed when conversation summaries update
+4. Summaries are generated automatically after each assistant reply finishes
+5. Group memory is automatically refreshed when conversation summaries update; injection includes all groups' memories and all session summaries of the current group (subject to the toggles above)
 6. Load previous conversations or create new ones
 7. When creating a new conversation, you'll be prompted to choose a group via dropdown (optional) and set a conversation name (optional)
 7. The conversation list shows a model badge next to the name; loading a conversation restores its model
