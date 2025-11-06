@@ -16,6 +16,8 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，适用于本地演示和
 - 主聊天页顶部显示当前模型徽标。
 - 对于具备“思考”能力的模型（如 DeepSeek-R1），当 API 返回推理内容时，将以流式形式显示在助手正文“上方”，默认展开，用户可点击按钮收起/展开。
 - 内置请求/响应日志：记录到 localStorage（遮蔽 Authorization），并提供导出/清空按钮。
+ - 现代浅色主题 + 简洁科技风，头部/输入区/AI 气泡/卡片采用磨砂玻璃质感（Glassmorphism）。
+ - 字体：Inter 用于英数，中文回退系统字体；通过 CSS 变量实现响应式字号。
 
 ## 默认（演示）API 配置
 
@@ -102,8 +104,10 @@ flowchart TB
 - `CryptoJS` — 用于对演示 OpenRouter Key 进行 AES 解密。
 - `Font Awesome` — 界面使用的图标库。
 - `logger.js` 为内部工具（无外部依赖）。
+ - `Inter` — 英文字体，通过 Google Fonts 加载；中文回退到系统字体。
 
 所有库均通过 HTML 文件中的 CDN 引入，无需构建步骤。
+说明：玻璃质感依赖 `backdrop-filter`；在不支持的环境会优雅降级为半透明实体背景。
 
 ## 安全提示
 

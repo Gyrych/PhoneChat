@@ -82,9 +82,35 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
 - `DOMPurify`：Markdown 渲染结果的安全消毒（通过 CDN 注入）。
 - `CryptoJS`：对内置演示 OpenRouter Key 进行 AES 解密（通过 CDN 注入）。
 - `Font Awesome`：图标库（通过 CDN 注入）。
+ - `Inter`：英数字体（通过 Google Fonts 注入，中文回退系统字体）。
+
+### 界面风格与设计令牌（新增）
+
+- 主题基调：浅色、简洁科技感 + 磨砂玻璃质感（Glassmorphism）。
+- 设计令牌（`style.css :root`）：
+  - 颜色：`--bg`、`--fg`、`--muted`、`--brand`、`--brand-2`、`--surface`、`--surface-strong`、`--border`、`--shadow`
+  - 圆角/模糊：`--radius`、`--blur`
+  - 字体比例：`--fs-body`、`--fs-h1`、`--fs-h2`、`--lh`
+- 字体：`Inter`（英数）+ 系统中文（如 `PingFang SC`、`Microsoft YaHei`、`Noto Sans CJK SC`）。
+- 玻璃通用类：`.glass`（半透明白面 + `backdrop-filter: blur(...) saturate(...)` + 细边 + 统一阴影）。
+- 降级策略：对不支持 `backdrop-filter` 的环境，使用 `@supports not (...)` 将玻璃背景替换为更实的 `--surface-strong`。
+- 应用范围：
+  - 头部 `.header`、输入区 `.input-container`、会话卡片 `.conversation-item`、AI 气泡 `.ai-message`、模态 `.modal` 等均采用玻璃风格；
+  - 用户消息采用品牌渐变（`--brand` → `--brand-2`）；
+  - 模型徽章 `.model-badge` 使用胶囊玻璃风；
+  - 图标按钮统一半透明玻璃按钮，悬停轻微浮起与投影；
+  - 响应式字号与行高通过 `clamp()` 与 `--lh` 控制；
+  - `prefers-reduced-motion` 自动降低动画强度。
 
 ---
 ## 变更记录
+- 2025-11-06（UI 现代化：浅色玻璃风 + Inter 字体 + 设计令牌）
+  - 目的：统一现代审美，提升可读性、层级与品牌一致性；引入可复用的设计令牌。
+  - 修改项：
+    1. `style.css` 顶部新增设计令牌与 Inter 字体导入，增加 `.glass` 通用类与降级；
+    2. 头部、输入区、AI 气泡、会话卡片、按钮与模型徽章全面应用玻璃风与统一比例；
+    3. 用户消息采用品牌渐变；
+    4. 将 `index.html` 内联的停止按钮样式迁移至 `style.css`（统一风格与维护便捷性）。
 - 2025-11-06（记忆注入策略升级：全部分组记忆 + 当前分组全部会话摘要）
  - 目的：契合用户“在同一分组内会话时注入全局分组记忆与同组全部会话摘要”的设计意图。
  - 修改项：

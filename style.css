@@ -1,33 +1,79 @@
+/* 引入 Inter 英文字体（英数优先），中文回退到系统字体 */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+/* 主题设计令牌（浅色 + 玻璃质感） */
+:root {
+    /* 颜色与视觉令牌 */
+    --bg: #f6f7fb; /* 页面背景（浅冷白） */
+    --fg: #1d1f23; /* 主文本颜色 */
+    --muted: #5b6577; /* 次要文本颜色 */
+    --brand: #2f6fe4; /* 品牌主色 */
+    --brand-2: #5b8cff; /* 品牌渐变副色 */
+    --surface: rgba(255,255,255,0.65); /* 玻璃表面 */
+    --surface-strong: rgba(255,255,255,0.85); /* 玻璃降级表面 */
+    --border: rgba(20,40,80,0.12); /* 细边 */
+    --shadow: 0 8px 24px rgba(16,38,84,0.08); /* 阴影 */
+    --radius: 14px; /* 圆角 */
+    --blur: 12px; /* 玻璃模糊 */
+    /* 字体比例与行高 */
+    --fs-body: clamp(15px, 1.5vw, 16px);
+    --fs-h1: clamp(18px, 2.4vw, 22px);
+    --fs-h2: clamp(16px, 2.0vw, 18px);
+    --lh: 1.55;
+}
+
+/* 玻璃通用类（可复用到任意容器） */
+.glass {
+    background: var(--surface);
+    -webkit-backdrop-filter: blur(var(--blur)) saturate(140%);
+    backdrop-filter: blur(var(--blur)) saturate(140%);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+}
+
+/* 不支持 backdrop-filter 时的降级方案 */
+@supports not (backdrop-filter: blur(1px)) {
+    .glass { background: var(--surface-strong); }
+}
+
 /* 全局样式重置 */
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+    font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", "Open Sans", "Helvetica Neue", sans-serif;
 }
 
 body {
-    background-color: #f5f5f7;
-    color: #333;
+    background: linear-gradient(180deg, #f8faff, #f4f6fb);
+    color: var(--fg);
     height: 100vh;
     display: flex;
     flex-direction: column;
+    font-size: var(--fs-body);
+    line-height: var(--lh);
 }
 
 /* 顶部导航栏 */
 .header {
-    background-color: #ffffff;
+    /* 玻璃质感头部 */
     padding: 16px 20px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    border-radius: 16px;
+    margin: 8px 12px;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    -webkit-backdrop-filter: blur(var(--blur)) saturate(140%);
+    backdrop-filter: blur(var(--blur)) saturate(140%);
+    background: var(--surface);
     position: relative;
     z-index: 10;
 }
 
 .header h1 {
-    font-size: 1.2rem;
+    font-size: var(--fs-h1);
     font-weight: 600;
     color: #1d1d1f;
 }
@@ -41,22 +87,26 @@ body {
 }
 
 .settings-btn, .back-btn, .conversations-btn, .new-chat-btn {
-    background: none;
-    border: none;
+    background: rgba(255,255,255,0.55);
+    border: 1px solid var(--border);
     color: #1d1d1f;
     font-size: 1.2rem;
     cursor: pointer;
     width: 40px;
     height: 40px;
-    border-radius: 50%;
+    border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background-color 0.2s;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+    -webkit-backdrop-filter: blur(var(--blur)) saturate(140%);
+    backdrop-filter: blur(var(--blur)) saturate(140%);
 }
 
 .settings-btn:hover, .back-btn:hover, .conversations-btn:hover, .new-chat-btn:hover {
-    background-color: #f0f0f0;
+    background-color: rgba(255,255,255,0.75);
+    box-shadow: 0 8px 18px rgba(16,38,84,0.10);
+    transform: translateY(-1px);
 }
 
 /* 聊天内容区域 */
@@ -80,8 +130,8 @@ body {
     max-width: 72%; /* 页面更窄的消息列更利于阅读 */
     padding: 14px 18px;
     border-radius: 16px;
-    line-height: 1.45; /* 适度行高，兼顾可读性与美观 */
-    font-size: 15px;
+    line-height: 1.5; /* 适度行高，兼顾可读性与美观 */
+    font-size: var(--fs-body);
     position: relative;
     animation: fadeIn 0.28s ease;
 }
@@ -168,18 +218,24 @@ body {
 }
 
 .user-message {
-    background-color: #007aff;
-    color: white;
+    /* 用户消息采用品牌渐变，提升对比度 */
+    background: linear-gradient(135deg, var(--brand), var(--brand-2));
+    color: #ffffff;
     align-self: flex-end;
     border-bottom-right-radius: 4px;
+    box-shadow: 0 6px 16px rgba(47,111,228,0.20);
 }
 
 .ai-message {
-    background-color: white;
+    /* AI 消息采用玻璃白面板 */
     color: #1d1d1f;
     align-self: flex-start;
     border-bottom-left-radius: 4px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    -webkit-backdrop-filter: blur(var(--blur)) saturate(140%);
+    backdrop-filter: blur(var(--blur)) saturate(140%);
+    box-shadow: var(--shadow);
 }
 
 /* 消息操作按钮 */
@@ -219,7 +275,7 @@ body {
 .status-indicator {
     height: 24px;
     margin: 8px 0;
-    color: #666;
+    color: var(--muted);
     font-size: 0.9rem;
     display: flex;
     align-items: center;
@@ -251,16 +307,21 @@ body {
 
 /* 输入区域 */
 .input-container {
-    background-color: white;
+    /* 玻璃质感输入区域 */
+    background: var(--surface);
     padding: 12px 16px;
     display: flex;
     gap: 12px;
-    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+    box-shadow: var(--shadow);
+    border-top: 1px solid var(--border);
+    border-left: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+    position: relative; /* 供浮动停止按钮定位 */
 }
 
 .message-input {
     flex: 1;
-    border: 1px solid #e0e0e0;
+    border: 1px solid var(--border);
     border-radius: 20px;
     padding: 12px 16px;
     resize: none;
@@ -270,11 +331,11 @@ body {
 }
 
 .message-input:focus {
-    border-color: #007aff;
+    border-color: var(--brand);
 }
 
 .send-btn {
-    background-color: #007aff;
+    background: linear-gradient(135deg, var(--brand), var(--brand-2));
     color: white;
     border: none;
     border-radius: 50%;
@@ -288,13 +349,39 @@ body {
 }
 
 .send-btn:hover {
-    background-color: #0066cc;
+    filter: brightness(0.95);
 }
 
 .send-btn:disabled {
     background-color: #cccccc;
     cursor: not-allowed;
 }
+
+/* 停止按钮（浮动）从内联移动至全局样式，统一风格 */
+.stop-btn-floating {
+    position: absolute;
+    right: 86px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: none;
+    background: #e74c3c; /* 保持明确的停止语义色 */
+    color: #fff;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 999;
+    cursor: pointer;
+    box-shadow: 0 6px 16px rgba(231,76,60,0.25);
+    padding: 0;
+    touch-action: manipulation;
+    -webkit-user-select: none;
+    user-select: none;
+}
+.stop-btn-floating:active { transform: translateY(-50%) scale(0.96); }
+.stop-btn-floating .fa-stop { font-size: 14px; }
 
 /* 配置页面样式 */
 .config-container {
@@ -311,10 +398,7 @@ body {
     gap: 8px;
 }
 
-.config-label {
-    font-size: 0.9rem;
-    color: #666;
-}
+.config-label { font-size: 0.9rem; color: var(--muted); }
 
 .config-input {
     padding: 12px 16px;
@@ -441,19 +525,23 @@ body {
 #createGroupBtn:hover { transform: translateY(-2px); box-shadow: 0 14px 30px rgba(47,111,228,0.16); }
 
 .conversation-item {
-    background: linear-gradient(90deg, #ffffff, #fbfdff);
+    /* 会话卡片玻璃化 */
+    background: var(--surface);
+    border: 1px solid var(--border);
     border-radius: 12px;
     padding: 14px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    box-shadow: 0 6px 18px rgba(6,34,84,0.04);
-    transition: transform 0.12s ease, box-shadow 0.12s ease;
+    box-shadow: var(--shadow);
+    transition: transform 0.12s ease, box-shadow 0.12s ease, background-color 0.12s ease;
+    -webkit-backdrop-filter: blur(var(--blur)) saturate(140%);
+    backdrop-filter: blur(var(--blur)) saturate(140%);
 }
 
 .conversation-item:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 12px 28px rgba(6,34,84,0.08);
+    transform: translateY(-2px);
+    box-shadow: 0 12px 28px rgba(6,34,84,0.12);
 }
 
 .conversation-name { color: #082a8a; font-weight: 700; }
@@ -567,14 +655,17 @@ body {
 
 /* 会话模型徽标样式 */
 .model-badge {
+    /* 胶囊玻璃徽标 */
     display: inline-block;
     font-size: 12px;
     color: #08327a;
-    background: rgba(13,71,161,0.06);
-    border: 1px solid rgba(13,71,161,0.12);
-    padding: 2px 6px;
-    border-radius: 6px;
+    background: rgba(255,255,255,0.55);
+    border: 1px solid var(--border);
+    padding: 2px 8px;
+    border-radius: 999px;
     margin-left: 6px;
+    -webkit-backdrop-filter: blur(var(--blur)) saturate(140%);
+    backdrop-filter: blur(var(--blur)) saturate(140%);
 }
 
 .conversation-time {
@@ -671,6 +762,11 @@ body {
     .conversation-actions {
         flex-direction: column;
     }
+}
+
+/* 动画减少偏好：降低动画强度 */
+@media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
 }
 
 /* 模态与遮罩样式（新建会话分组选择） */

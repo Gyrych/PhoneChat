@@ -17,6 +17,8 @@
 - Show the current model as a badge on the chat header.
 - For reasoning-capable models (e.g., DeepSeek-R1), the model's reasoning (if returned by the API) streams live and appears ABOVE the assistant reply. It is visible by default and can be folded/unfolded by the user.
 - Built-in request/response logging to localStorage (auth masked), with Export/Clear buttons.
+ - Modern light theme with clean tech aesthetic and glassmorphism (frosted glass) applied to header, input area, AI bubbles, and cards.
+ - Typography: Inter (Latin) with system Chinese fallbacks, responsive font sizes via CSS variables.
 
 ## Default (Demo) API Configuration
 
@@ -105,8 +107,10 @@ flowchart TB
 - `CryptoJS` — AES decryption for the built-in demo OpenRouter key.
 - `Font Awesome` — Icon set used in the UI.
 - `logger.js` is an internal utility (no external dependency).
+ - `Inter` — Latin typeface loaded from Google Fonts; Chinese falls back to system fonts.
 
 All libraries are pulled via CDN includes in the HTML files, so no build step is required.
+Note: Glassmorphism uses `backdrop-filter`; when not supported, the UI gracefully falls back to a solid translucent surface.
 
 ## Security Notes
 
