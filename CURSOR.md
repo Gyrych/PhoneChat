@@ -37,7 +37,7 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
    - 分组记忆：默认注入“全部分组”的 `conversationGroups[].memorySummary`（可通过 `freechat.memory.inject.allGroups` 切换为仅当前分组）；
    - 会话摘要：注入“当前分组内所有会话”的 `savedDeepseekConversations[].summary`（按更新时间裁剪，阈值可配）；
    注入顺序为“分组记忆（全部/当前） → 当前分组会话摘要（多条） → 历史消息”，且不污染可见的 `currentConversation`。
-4. 应用构造请求体并通过 `fetch` 向配置的 API 端点发送请求，使用 `Authorization: Bearer <apiKey>` 头。`apiKey` 优先使用内置加密的演示 Key（`OPENROUTER_API_KEY`），回退到 `localStorage.deepeekApiKey`（若存在）。
+4. 应用构造请求体并通过 `fetch` 向配置的 API 端点发送请求，使用 `Authorization: Bearer <apiKey>` 头。`apiKey` 优先使用内置加密的演示 Key（`OPENROUTER_API_KEY`），回退到 `localStorage.deepseekApiKey`（若存在）。
 5. 每个持久会话条目会记录 `model` 字段（来源于 `localStorage.chatModel`/`window.MODEL_NAME`），在 `conversations.html` 加载会话时若存在该字段，会自动恢复到 `chatModel`，确保历史会话按其当时模型继续。
 5. 收到 AI 响应后将回复流式追加与渲染，并实时保存会话；同时以 1.5s 节流策略将内容回写到持久会话条目（避免高频写入）。
 6. 每轮流式结束后自动触发会话摘要：当消息条数超过上次已摘要计数或此前未有摘要时调用模型生成摘要，保存到 `savedDeepseekConversations[].summary` 并更新 `lastSummarizedMessageCount`；若会话属于某分组，则随后自动聚合并刷新该分组的 `memorySummary`。
@@ -74,6 +74,7 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
 - API Key 存储：当前默认实现将 Key 以明文或轻度混淆的形式保存在 `localStorage`，不适合生产环境。建议使用后端代理并在服务器端安全存储 Key。
 - 错误与重试：当前错误提示较为基础，建议增强网络错误、API 限流及重试策略的处理。
 - CORS 与端点：客户端直接调用外部 API 可能遇到 CORS 限制，部署时请确认目标 API 的 CORS 配置或通过后端代理绕过。
+ - 停止按钮：当前为 UI 级别效果，未中止网络请求；建议后续引入 AbortController 以支持真正中止。
 
 ### 依赖说明
 
@@ -201,3 +202,10 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
 - 2025-10-26：实现会话分组与分组记忆功能（分组 ID 支持、摘要生成、分组记忆聚合等）。
 
 - 2025-10-23 初始版本：创建仓库并添加基础文档与源文件。
+
+- 2025-11-06（文档一致性修复：API Key/停止按钮说明与键名修正）
+  - 目的：使文档与实现完全对齐，澄清设置页不管理 API Key，停止按钮当前为 UI 级别。
+  - 修改项：
+    1. README.md：开头描述修正为“内置加密演示 Key 或通过 localStorage 配置；设置页仅配置模型”；基础聊天第 5 点改为“停止按钮为 UI-only，当前不中止网络请求”。
+    2. README_zh.md：同步中文修正，与英文保持语义一致。
+    3. CURSOR.md：将 `localStorage.deepeekApiKey` 更正为 `localStorage.deepseekApiKey`；在“已知限制与建议”新增“停止按钮为 UI 级别，建议引入 AbortController”。

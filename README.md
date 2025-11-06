@@ -1,6 +1,6 @@
 # FreeChat
 
-FreeChat is a lightweight local web-based chat application for local prototyping and demo purposes. It enables users to send messages to a configured external chat API, manage and persist conversations in the browser, and configure an API key via a settings page.
+ FreeChat is a lightweight local web-based chat application for local prototyping and demo purposes. It enables users to send messages to a configured external chat API and manage/persist conversations in the browser. A built-in encrypted demo OpenRouter API key is used by default; you can also set your own key via localStorage. The settings page configures the model only (not the API key).
 
 ## Features
 
@@ -52,7 +52,7 @@ Note: The above defaults are provided only as a convenient demo/fallback. For pr
 2. Press Enter or click the send button
 3. The AI response will appear in the chat area
 4. You can copy or delete messages using the buttons next to each message
-5. During response generation, a stop button appears that allows you to terminate the response early
+5. During response generation, a stop button appears (UI-only; the network request is not aborted yet)
 6. The current model is shown as a badge in the top header
 7. If you use a reasoning-capable model and the provider returns reasoning content, a reasoning block streams ABOVE the assistant reply; it is visible by default and you can click the toggle to collapse/expand
 
