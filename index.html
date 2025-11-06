@@ -10,6 +10,7 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@2.4.0/dist/purify.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <script src="logger.js"></script>
     <style>
         .input-container { position: relative; }
         .stop-btn-floating {
@@ -45,6 +46,12 @@
             <h1>FreeChat</h1>
             <span id="currentModelBadge" class="model-badge"></span>
         </div>
+        <button id="exportLogsBtn" class="settings-btn" title="导出日志">
+            <i class="fas fa-file-export"></i>
+        </button>
+        <button id="clearLogsBtn" class="settings-btn" title="清空日志">
+            <i class="fas fa-trash"></i>
+        </button>
         <button id="settingsBtn" class="settings-btn">
             <i class="fas fa-cog"></i>
         </button>
@@ -154,6 +161,27 @@
             stopBtn.addEventListener('touchstart', (e) => {
                 e.stopPropagation();
             }, { passive: true });
+
+            // 日志导出与清空按钮事件
+            try {
+                const exportBtn = document.getElementById('exportLogsBtn');
+                const clearBtn = document.getElementById('clearLogsBtn');
+                if (exportBtn) {
+                    exportBtn.addEventListener('click', () => {
+                        // 简单选择导出格式：默认 ndjson
+                        const fmt = prompt('选择导出格式：输入 "ndjson" 或 "json"', 'ndjson');
+                        const format = (fmt && fmt.toLowerCase() === 'json') ? 'json' : 'ndjson';
+                        try { window.Logger && window.Logger.export({ format }); } catch (_) {}
+                    });
+                }
+                if (clearBtn) {
+                    clearBtn.addEventListener('click', () => {
+                        if (confirm('确定要清空所有日志吗？该操作不可恢复。')) {
+                            try { window.Logger && window.Logger.clear(); } catch (_) {}
+                        }
+                    });
+                }
+            } catch (_) { /* 忽略绑定异常 */ }
         }
 
         document.addEventListener('DOMContentLoaded', initApp);
@@ -410,7 +438,18 @@
                 scheduleUpsertSavedConversation();
                 renderMessages();
 
-                await fetchDeepSeekResponseStream(apiKey, messageText, aiMsgObj);
+                // 记录日志：开始一个聊天请求事件（请求体稍后在 fetch 中补全）
+                let _chatEvtId = null;
+                try {
+                    _chatEvtId = (window.Logger && window.Logger.start({
+                        type: 'chat_request',
+                        endpoint: window.DEEPSEEK_API_URL,
+                        model: window.MODEL_NAME,
+                        req: { headersMasked: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ***masked***' } }
+                    })) || null;
+                } catch (_) { /* 忽略日志异常 */ }
+
+                await fetchDeepSeekResponseStream(apiKey, messageText, aiMsgObj, _chatEvtId);
 
                 stopBtn.style.display = 'none';
                 hideStatus();
@@ -423,6 +462,8 @@
                 setTimeout(hideStatus, 5000);
                 stopBtn.style.display = 'none';
                 if (sendBtn) sendBtn.disabled = false;
+                // 记录错误
+                try { window.Logger && window.Logger.error({ endpoint: window.DEEPSEEK_API_URL, model: window.MODEL_NAME }, error); } catch (_) {}
             }
         }
 
@@ -444,7 +485,7 @@
          * 参数：apiKey - API密钥，userMessage - 用户消息（已包含在currentConversation中，此参数暂未使用），aiMsgObj - AI消息对象，用于更新内容
          * 返回值：Promise，无返回值
          */
-        async function fetchDeepSeekResponseStream(apiKey, userMessage, aiMsgObj) {
+        async function fetchDeepSeekResponseStream(apiKey, userMessage, aiMsgObj, chatEvtId) {
             // 使用 currentConversation 的可用消息作为请求体。sendMessage 已经把用户消息加入 currentConversation，
             // 因此不需要再次追加 userMessage，避免重复发送同一条用户消息导致模型重复响应或上下文膨胀。
             const messagesPayload = currentConversation.filter(msg => msg.role !== 'assistant' || msg.content);
@@ -492,6 +533,9 @@
                 'Authorization': `Bearer ${apiKey}`
             };
 
+            // 在发起请求前，把最终请求体补充到日志
+            try { window.Logger && chatEvtId && window.Logger.append(chatEvtId, { req: { body: requestBody } }); } catch (_) {}
+
             const response = await fetch(DEEPSEEK_API_URL, {
                 method: 'POST',
                 headers,
@@ -502,6 +546,8 @@
                 let errText = '';
                 try { errText = await response.text(); } catch (e) { errText = '<无法读取响应体>'; }
                 console.error('API 请求失败，status=', response.status, 'body=', errText);
+                // 失败也写入日志并结束
+                try { window.Logger && chatEvtId && window.Logger.end(chatEvtId, { res: { status: response.status, final: errText }, error: { message: 'API请求失败' } }); } catch (_) {}
                 throw new Error(`API请求失败: ${response.status} ${response.statusText} ${errText}`);
             }
 
@@ -509,6 +555,9 @@
             const decoder = new TextDecoder('utf-8');
             let buffer = '';
             let finished = false;
+
+            // 记录成功返回的状态码
+            try { window.Logger && chatEvtId && window.Logger.append(chatEvtId, { res: { status: response.status } }); } catch (_) {}
 
             while (!finished) {
                 const { value, done } = await reader.read();
@@ -531,6 +580,8 @@
                         }
                         try {
                             const json = JSON.parse(data);
+                            // 附加一条流式片段到日志（截断由 logger 控制）
+                            try { window.Logger && chatEvtId && window.Logger.append(chatEvtId, { type: 'chat_stream', res: { streamChunks: [data] } }); } catch (_) {}
                             // 内容增量
                             const delta = json.choices && json.choices[0] && (json.choices[0].delta ? json.choices[0].delta.content : (json.choices[0].text || ''));
                             if (delta) {
@@ -564,6 +615,9 @@
             try { upsertSavedConversationNow(); } catch (e) { /* 忽略上报 */ }
             // 流结束后自动尝试生成会话摘要（具备去重判断）
             try { await autoSummarizeIfNeeded(); } catch (e) { console.error('自动会话摘要失败：', e); }
+
+            // 结束日志事件
+            try { window.Logger && chatEvtId && window.Logger.end(chatEvtId, { type: 'chat_done' }); } catch (_) {}
         }
 
         /**
@@ -593,6 +647,17 @@
 
             const modelToUse = window.MODEL_NAME || 'minimax/minimax-m2:free';
             const url = (window.DEEPSEEK_API_URL || 'https://openrouter.ai/api/v1/chat/completions');
+            // 日志：开始摘要请求
+            let _sumEvtId = null;
+            try {
+                _sumEvtId = (window.Logger && window.Logger.start({
+                    type: 'summary_request',
+                    endpoint: url,
+                    model: modelToUse,
+                    req: { headersMasked: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ***masked***' }, body: { model: modelToUse, messages: [ { role: 'system', content: systemPrompt }, { role: 'user', content: userContent } ], temperature: 0.2 } }
+                })) || null;
+            } catch (_) {}
+
             const resp = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
@@ -602,9 +667,11 @@
                     temperature: 0.2
                 })
             });
-            if (!resp.ok) return;
+            try { window.Logger && _sumEvtId && window.Logger.append(_sumEvtId, { res: { status: resp.status } }); } catch (_) {}
+            if (!resp.ok) { try { window.Logger && _sumEvtId && window.Logger.end(_sumEvtId, { error: { message: '摘要请求失败' } }); } catch (_) {} return; }
             const data = await resp.json();
             const summaryText = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content ? data.choices[0].message.content : null;
+            try { window.Logger && _sumEvtId && window.Logger.end(_sumEvtId, { type: 'summary_done', res: { final: data } }); } catch (_) {}
             if (!summaryText) return;
 
             // 更新会话摘要与计数
@@ -641,6 +708,17 @@
                 const systemPrompt = window.PROMPTS.GROUP_SUMMARY;
                 const modelToUse = window.MODEL_NAME || 'minimax/minimax-m2:free';
                 const url = (window.DEEPSEEK_API_URL || 'https://openrouter.ai/api/v1/chat/completions');
+                // 日志：开始分组记忆请求
+                let _gmEvtId = null;
+                try {
+                    _gmEvtId = (window.Logger && window.Logger.start({
+                        type: 'groupmem_request',
+                        endpoint: url,
+                        model: modelToUse,
+                        req: { headersMasked: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ***masked***' }, body: { model: modelToUse, messages: [ { role: 'system', content: systemPrompt }, { role: 'user', content: groupSummaries.join('\n\n') } ], temperature: 0.2 } }
+                    })) || null;
+                } catch (_) {}
+
                 const resp = await fetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
@@ -650,9 +728,11 @@
                         temperature: 0.2
                     })
                 });
-                if (!resp.ok) return;
+                try { window.Logger && _gmEvtId && window.Logger.append(_gmEvtId, { res: { status: resp.status } }); } catch (_) {}
+                if (!resp.ok) { try { window.Logger && _gmEvtId && window.Logger.end(_gmEvtId, { error: { message: '分组记忆请求失败' } }); } catch (_) {} return; }
                 const data = await resp.json();
                 const memoryText = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content ? data.choices[0].message.content : null;
+                try { window.Logger && _gmEvtId && window.Logger.end(_gmEvtId, { type: 'groupmem_done', res: { final: data } }); } catch (_) {}
                 if (!memoryText) return;
 
                 let groups = JSON.parse(localStorage.getItem('conversationGroups') || '[]');

@@ -55,6 +55,20 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
 - 思考过程显示：当使用具备“思考”能力的模型且 API 返回推理内容时，以“流式”显示并置于助手正文之前；默认展开，用户可点击按钮收起/展开。
   - 实现细节：推理内容在流式过程中同时写入当前助手消息对象的 `reasoning` 字段；`renderMessages` 会依据该字段在正文前渲染推理块，避免页面重渲染后丢失。
 
+### 日志架构与数据流（新增）
+
+- 目的：将与大模型交互的原始请求/响应（遮蔽 Authorization）记录到本地，用于问题排查。
+- 方案：新增 `logger.js`，以环形缓冲（默认 1000 条）写入 `localStorage.freechat.logs`；支持导出（JSON/NDJSON）与清空。
+- 接入点：
+  - `index.html`：
+    - 聊天主请求（`sendMessage` / `fetchDeepSeekResponseStream`）→ `chat_request` / `chat_stream` / `chat_done` / `error`
+    - 自动会话摘要（`autoSummarizeIfNeeded`）→ `summary_request` / `summary_done`
+    - 分组记忆聚合（`updateGroupMemory`）→ `groupmem_request` / `groupmem_done`
+  - `conversations.html`：保存会话生成摘要、重新生成摘要、分组记忆聚合同步记录。
+- 事件字段（要点）：`id`、`ts`、`type`、`endpoint`、`model`、`conversationId`、`groupId`、`req.headersMasked`、`req.body`、`res.status`、`res.streamChunks`（可能截断）、`res.final`、`error.message`、`durationMs`。
+- UI：`index.html` 与 `conversations.html` 右上角新增“导出日志”“清空日志”按钮。
+- 配置：`localStorage.freechat.log.maxEntries`（默认 1000）、`localStorage.freechat.log.enable`（默认 true）。
+
 ### 已知限制与建议
 
 - API Key 存储：当前默认实现将 Key 以明文或轻度混淆的形式保存在 `localStorage`，不适合生产环境。建议使用后端代理并在服务器端安全存储 Key。
@@ -70,6 +84,13 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
 
 ---
 ## 变更记录
+ - 2025-11-06（新增本地请求/响应日志与导出/清空 UI）
+  - 目的：保留与大模型交互的原始信息，便于排障与对齐。
+  - 修改项：
+    1. 新增 `logger.js`（环形缓冲、本地存储、导出/清空、遮蔽 Authorization）。
+    2. `index.html` 与 `conversations.html` 接入日志：聊天主请求（含流式）、自动摘要、分组记忆、保存/重新摘要等。
+    3. 两页面 header 新增“导出日志/清空日志”按钮。
+    4. 更新 `README.md`/`README_zh.md` 增加“请求/响应日志”章节与结构图。
  - 2025-11-06（思考过程显示默认展开并置于正文前，流式）
   - 目的：提升可读性，先给出推理再给出答案，且允许用户手动折叠。
   - 修改项：

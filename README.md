@@ -14,6 +14,7 @@ FreeChat is a lightweight local web-based chat application for local prototyping
 - When creating a new conversation from the manager page, a modal asks whether to add it to an existing group (with a dropdown selector) and lets you set a name.
 - Show the current model as a badge on the chat header.
 - For reasoning-capable models (e.g., DeepSeek-R1), the model's reasoning (if returned by the API) streams live and appears ABOVE the assistant reply. It is visible by default and can be folded/unfolded by the user.
+- Built-in request/response logging to localStorage (auth masked), with Export/Clear buttons.
 
 ## Default (Demo) API Configuration
 
@@ -69,6 +70,7 @@ The core files are:
 - `config.html` — Model selector (stores to `localStorage` key `chatModel`).
 - `conversations.html` — Conversation manager (save/load/delete), group management and summaries.
 - `prompts.js` — Centralized prompt templates for session summary and group memory.
+- `logger.js` — Lightweight front-end logger (ring buffer in localStorage; export/clear UI hooks).
 - `style.css` — Styling for the application.
 - `script.js` — Optional shared helpers (navigation, JSON storage). Not included by default.
 - `tools/encrypt_key.js` — Placeholder for key encryption utilities.
@@ -81,7 +83,9 @@ flowchart TB
   A --> D[config.html]
   A --> E[conversations.html]
   A --> F[prompts.js]
+  A --> G[logger.js]
   E --> F
+  E --> G
 ```
 
 ## Dependencies
@@ -90,6 +94,7 @@ flowchart TB
 - `DOMPurify` — Sanitizer to prevent XSS when rendering Markdown output.
 - `CryptoJS` — AES decryption for the built-in demo OpenRouter key.
 - `Font Awesome` — Icon set used in the UI.
+- `logger.js` is an internal utility (no external dependency).
 
 All libraries are pulled via CDN includes in the HTML files, so no build step is required.
 
@@ -97,6 +102,37 @@ All libraries are pulled via CDN includes in the HTML files, so no build step is
 
 - API Key storage: Storing API keys in `localStorage` is insecure for production. Use a backend proxy and server-side key storage for real deployments.
 - CORS: Client-side requests to external APIs may require CORS; consider using a server-side proxy to avoid CORS restrictions.
+
+## Request/Response Logging
+
+- Purpose: Help diagnose issues by recording raw request/response metadata in the browser.
+- Storage: Ring buffer in `localStorage` key `freechat.logs` (default max 1000 entries).
+- Privacy: `Authorization` is always masked as `Bearer ***masked***`. No device fingerprinting is collected.
+- UI:
+  - On `index.html` and `conversations.html`, use the top-right buttons:
+    - Export logs (choose JSON or NDJSON)
+    - Clear logs (irreversible)
+- Config via `localStorage`:
+  - `freechat.log.maxEntries` — maximum entries (default 1000)
+  - `freechat.log.enable` — `true`/`false` to enable/disable logging
+
+Example event (truncated):
+
+```json
+{
+  "id": "evt_1730869000000_001",
+  "ts": "2025-11-06T12:34:56.789Z",
+  "type": "chat_request|chat_stream|chat_done|summary_request|summary_done|groupmem_request|groupmem_done|error",
+  "endpoint": "https://openrouter.ai/api/v1/chat/completions",
+  "model": "minimax/minimax-m2:free",
+  "conversationId": "...",
+  "groupId": null,
+  "req": {"headersMasked": {"Content-Type": "application/json", "Authorization": "Bearer ***masked***"}, "body": {"model": "..."}},
+  "res": {"status": 200, "streamChunks": ["data: {...}"], "truncated": false},
+  "error": null,
+  "durationMs": 1234
+}
+```
 
 ## Contributing
 

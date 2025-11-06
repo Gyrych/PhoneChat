@@ -13,6 +13,7 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，适用于本地演示和
 - 在会话管理页新建会话时，会弹窗询问是否加入已有分组（下拉选择），并可为新会话命名。
 - 主聊天页顶部显示当前模型徽标。
 - 对于具备“思考”能力的模型（如 DeepSeek-R1），当 API 返回推理内容时，将以流式形式显示在助手正文“上方”，默认展开，用户可点击按钮收起/展开。
+- 内置请求/响应日志：记录到 localStorage（遮蔽 Authorization），并提供导出/清空按钮。
 
 ## 默认（演示）API 配置
 
@@ -66,6 +67,7 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，适用于本地演示和
 - `config.html` — 模型选择器（保存到 `localStorage` 键 `chatModel`）。
 - `conversations.html` — 会话管理页面（保存/加载/删除、分组管理、摘要查看/重新生成）。
 - `prompts.js` — 提示词模板，集中管理会话摘要与分组记忆提示词。
+- `logger.js` — 轻量前端日志库（localStorage 环形存储；导出/清空 UI 挂载）。
 - `style.css` — 应用样式。
 - `script.js` — 可选的共用脚本（导航、JSON 存储助手），当前默认未引入。
 - `tools/encrypt_key.js` — API 密钥加密工具占位文件。
@@ -78,7 +80,9 @@ flowchart TB
   A --> D[config.html]
   A --> E[conversations.html]
   A --> F[prompts.js]
+  A --> G[logger.js]
   E --> F
+  E --> G
 ```
 
 ## 依赖
@@ -87,6 +91,7 @@ flowchart TB
 - `DOMPurify` — 对渲染的 HTML 进行消毒以防 XSS。
 - `CryptoJS` — 用于对演示 OpenRouter Key 进行 AES 解密。
 - `Font Awesome` — 界面使用的图标库。
+- `logger.js` 为内部工具（无外部依赖）。
 
 所有库均通过 HTML 文件中的 CDN 引入，无需构建步骤。
 
@@ -94,6 +99,37 @@ flowchart TB
 
 - API Key 存储：在 `localStorage` 中保存 Key 仅适用于演示，生产环境请使用后端代理与服务器端安全存储。
 - CORS：客户端直接调用外部 API 可能受 CORS 限制，建议使用后端代理避免跨域问题。
+
+## 请求/响应日志
+
+- 目的：用于问题排查，记录原始请求/响应元数据。
+- 存储：`localStorage` 键 `freechat.logs`，环形缓冲（默认最多 1000 条）。
+- 隐私：始终将 `Authorization` 遮蔽为 `Bearer ***masked***`；不采集设备指纹。
+- 界面：
+  - 在 `index.html` 与 `conversations.html` 右上角提供两个按钮：
+    - 导出日志（可选 JSON 或 NDJSON）
+    - 清空日志（不可恢复）
+- 配置（通过 `localStorage`）：
+  - `freechat.log.maxEntries` — 最大保存条目数（默认 1000）
+  - `freechat.log.enable` — `true`/`false` 开启/关闭日志
+
+事件示例（截断）：
+
+```json
+{
+  "id": "evt_1730869000000_001",
+  "ts": "2025-11-06T12:34:56.789Z",
+  "type": "chat_request|chat_stream|chat_done|summary_request|summary_done|groupmem_request|groupmem_done|error",
+  "endpoint": "https://openrouter.ai/api/v1/chat/completions",
+  "model": "minimax/minimax-m2:free",
+  "conversationId": "...",
+  "groupId": null,
+  "req": {"headersMasked": {"Content-Type": "application/json", "Authorization": "Bearer ***masked***"}, "body": {"model": "..."}},
+  "res": {"status": 200, "streamChunks": ["data: {...}"], "truncated": false},
+  "error": null,
+  "durationMs": 1234
+}
+```
 
 ## 贡献
 

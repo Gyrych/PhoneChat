@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="prompts.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <script src="logger.js"></script>
 </head>
 <body>
     <header class="header">
@@ -15,6 +16,12 @@
             <i class="fas fa-arrow-left"></i>
         </button>
         <h1>FreeChat 会话管理</h1>
+        <button id="exportLogsBtn" class="settings-btn" title="导出日志">
+            <i class="fas fa-file-export"></i>
+        </button>
+        <button id="clearLogsBtn" class="settings-btn" title="清空日志">
+            <i class="fas fa-trash"></i>
+        </button>
         <button id="newChatBtn" class="new-chat-btn">
             <i class="fas fa-plus"></i>
         </button>
@@ -124,6 +131,26 @@
                     openNewChatGroupModal();
                 }
             });
+
+            // 日志导出与清空按钮
+            try {
+                const exportBtn = document.getElementById('exportLogsBtn');
+                const clearBtn = document.getElementById('clearLogsBtn');
+                if (exportBtn) {
+                    exportBtn.addEventListener('click', () => {
+                        const fmt = prompt('选择导出格式：输入 "ndjson" 或 "json"', 'ndjson');
+                        const format = (fmt && fmt.toLowerCase() === 'json') ? 'json' : 'ndjson';
+                        try { window.Logger && window.Logger.export({ format }); } catch (_) {}
+                    });
+                }
+                if (clearBtn) {
+                    clearBtn.addEventListener('click', () => {
+                        if (confirm('确定要清空所有日志吗？该操作不可恢复。')) {
+                            try { window.Logger && window.Logger.clear(); } catch (_) {}
+                        }
+                    });
+                }
+            } catch (_) { /* 忽略异常 */ }
 
             // 保存当前会话按钮
             document.getElementById('saveCurrentBtn').addEventListener('click', () => {
@@ -237,6 +264,17 @@
 
                     // 使用全局 MODEL_NAME（与主聊天保持一致）
                     const modelToUse = window.MODEL_NAME || 'minimax/minimax-m2:free';
+                    // 日志：开始摘要请求
+                    let _sumEvtId = null;
+                    try {
+                        _sumEvtId = (window.Logger && window.Logger.start({
+                            type: 'summary_request',
+                            endpoint: (window.DEEPSEEK_API_URL || 'https://openrouter.ai/api/v1/chat/completions'),
+                            model: modelToUse,
+                            req: { headersMasked: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ***masked***' }, body: { model: modelToUse, messages: [ { role: 'system', content: systemPrompt }, { role: 'user', content: userContent } ], temperature: 0.2 } }
+                        })) || null;
+                    } catch (_) {}
+
                     const resp = await fetch(window.DEEPSEEK_API_URL || 'https://openrouter.ai/api/v1/chat/completions', {
                         method: 'POST',
                         headers: {
@@ -245,9 +283,11 @@
                         },
                         body: JSON.stringify({ model: modelToUse, messages: [ { role: 'system', content: systemPrompt }, { role: 'user', content: userContent } ], temperature: 0.2 })
                     });
+                    try { window.Logger && _sumEvtId && window.Logger.append(_sumEvtId, { res: { status: resp.status } }); } catch (_) {}
 
                     if (resp.ok) {
                         const data = await resp.json();
+                        try { window.Logger && _sumEvtId && window.Logger.end(_sumEvtId, { type: 'summary_done', res: { final: data } }); } catch (_) {}
                         const summaryText = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content ? data.choices[0].message.content : null;
                         if (summaryText) {
                             // 更新对应会话的 summary 字段
@@ -264,10 +304,13 @@
                                 await updateGroupMemory(conversationObj.groupId);
                             }
                         }
+                    } else {
+                        try { window.Logger && _sumEvtId && window.Logger.end(_sumEvtId, { error: { message: '摘要请求失败' } }); } catch (_) {}
                     }
                 }
             } catch (err) {
                 console.error('生成会话摘要失败：', err);
+                try { window.Logger && window.Logger.error({ type: 'summary_request', endpoint: (window.DEEPSEEK_API_URL || ''), model: (window.MODEL_NAME || '') }, err); } catch (_) {}
             }
         }
 
@@ -571,13 +614,29 @@
                         const systemPrompt = window.PROMPTS.SESSION_SUMMARY;
                         const userContent = (conv.messages || conv.content || []).map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
                         const modelToUse = window.MODEL_NAME || 'minimax/minimax-m2:free';
+                        // 日志：开始重新摘要请求
+                        let _resumEvtId = null;
+                        try {
+                            _resumEvtId = (window.Logger && window.Logger.start({
+                                type: 'summary_request',
+                                endpoint: (window.DEEPSEEK_API_URL || 'https://openrouter.ai/api/v1/chat/completions'),
+                                model: modelToUse,
+                                req: { headersMasked: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ***masked***' }, body: { model: modelToUse, messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userContent }], temperature: 0.2 } }
+                            })) || null;
+                        } catch (_) {}
+
                         const resp = await fetch(window.DEEPSEEK_API_URL || 'https://openrouter.ai/api/v1/chat/completions', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
                             body: JSON.stringify({ model: modelToUse, messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userContent }], temperature: 0.2 })
                         });
-                        if (!resp.ok) throw new Error('API请求失败');
+                        try { window.Logger && _resumEvtId && window.Logger.append(_resumEvtId, { res: { status: resp.status } }); } catch (_) {}
+                        if (!resp.ok) {
+                            try { window.Logger && _resumEvtId && window.Logger.end(_resumEvtId, { error: { message: '重新摘要请求失败' } }); } catch (_) {}
+                            throw new Error('API请求失败');
+                        }
                         const data = await resp.json();
+                        try { window.Logger && _resumEvtId && window.Logger.end(_resumEvtId, { type: 'summary_done', res: { final: data } }); } catch (_) {}
                         const summaryText = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content ? data.choices[0].message.content : null;
                         if (summaryText) {
                             const idx = saved.findIndex(c => c.id === conversationId);
@@ -617,6 +676,17 @@
                 const systemPrompt = window.PROMPTS.GROUP_SUMMARY;
 
                 const modelToUse = window.MODEL_NAME || 'minimax/minimax-m2:free';
+                // 日志：开始分组记忆请求
+                let _gmEvtId = null;
+                try {
+                    _gmEvtId = (window.Logger && window.Logger.start({
+                        type: 'groupmem_request',
+                        endpoint: (window.DEEPSEEK_API_URL || 'https://openrouter.ai/api/v1/chat/completions'),
+                        model: modelToUse,
+                        req: { headersMasked: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ***masked***' }, body: { model: modelToUse, messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: groupConvs.join('\n\n') }], temperature: 0.2 } }
+                    })) || null;
+                } catch (_) {}
+
                 const resp = await fetch(window.DEEPSEEK_API_URL || 'https://openrouter.ai/api/v1/chat/completions', {
                     method: 'POST',
                     headers: {
@@ -625,10 +695,11 @@
                     },
                     body: JSON.stringify({ model: modelToUse, messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: groupConvs.join('\n\n') }], temperature: 0.2 })
                 });
-
-                if (!resp.ok) return;
+                try { window.Logger && _gmEvtId && window.Logger.append(_gmEvtId, { res: { status: resp.status } }); } catch (_) {}
+                if (!resp.ok) { try { window.Logger && _gmEvtId && window.Logger.end(_gmEvtId, { error: { message: '分组记忆请求失败' } }); } catch (_) {} return; }
                 const data = await resp.json();
                 const memoryText = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content ? data.choices[0].message.content : null;
+                try { window.Logger && _gmEvtId && window.Logger.end(_gmEvtId, { type: 'groupmem_done', res: { final: data } }); } catch (_) {}
                 if (memoryText) {
                     let groups = JSON.parse(localStorage.getItem('conversationGroups') || '[]');
                     const idx = groups.findIndex(g => g.id === groupId);
