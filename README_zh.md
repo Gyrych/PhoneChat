@@ -7,10 +7,10 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，适用于本地演示和
 - 通过可配置的外部 API 接口发送和接收消息。
 - 自动无感持久化：首条消息即创建持久会话条目，后续以节流方式持续写回（无需手动保存）。
 - 保存、加载、删除与重命名会话。
-- 将会话按分组管理，自动生成会话摘要，并自动刷新分组记忆。
+- 将会话按分组管理，自动生成会话记忆，并自动刷新分组记忆。
 - 在每次请求前以一条 system 消息注入记忆：
   - 注入“所有分组”的分组记忆（可配置，仅当前分组或全部分组）；
-  - 注入“当前分组内所有会话”的会话摘要（可配置）。
+  - 注入“当前分组内所有会话”的会话记忆（可配置）。
 - 将 AI 回复以 Markdown 渲染（使用 `marked`）并用 `DOMPurify` 进行消毒以防 XSS。
 - 在会话管理页新建会话时，会弹窗询问是否加入已有分组（下拉选择），并可为新会话命名。
 - 主聊天页顶部显示当前模型徽标。
@@ -36,12 +36,12 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，适用于本地演示和
 1. 打开 `config.html`，从下拉菜单选择模型并点击“保存”，模型会以 `chatModel` 键写入 `localStorage`。
 2. 每个已保存会话会在 `savedDeepseekConversations[].model` 记录其所用模型；在 `conversations.html` 加载该会话时，如存在 `model` 字段，会自动恢复到 `localStorage.chatModel`。
 3. 演示默认使用内置的加密 OpenRouter Key（仅用于演示，不可用于生产）。
-4. 如需使用你自己的 Key，可在浏览器控制台执行 `localStorage.setItem('deepseekApiKey', 'YOUR_KEY')`，或替换 `index.html` 中的加密串；会话摘要与分组记忆也会读取该值作为替代。
+4. 如需使用你自己的 Key，可在浏览器控制台执行 `localStorage.setItem('deepseekApiKey', 'YOUR_KEY')`，或替换 `index.html` 中的加密串；会话记忆与分组记忆也会读取该值作为替代。
 
 ### 记忆注入开关（通过 localStorage 配置）
 
 - `freechat.memory.inject.allGroups` — `true`/`false`（默认 `true`）：注入全部分组记忆，或仅当前分组记忆。
-- `freechat.memory.inject.groupSessions` — `true`/`false`（默认 `true`）：注入“当前分组内全部会话”的摘要。
+- `freechat.memory.inject.groupSessions` — `true`/`false`（默认 `true`）：注入“当前分组内全部会话”的记忆。
 - `freechat.memory.maxConvPerGroup` — 当前分组最多注入的会话摘要条数（默认 `10`）。
 - `freechat.memory.maxCharsPerSection` — 每个注入段的最大字符数（默认 `4000`）。
 - `freechat.memory.preSummarize` — `true`/`false`（默认 `false`）：是否在首轮发送前预生成“当前会话摘要”，以便首轮也能注入。
@@ -67,8 +67,8 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，适用于本地演示和
 1. 点击顶部导航栏中的会话按钮
 2. 查看按日期组织的所有聊天记录
 3. 创建会话分组以便更好地组织
-4. 会话摘要在每轮 AI 回复结束后自动生成
-5. 分组记忆在摘要更新后自动刷新；注入时会包含“全部分组记忆 + 当前分组全部会话摘要”（受到上述开关控制）
+4. 会话记忆在每轮 AI 回复结束后自动生成
+5. 分组记忆在会话记忆更新后自动刷新；注入时会包含“全部分组记忆 + 当前分组全部会话记忆”（受到上述开关控制）
 6. 加载之前的会话或创建新会话
 7. 新建会话时会弹出分组选择与命名对话框，可选择已有分组（可选）并设置名称（可选）
 8. 会话列表在名称旁显示模型徽标；加载会话时会恢复其模型
@@ -77,8 +77,8 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，适用于本地演示和
 
 - `index.html` — 主聊天页面与核心逻辑；包含演示用加密 OpenRouter Key。
 - `config.html` — 模型选择器（保存到 `localStorage` 键 `chatModel`）。
-- `conversations.html` — 会话管理页面（保存/加载/删除、分组管理、摘要查看/重新生成）。
-- `prompts.js` — 提示词模板，集中管理会话摘要与分组记忆提示词。
+- `conversations.html` — 会话管理页面（保存/加载/删除、分组管理、记忆查看/重新生成）。
+- `prompts.js` — 提示词模板，集中管理会话记忆与分组记忆提示词。
 - `logger.js` — 轻量前端日志库（localStorage 环形存储；导出/清空 UI 挂载）。
 - `style.css` — 应用样式。
 - `script.js` — 可选的共用脚本（导航、JSON 存储助手），当前默认未引入。

@@ -576,6 +576,7 @@ body {
 }
 
 /* 分组重新摘要按钮 */
+/* 分组记忆重新生成按钮 */
 .group-regen-btn {
     display: inline-flex;
     align-items: center;

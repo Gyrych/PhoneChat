@@ -22,9 +22,9 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
 
 - `index.html`：主页面，包含聊天界面、消息渲染、发送逻辑与消息持久化；内置加密的 OpenRouter API Key（仅演示用途）。
 - `config.html`：设置页面，仅提供“模型选择并保存到 localStorage（键名 `chatModel`）”，当前不提供 API Key 输入项。
-- `conversations.html`：会话管理页面，支持保存/加载/删除会话、分组管理、查看/重新生成会话摘要与分组记忆。
- - `conversations.html`：会话管理页面，支持保存/加载/删除会话、分组管理、查看/重新生成会话摘要与分组记忆；新建会话时弹窗询问是否加入已有分组并提供下拉选择。
-- `prompts.js`：提示词模板，集中管理“会话摘要（SESSION_SUMMARY）/分组记忆（GROUP_SUMMARY）”等提示词常量。
+- `conversations.html`：会话管理页面，支持保存/加载/删除会话、分组管理、查看/重新生成会话记忆与分组记忆。
+ - `conversations.html`：会话管理页面，支持保存/加载/删除会话、分组管理、查看/重新生成会话记忆与分组记忆；新建会话时弹窗询问是否加入已有分组并提供下拉选择。
+- `prompts.js`：提示词模板，集中管理“会话记忆（SESSION_SUMMARY）/分组记忆（GROUP_SUMMARY）”等提示词常量。
 - `style.css`：应用样式与响应式布局。
 - `script.js`：可选的共用脚本（导航、localStorage JSON 助手等）；当前页面未默认引入。
 - `tools/encrypt_key.js`：API 密钥加密工具（占位，当前无实现）。
@@ -35,20 +35,20 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
 2. 新消息被追加到当前会话数组并保存到 `localStorage`（键名：`deepseekConversation`）。若尚无 `deepseekConversationId`，则自动创建持久会话条目写入 `savedDeepseekConversations`，并记录该 ID（无须手动保存）。
 3. 在发送请求前，若存在记忆则自动注入为一条 system 消息（新版注入策略）：
    - 分组记忆：默认注入“全部分组”的 `conversationGroups[].memorySummary`（可通过 `freechat.memory.inject.allGroups` 切换为仅当前分组）；
-   - 会话摘要：注入“当前分组内所有会话”的 `savedDeepseekConversations[].summary`（按更新时间裁剪，阈值可配）；
-   注入顺序为“分组记忆（全部/当前） → 当前分组会话摘要（多条） → 历史消息”，且不污染可见的 `currentConversation`。
+   - 会话记忆：注入“当前分组内所有会话”的 `savedDeepseekConversations[].summary`（按更新时间裁剪，阈值可配）；
+   注入顺序为“分组记忆（全部/当前） → 当前分组会话记忆（多条） → 历史消息”，且不污染可见的 `currentConversation`。
 4. 应用构造请求体并通过 `fetch` 向配置的 API 端点发送请求，使用 `Authorization: Bearer <apiKey>` 头。`apiKey` 优先使用内置加密的演示 Key（`OPENROUTER_API_KEY`），回退到 `localStorage.deepseekApiKey`（若存在）。
 5. 每个持久会话条目会记录 `model` 字段（来源于 `localStorage.chatModel`/`window.MODEL_NAME`），在 `conversations.html` 加载会话时若存在该字段，会自动恢复到 `chatModel`，确保历史会话按其当时模型继续。
 5. 收到 AI 响应后将回复流式追加与渲染，并实时保存会话；同时以 1.5s 节流策略将内容回写到持久会话条目（避免高频写入）。
-6. 每轮流式结束后自动触发会话摘要：当消息条数超过上次已摘要计数或此前未有摘要时调用模型生成摘要，保存到 `savedDeepseekConversations[].summary` 并更新 `lastSummarizedMessageCount`；若会话属于某分组，则随后自动聚合并刷新该分组的 `memorySummary`。
+6. 每轮流式结束后自动触发会话记忆：当消息条数超过上次已记忆计数或此前未有会话记忆时调用模型生成记忆，保存到 `savedDeepseekConversations[].summary` 并更新 `lastSummarizedMessageCount`；若会话属于某分组，则随后自动聚合并刷新该分组的 `memorySummary`。
 
 ### 关键功能说明（已实现/部分实现）
 
 - 会话分组：支持将会话归类到分组（文件夹），支持重命名与在分组之间移动会话。
 - 新建会话分组选择与命名：在会话管理页点击“新建会话”后，弹窗询问是否加入已有分组（下拉菜单）并允许为会话命名；结果分别写入 `deepseekConversationGroupId` 与 `deepseekNewConversationName`，主页面首次创建持久会话时读取并清理。
 - 会话自动无感存储：首次发送消息自动创建持久会话条目；其后对会话的更改以节流（约 1.5s）写回，避免重复与遗忘。
-- 会话自动摘要：每轮生成结束后自动判定是否需要摘要（去重），将结果保存到会话元数据。
-- 分组记忆与摘要注入：请求前自动注入“分组记忆（默认全部分组）+ 当前分组全部会话摘要”（一条 system 消息，可配置与截断）。
+- 会话自动记忆：每轮生成结束后自动判定是否需要生成会话记忆（去重），将结果保存到会话元数据。
+- 分组记忆与会话记忆注入：请求前自动注入“分组记忆（默认全部分组）+ 当前分组全部会话记忆”（一条 system 消息，可配置与截断）。
 - Markdown 渲染：AI 回复通过 `marked` 渲染为 HTML，并使用 `DOMPurify` 进行消毒以降低 XSS 风险。
  - 会话模型持久化与恢复：保存会话时写入 `model` 字段；加载会话时自动恢复该模型；会话列表在名称旁显示模型徽标。
 - 主聊天页模型徽标：在 `index.html` 顶部显示当前会话所用模型（读取 `localStorage.chatModel` 或已加载会话的 `model`）。
@@ -104,6 +104,14 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
 
 ---
 ## 变更记录
+- 2025-11-06（术语统一与存储兼容迁移：会话记忆/分组记忆）
+  - 目的：统一名词体系，明确“记忆系统=会话记忆+分组记忆”，避免“会话摘要/分组摘要”等混用；兼容历史字段。
+  - 修改项：
+    1. 文案/UI：将所有用户可见“会话摘要”更新为“会话记忆”；分组相关统一为“分组记忆”。
+    2. 提示词：`prompts.js` 中 `GROUP_SUMMARY` 文案由“会话摘要”改为“会话记忆”。
+    3. 注释/说明：`index.html`、`conversations.html` 注释同步用词；README（中/英）与 CURSOR 主体同步。
+    4. 兼容迁移：在 `index.html`/`conversations.html` 注入一次性迁移，将历史 `memory`→`summary`，`groupMemory`→`memorySummary`。
+    5. 说明：日志事件名 `summary_request/summary_done` 未改名，但其含义对应“会话记忆生成”。
 - 2025-11-06（UI 现代化：浅色玻璃风 + Inter 字体 + 设计令牌）
   - 目的：统一现代审美，提升可读性、层级与品牌一致性；引入可复用的设计令牌。
   - 修改项：

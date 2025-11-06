@@ -57,7 +57,7 @@
     <script>
         /**
          * 文件名：conversations.html
-         * 功能描述：FreeChat 会话管理页面，提供会话列表展示、保存、加载、删除、分组管理、会话摘要生成等功能
+         * 功能描述：FreeChat 会话管理页面，提供会话列表展示、保存、加载、删除、分组管理、会话记忆生成等功能
          */
         // 与 index 保持一致的模型与端点配置
         window.DEEPSEEK_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
@@ -73,6 +73,25 @@
             } catch (_) { return null; }
         }
         window.OPENROUTER_API_KEY = decryptApiKey(ENCRYPTED_OPENROUTER_KEY, LOCAL_PASSPHRASE);
+
+        // 本地存储兼容迁移：将历史字段回填到现用字段（一次性、失败忽略）
+        (function migrateStorageCompat(){
+            try {
+                let saved = JSON.parse(localStorage.getItem('savedDeepseekConversations')||'[]');
+                let changed = false;
+                for (const c of saved) {
+                    if (c && c.memory && !c.summary) { c.summary = c.memory; changed = true; }
+                }
+                if (changed) localStorage.setItem('savedDeepseekConversations', JSON.stringify(saved));
+
+                let groups = JSON.parse(localStorage.getItem('conversationGroups')||'[]');
+                let gChanged = false;
+                for (const g of groups) {
+                    if (g && g.groupMemory && !g.memorySummary) { g.memorySummary = g.groupMemory; gChanged = true; }
+                }
+                if (gChanged) localStorage.setItem('conversationGroups', JSON.stringify(groups));
+            } catch(_) { /* 迁移失败不影响主流程 */ }
+        })();
 
         /**
          * 填充分组下拉
@@ -247,24 +266,24 @@
             try {
                 const apiKey = (window.OPENROUTER_API_KEY || localStorage.getItem('deepseekApiKey'));
                     if (apiKey) {
-                    // 使用更明确的摘要提示词，让模型以要点形式返回摘要
+                    // 使用更明确的记忆提示词，让模型以要点形式返回会话记忆
                     if (!window.PROMPTS || !window.PROMPTS.SESSION_SUMMARY) {
-                        throw new Error('PROMPTS.SESSION_SUMMARY 未找到，无法生成会话摘要，请确保 prompts.js 已加载且包含 SESSION_SUMMARY');
+                        throw new Error('PROMPTS.SESSION_SUMMARY 未找到，无法生成会话记忆，请确保 prompts.js 已加载且包含 SESSION_SUMMARY');
                     }
                     const systemPrompt = window.PROMPTS.SESSION_SUMMARY;
 
-                    // 使用已保存的完整消息数组作为摘要输入，防止只提交最近一条消息
+                    // 使用已保存的完整消息数组作为会话记忆输入，防止只提交最近一条消息
                     let savedForSummary = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
                     const savedIdxForThis = savedForSummary.findIndex(c => c.id === conversationId);
                     const messagesForSummary = (savedIdxForThis !== -1 && savedForSummary[savedIdxForThis].messages && savedForSummary[savedIdxForThis].messages.length > 0)
                         ? savedForSummary[savedIdxForThis].messages
                         : conversationObj.messages;
-                    console.log('生成会话摘要，消息条数：', messagesForSummary.length);
+                    console.log('生成会话记忆，消息条数：', messagesForSummary.length);
                     const userContent = messagesForSummary.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
 
                     // 使用全局 MODEL_NAME（与主聊天保持一致）
                     const modelToUse = window.MODEL_NAME || 'minimax/minimax-m2:free';
-                    // 日志：开始摘要请求
+                    // 日志：开始会话记忆请求
                     let _sumEvtId = null;
                     try {
                         _sumEvtId = (window.Logger && window.Logger.start({
@@ -305,11 +324,11 @@
                             }
                         }
                     } else {
-                        try { window.Logger && _sumEvtId && window.Logger.end(_sumEvtId, { error: { message: '摘要请求失败' } }); } catch (_) {}
+                        try { window.Logger && _sumEvtId && window.Logger.end(_sumEvtId, { error: { message: '会话记忆请求失败' } }); } catch (_) {}
                     }
                 }
             } catch (err) {
-                console.error('生成会话摘要失败：', err);
+                console.error('生成会话记忆失败：', err);
                 try { window.Logger && window.Logger.error({ type: 'summary_request', endpoint: (window.DEEPSEEK_API_URL || ''), model: (window.MODEL_NAME || '') }, err); } catch (_) {}
             }
         }
@@ -447,12 +466,12 @@
                         <div class="conversation-info">
                             <h3 class="conversation-name">${conversation.name}<span class="model-badge">${conversation.model || '未记录'}</span></h3>
                             <p class="conversation-time">${formattedTime}</p>
-                            <button class="toggle-summary-btn">查看会话摘要</button>
-                            <div class="conversation-summary-content" style="display:none; margin-top:6px;">${conversation.summary ? conversation.summary : '<i class="small-muted">摘要生成中或不存在</i>'}</div>
+                            <button class="toggle-summary-btn">查看会话记忆</button>
+                            <div class="conversation-summary-content" style="display:none; margin-top:6px;">${conversation.summary ? conversation.summary : '<i class="small-muted">记忆生成中或不存在</i>'}</div>
                         </div>
                         <div class="conversation-actions">
                             <button class="load-btn" data-id="${conversation.id}"><i class="fas fa-download"></i> 加载</button>
-                            <button class="regenerate-summary-btn" data-id="${conversation.id}" title="重新生成会话摘要">🔁</button>
+                            <button class="regenerate-summary-btn" data-id="${conversation.id}" title="重新生成会话记忆">🔁</button>
                             <button class="rename-conv-btn" data-id="${conversation.id}"><i class="fas fa-edit"></i></button>
                             <button class="move-conv-btn" data-id="${conversation.id}"><i class="fas fa-folder-open"></i></button>
                             <button class="delete-conv-btn" data-id="${conversation.id}"><i class="fas fa-trash"></i></button>
@@ -468,10 +487,10 @@
                             e.stopPropagation();
                             if (summaryDiv.style.display === 'none') {
                                 summaryDiv.style.display = 'block';
-                                toggleBtn.textContent = '隐藏会话摘要';
+                                toggleBtn.textContent = '隐藏会话记忆';
                             } else {
                                 summaryDiv.style.display = 'none';
-                                toggleBtn.textContent = '查看会话摘要';
+                                toggleBtn.textContent = '查看会话记忆';
                             }
                         });
                     }
@@ -502,8 +521,8 @@
                         <div class="conversation-info">
                             <h3 class="conversation-name">${conversation.name}<span class="model-badge">${conversation.model || '未记录'}</span></h3>
                             <p class="conversation-time">${formattedTime}</p>
-                        <button class="toggle-summary-btn">查看会话摘要</button>
-                        <div class="conversation-summary-content" style="display:none; margin-top:6px;">${conversation.summary ? conversation.summary : '<i class="small-muted">摘要生成中或不存在</i>'}</div>
+                        <button class="toggle-summary-btn">查看会话记忆</button>
+                        <div class="conversation-summary-content" style="display:none; margin-top:6px;">${conversation.summary ? conversation.summary : '<i class="small-muted">记忆生成中或不存在</i>'}</div>
                         </div>
                         <div class="conversation-actions">
                         <button class="load-btn" data-id="${conversation.id}"><i class="fas fa-download"></i> 加载</button>
@@ -521,10 +540,10 @@
                         e.stopPropagation();
                         if (summaryDiv.style.display === 'none') {
                             summaryDiv.style.display = 'block';
-                            toggleBtn.textContent = '隐藏会话摘要';
+                            toggleBtn.textContent = '隐藏会话记忆';
                         } else {
                             summaryDiv.style.display = 'none';
-                            toggleBtn.textContent = '查看会话摘要';
+                            toggleBtn.textContent = '查看会话记忆';
                         }
                     });
                 }
@@ -594,12 +613,12 @@
                 });
             });
 
-            // 重新摘要会话按钮
+            // 重新生成会话记忆按钮
             conversationsList.querySelectorAll('.regenerate-summary-btn').forEach(btn => {
                 btn.addEventListener('click', async (e) => {
                     e.stopPropagation();
                     const conversationId = e.currentTarget.getAttribute('data-id');
-                    if (!confirm('确定要为该会话重新生成摘要吗？可能产生API调用费用。')) return;
+                    if (!confirm('确定要为该会话重新生成会话记忆吗？可能产生API调用费用。')) return;
                     try {
                         const saved = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
                         const conv = saved.find(c => c.id === conversationId);
@@ -609,12 +628,12 @@
                         if (!apiKey) return alert('未配置可用的 OpenRouter API Key');
 
                         if (!window.PROMPTS || !window.PROMPTS.SESSION_SUMMARY) {
-                            throw new Error('PROMPTS.SESSION_SUMMARY 未找到，无法生成会话摘要，请确保 prompts.js 已加载且包含 SESSION_SUMMARY');
+                            throw new Error('PROMPTS.SESSION_SUMMARY 未找到，无法生成会话记忆，请确保 prompts.js 已加载且包含 SESSION_SUMMARY');
                         }
                         const systemPrompt = window.PROMPTS.SESSION_SUMMARY;
                         const userContent = (conv.messages || conv.content || []).map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
                         const modelToUse = window.MODEL_NAME || 'minimax/minimax-m2:free';
-                        // 日志：开始重新摘要请求
+                        // 日志：开始重新生成会话记忆请求
                         let _resumEvtId = null;
                         try {
                             _resumEvtId = (window.Logger && window.Logger.start({
@@ -632,7 +651,7 @@
                         });
                         try { window.Logger && _resumEvtId && window.Logger.append(_resumEvtId, { res: { status: resp.status } }); } catch (_) {}
                         if (!resp.ok) {
-                            try { window.Logger && _resumEvtId && window.Logger.end(_resumEvtId, { error: { message: '重新摘要请求失败' } }); } catch (_) {}
+                            try { window.Logger && _resumEvtId && window.Logger.end(_resumEvtId, { error: { message: '重新生成会话记忆请求失败' } }); } catch (_) {}
                             throw new Error('API请求失败');
                         }
                         const data = await resp.json();
@@ -648,8 +667,8 @@
                             }
                         }
                     } catch (err) {
-                        console.error('重新生成摘要失败：', err);
-                        alert('重新生成摘要失败，请查看控制台错误');
+                        console.error('重新生成会话记忆失败：', err);
+                        alert('重新生成会话记忆失败，请查看控制台错误');
                     }
                 });
             });
@@ -657,7 +676,7 @@
 
         /**
          * 更新分组记忆
-         * 功能：聚合指定分组下所有会话的摘要，调用API生成分组级别的记忆摘要并保存
+         * 功能：聚合指定分组下所有会话的记忆，调用API生成分组记忆并保存
          * 参数：groupId - 分组ID
          * 返回值：Promise，无返回值
          */
