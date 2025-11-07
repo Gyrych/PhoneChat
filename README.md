@@ -58,6 +58,7 @@ Parameters and storage keys:
 Behavior:
 - When enabled, the request includes `plugins: [{ id: "web", ... }]` and optional `web_search_options.search_context_size`.
 - Returned `message.annotations[].url_citation` are rendered under the assistant message as a list of source links (domain names as link text).
+ - Output guidelines (injected as the first system message when enabled): start with the final answer/conclusion; all times/dates use `Asia/Shanghai`; for facts/data/stats/prices/policies etc., provide key values + units + source timestamp and specify metric scope/range/currency if relevant; citations must map to statements; when sources disagree, cross-check and note uncertainties (e.g., differing scopes or time lags); weather is an example (include location, phenomenon, temperature(°C)/feels-like, wind direction/speed, humidity/precipitation, timestamp).
 
 Pricing summary (see providers for details):
 - Exa: OpenRouter credits at $4 per 1000 results (default 5 results ≈ $0.02 per request) in addition to model usage.
