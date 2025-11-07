@@ -837,6 +837,8 @@ body {
     /* 胶囊开关高度与标签字号微调 */
     .pill-toggle { height: 40px; }
     .pill-toggle .label { font-size: 0.95rem; }
+    /* 移动端隐藏胶囊开关文字，仅保留图标 */
+    .pill-toggle .label { display: none; }
 
     /* 消息操作按钮更易点，避免遮挡内容 */
     .action-btn { width: 28px; height: 28px; font-size: 0.85rem; }

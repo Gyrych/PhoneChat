@@ -163,9 +163,15 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
   - `@media (max-width: 600px)`：压缩 `.header` 内边距；`.settings-btn/.conversations-btn/.attach-btn` 统一为 `var(--tap)`；`.pill-toggle` 高度 40px、标签 0.95rem；`.action-btn` 28×28 并提高字号；`.message` 右内边距增至 56px 以避免操作按钮遮挡内容。
   - `@media (max-width: 360px)`：将 `--tap` 压缩至 40px，同时下调 `--icon-lg/md`。
   - 与既有 `@media (max-width: 480px)` 共存：后者主要控制消息列宽与会话管理区按钮纵排，不冲突。
+  - 文本标签隐藏：在手机端隐藏 `.pill-toggle .label`（仅显示图标），节省横向空间。
 
 ---
 ## 变更记录
+- 2025-11-08（移动端隐藏内联胶囊开关文字标签）
+  - 目的：在手机浏览器中节省横向空间，仅显示图标以保持整洁。
+  - 修改项：
+    1. style.css：在 `@media (max-width: 600px)` 中对 `.pill-toggle .label` 设置 `display: none;`。
+    2. CURSOR.md：在“移动端尺寸与间距策略”补充“文本标签隐藏”条目，并记录本次变更。
 - 2025-11-08（移动端图标与间距整体收敛，适中风格）
   - 目的：在手机浏览器中统一图标比例与触控尺寸，避免操作遮挡，提高可读性与可点性。
   - 修改项：

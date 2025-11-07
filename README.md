@@ -22,6 +22,7 @@ FreeChat is a lightweight local web-based chat application for local prototyping
  - Typography: Inter (Latin) with system Chinese fallbacks, responsive font sizes via CSS variables.
 - Web Search (OpenRouter web plugin): optional online grounding with engine selection, max results, context size, and custom search prompt, plus citation rendering.
  - Mobile-friendly UI: unified icon scales and touch target sizing, with responsive spacing tuned for phones (breakpoints at 600px and 360px).
+  - On phones, inline capsule toggles (“Deep Thinking”/“Web Search”) show icon-only (labels hidden) to save space.
 
 ## Default (Demo) API Configuration
 
