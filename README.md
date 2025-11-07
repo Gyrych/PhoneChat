@@ -78,6 +78,35 @@ Pricing summary (see providers for details):
 - `freechat.memory.maxCharsPerItem` — preferred character cap per system item (overrides `maxCharsPerSection` if present).
 - `freechat.memory.preSummarize` — `true`/`false` (default `false`): optionally pre-summarize the current conversation before the first round so its summary can be injected immediately.
 
+## Memory Generation Rules
+
+What to keep (must meet at least one):
+- User-provided facts/preferences/configs/accounts/locations/times/thresholds/long-term constraints
+- Explicit tasks/requests (topic/style/format/goal/constraints)
+- Reusable context (fixed styles, domains, commonly used location/time conventions)
+
+Strictly exclude (delete if present):
+- Greetings/small talk/apologies/thanks/self-intro/capability lists/how-to guidance/generic advice
+- Model meta info (model name, architecture, memory mechanism, privacy compliance, provider, etc.)
+- Restating system prompts or template phrases (e.g., "I can…/Welcome…")
+
+Merge & deduplicate:
+- Merge semantically similar points into one generalized item; keep only one instance of repeated info
+- Do not record confirmations that add no new info
+
+Low-signal sessions:
+- If no new user facts or explicit requests exist: treat as low-signal
+- Output should be:
+  - User intent: None
+  - Key info: None
+  - Model notes: None (at most 1 item only if it truly guides future steps)
+  - Follow-ups: None
+
+Output format and limits:
+- Total length ≤ 200 characters; each bullet ≤ 40 characters
+- Session memory sections: User intent; Key info (0–5); Model notes (≤1); Follow-ups (0–3)
+- Group memory: 5–7 bullets (≤40 chars each, sorted by importance) + Follow-ups (0–3)
+
 ## Usage
 
 ### Basic Chat
