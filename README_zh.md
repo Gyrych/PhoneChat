@@ -18,6 +18,7 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，适用于本地演示和
 - 内置请求/响应日志：记录到 localStorage（遮蔽 Authorization），并提供导出/清空按钮。
  - 现代浅色主题 + 简洁科技风，头部/输入区/AI 气泡/卡片采用磨砂玻璃质感（Glassmorphism）。
  - 字体：Inter 用于英数，中文回退系统字体；通过 CSS 变量实现响应式字号。
+ - 联网搜索（OpenRouter Web 插件）：可选开启在线检索增强，支持引擎选择、结果数、上下文强度与自定义搜索提示，并在回复下方渲染引用链接。
 
 ## 默认（演示）API 配置
 
@@ -37,6 +38,26 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，适用于本地演示和
 2. 每个已保存会话会在 `savedDeepseekConversations[].model` 记录其所用模型；在 `conversations.html` 加载该会话时，如存在 `model` 字段，会自动恢复到 `localStorage.chatModel`。
 3. 演示默认使用内置的加密 OpenRouter Key（仅用于演示，不可用于生产）。
 4. 如需使用你自己的 Key，可在浏览器控制台执行 `localStorage.setItem('deepseekApiKey', 'YOUR_KEY')`，或替换 `index.html` 中的加密串；会话记忆与分组记忆也会读取该值作为替代。
+
+### 联网搜索（OpenRouter 插件）
+
+- 点击页面头部的“地球”图标打开 Web 面板。
+- 面板项会持久化到 `localStorage`，启用后每次请求自动生效。
+
+面板字段与存储键：
+- `freechat.web.enable` — `true`/`false`（默认 `false`）
+- `freechat.web.engine` — `auto | native | exa`（为 `auto` 时不显式写入，走供应商默认：支持原生则用原生，否则回退 Exa）
+- `freechat.web.maxResults` — 整数 1..10（默认 5）
+- `freechat.web.contextSize` — `low | medium | high`（为空则不指定）
+- `freechat.web.searchPrompt` — 字符串（为空则使用 OpenRouter 默认提示）
+
+行为说明：
+- 启用后，请求体将包含 `plugins: [{ id: "web", ... }]`，并可选写入 `web_search_options.search_context_size`。
+- 当返回 `message.annotations[].url_citation` 时，会在助手消息下方显示“参考来源”列表（使用域名作为链接文本）。
+
+定价要点（详见官方文档）：
+- Exa：按 1000 条结果 $4 计费（默认 5 条 ≈ 每次请求 $0.02），另计模型用量。
+- Native：按模型提供商透传价格（OpenAI/Anthropic/Perplexity），与“搜索上下文强度”相关。
 
 ### 会话/分组记忆的模型选择策略
 
@@ -98,6 +119,7 @@ flowchart TB
   A --> E[conversations.html]
   A --> F[prompts.js]
   A --> G[logger.js]
+  A -- Web 插件参数 --> A
   E --> F
   E --> G
 ```

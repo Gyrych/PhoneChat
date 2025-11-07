@@ -383,6 +383,46 @@ body {
 .stop-btn-floating:active { transform: translateY(-50%) scale(0.96); }
 .stop-btn-floating .fa-stop { font-size: 14px; }
 
+/* 联网搜索参数面板（玻璃风） */
+.web-panel {
+    position: fixed;
+    top: 80px;
+    right: 12px;
+    width: min(92vw, 360px);
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    -webkit-backdrop-filter: blur(var(--blur)) saturate(140%);
+    backdrop-filter: blur(var(--blur)) saturate(140%);
+    box-shadow: var(--shadow);
+    z-index: 9999;
+}
+
+.web-panel-row { display: flex; align-items: center; gap: 8px; margin: 8px 0; }
+.web-label { font-size: 0.9rem; color: var(--muted); }
+.web-input {
+    flex: 1;
+    padding: 8px 10px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    background: #fff;
+    font-size: 0.95rem;
+}
+
+/* 引用来源样式 */
+.citations {
+    margin-top: 10px;
+    padding: 10px;
+    border-radius: 10px;
+    background: linear-gradient(90deg, rgba(240,248,255,0.6), rgba(250,250,255,0.8));
+    border: 1px solid rgba(13,71,161,0.06);
+}
+.citations-title { font-weight: 700; color: #082a8a; margin-bottom: 6px; font-size: 0.92rem; }
+.citations ul { padding-left: 18px; }
+.citations li { margin: 4px 0; }
+.citations a { color: #0b3d91; text-decoration: underline; }
+
 /* 配置页面样式 */
 .config-container {
     flex: 1;

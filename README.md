@@ -19,6 +19,7 @@
 - Built-in request/response logging to localStorage (auth masked), with Export/Clear buttons.
  - Modern light theme with clean tech aesthetic and glassmorphism (frosted glass) applied to header, input area, AI bubbles, and cards.
  - Typography: Inter (Latin) with system Chinese fallbacks, responsive font sizes via CSS variables.
+- Web Search (OpenRouter web plugin): optional online grounding with engine selection, max results, context size, and custom search prompt, plus citation rendering.
 
 ## Default (Demo) API Configuration
 
@@ -38,6 +39,26 @@ Note: The above defaults are provided only as a convenient demo/fallback. For pr
 2. Each saved conversation stores its model in `savedDeepseekConversations[].model`. When you load a conversation from `conversations.html`, if `model` exists it will restore `localStorage.chatModel` automatically.
 3. Demo uses a built-in encrypted OpenRouter API key inside `index.html` (for demonstration only; do not rely on it for production).
 4. To use your own key, either replace the encrypted string in `index.html` or set `localStorage.setItem('deepseekApiKey', 'YOUR_KEY')` via the browser DevTools; session memories and group memory can read this value as an alternative.
+
+### Web Search (OpenRouter plugin)
+
+- Toggle from the header globe button to open the Web panel.
+- Options are persisted to `localStorage` and applied per request when enabled.
+
+Panel fields and storage keys:
+- `freechat.web.enable` — `true`/`false` (default `false`)
+- `freechat.web.engine` — `auto | native | exa` (omit when `auto` for provider-default behavior)
+- `freechat.web.maxResults` — integer 1..10 (default 5)
+- `freechat.web.contextSize` — `low | medium | high` (omit to use provider default)
+- `freechat.web.searchPrompt` — string (omit to use OpenRouter default prompt)
+
+Behavior:
+- When enabled, the request includes `plugins: [{ id: "web", ... }]` and optional `web_search_options.search_context_size`.
+- Returned `message.annotations[].url_citation` are rendered under the assistant message as a list of source links (domain names as link text).
+
+Pricing summary (see providers for details):
+- Exa: OpenRouter credits at $4 per 1000 results (default 5 results ≈ $0.02 per request) in addition to model usage.
+- Native: passthrough pricing from provider (OpenAI/Anthropic/Perplexity) by search context size.
 
 ### Session/Group memory model selection
 
@@ -101,6 +122,7 @@ flowchart TB
   A --> E[conversations.html]
   A --> F[prompts.js]
   A --> G[logger.js]
+  A -- web plugin opts --> A
   E --> F
   E --> G
 ```

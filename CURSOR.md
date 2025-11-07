@@ -42,6 +42,34 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
 5. 收到 AI 响应后将回复流式追加与渲染，并实时保存会话；同时以 1.5s 节流策略将内容回写到持久会话条目（避免高频写入）。
 6. 每轮流式结束后自动触发会话记忆：当消息条数超过上次已记忆计数或此前未有会话记忆时调用模型生成记忆，保存到 `savedDeepseekConversations[].summary` 并更新 `lastSummarizedMessageCount`；若会话属于某分组，则随后自动聚合并刷新该分组的 `memorySummary`。
 
+### 联网搜索架构与数据流（新增）
+
+- 目的：为任意模型按需接入实时 Web 检索，提升事实性与时效性；兼容 OpenRouter Web 插件的统一注解规范。
+- UI：
+  - 头部新增“地球”按钮打开参数面板（`webPanel`）。
+  - 面板项与本地存储映射：
+    - `freechat.web.enable`：是否启用；
+    - `freechat.web.engine`：`auto|native|exa`；
+    - `freechat.web.maxResults`：1..10；
+    - `freechat.web.contextSize`：`low|medium|high`；
+    - `freechat.web.searchPrompt`：字符串。
+- 请求构造：当启用时在请求体加入：
+  - `plugins: [{ id: 'web', engine?, max_results?, search_prompt? }]`
+  - `web_search_options: { search_context_size? }`
+  - 引擎为 `auto` 时不显式写入（按“原生优先，回退 Exa”）。
+- 结果综合系统提示：当启用 Web 插件时，会在请求最前插入一条系统消息，要求模型“先给最终答案，后给引用”，并约束：
+  - 中文结构化输出；时间口径按 `Asia/Shanghai`；
+  - 天气类问题需包含地点、现象、温度/体感温度、风向风速、湿度/降水与数据时间戳；
+  - 引用列表使用域名作为 Markdown 链接文本；
+  - 多来源不一致时做交叉核验并标注不确定性。
+- 响应解析：
+  - 流式正文/思考维持现有解析；
+  - 若片段中出现 `delta.annotations[].url_citation` 或尾包中出现 `message.annotations[].url_citation`，均累积到当前助手消息对象 `aiMsgObj.citations`；
+  - 渲染时在助手消息下方以“参考来源”列表展示（使用域名作为链接文本）。
+- 计费提示：
+  - Exa（回退或强制）：按 OpenRouter 额度 $4/1000 结果（默认 5 条≈$0.02/次）+ 模型用量；
+  - Native：供应商透传，随上下文强度变化。
+
 ### 关键功能说明（已实现/部分实现）
 
 - 会话分组：支持将会话归类到分组（文件夹），支持重命名与在分组之间移动会话。
@@ -105,6 +133,20 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
 
 ---
 ## 变更记录
+ - 2025-11-07（接入 OpenRouter Web 搜索插件 + 引用展示）
+ - 2025-11-07（修复：解析流式 delta.annotations 引用）
+  - 目的：部分提供方将 url_citation 放在流式 `delta.annotations` 中，之前仅读取尾包 `message.annotations` 导致引用不显示。
+  - 修改项：
+    1. index：在 SSE 循环中解析并去重累积 `delta.annotations`；
+    2. index：`updateLastAssistantMessage` 渲染前移除已有 `.citations`，避免重复叠加。
+  - 目的：为聊天响应提供可选的联网检索增强与标准化引用展示；用户可在对话页配置开关与参数。
+  - 修改项：
+    1. index：新增头部“地球”按钮与 `webPanel` 面板（引擎/结果数/上下文强度/Search Prompt/开关），参数持久化至 `localStorage`；
+    2. index：当启用时向请求体注入 `plugins` 与 `web_search_options`；
+    3. index：在流式解析过程中捕获 `message.annotations[].url_citation` 并渲染“参考来源”链接（域名为文本）；
+    4. style：新增 `.web-panel` 与 `.citations` 样式；
+    5. 文档：更新 README（中/英）增加“Web Search”章节与结构图；
+    6. CURSOR.md：新增“联网搜索架构与数据流”主体说明并记录新增本地存储键。
 - 2025-11-06（术语统一与存储兼容迁移：会话记忆/分组记忆）
   - 目的：统一名词体系，明确“记忆系统=会话记忆+分组记忆”，避免“会话摘要/分组摘要”等混用；兼容历史字段。
   - 修改项：

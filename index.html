@@ -21,6 +21,9 @@
             <h1>FreeChat</h1>
             <span id="currentModelBadge" class="model-badge"></span>
         </div>
+        <button id="webPanelToggleBtn" class="settings-btn" title="联网搜索设置">
+            <i class="fas fa-globe"></i>
+        </button>
         <button id="exportLogsBtn" class="settings-btn" title="导出日志">
             <i class="fas fa-file-export"></i>
         </button>
@@ -31,6 +34,40 @@
             <i class="fas fa-cog"></i>
         </button>
     </header>
+
+    <!-- 联网搜索参数面板（默认隐藏，点击地球图标展开） -->
+    <div id="webPanel" class="web-panel glass" style="display:none;">
+        <div class="web-panel-row">
+            <label class="web-label">
+                <input type="checkbox" id="webEnableSwitch" /> 启用联网搜索
+            </label>
+        </div>
+        <div class="web-panel-row">
+            <label class="web-label" for="webEngineSelect">引擎</label>
+            <select id="webEngineSelect" class="web-input">
+                <option value="auto">auto（默认）</option>
+                <option value="native">native</option>
+                <option value="exa">exa</option>
+            </select>
+        </div>
+        <div class="web-panel-row">
+            <label class="web-label" for="webMaxResultsInput">最大结果数</label>
+            <input type="number" id="webMaxResultsInput" class="web-input" min="1" max="10" step="1" />
+        </div>
+        <div class="web-panel-row">
+            <label class="web-label" for="webContextSizeSelect">搜索上下文</label>
+            <select id="webContextSizeSelect" class="web-input">
+                <option value="">- 不指定 -</option>
+                <option value="low">low</option>
+                <option value="medium">medium</option>
+                <option value="high">high</option>
+            </select>
+        </div>
+        <div class="web-panel-row">
+            <label class="web-label" for="webSearchPromptInput">Search Prompt</label>
+            <textarea id="webSearchPromptInput" class="web-input" rows="3" placeholder="留空以使用默认提示"></textarea>
+        </div>
+    </div>
 
     <main class="chat-container">
         <div id="messageContainer" class="message-container"></div>
@@ -130,6 +167,8 @@
             try { updateCurrentModelBadge(); } catch (e) { /* 忽略徽标更新异常 */ }
             loadConversation();
             renderMessages();
+            // 初始化联网搜索面板（读取本地配置并绑定事件）
+            try { initWebPanel(); } catch (e) { /* 忽略面板初始化异常 */ }
             if (sendBtn) {
                 sendBtn.addEventListener('click', sendMessage);
                 sendBtn.onclick = sendMessage;
@@ -202,6 +241,58 @@
             currentConversationGroupId = (grp && grp !== 'undefined' && grp !== 'null') ? grp : null;
             // 加载时尝试同步更新当前模型徽标（若用户从会话管理页恢复了模型）
             try { updateCurrentModelBadge(); } catch (e) { /* 忽略异常 */ }
+        }
+
+        /**
+         * 初始化联网搜索面板
+         * 功能：从 localStorage 读取配置，绑定控件事件并实时持久化
+         */
+        function initWebPanel() {
+            const panelBtn = document.getElementById('webPanelToggleBtn');
+            const panel = document.getElementById('webPanel');
+            const enableEl = document.getElementById('webEnableSwitch');
+            const engineEl = document.getElementById('webEngineSelect');
+            const maxEl = document.getElementById('webMaxResultsInput');
+            const ctxEl = document.getElementById('webContextSizeSelect');
+            const promptEl = document.getElementById('webSearchPromptInput');
+
+            const read = (k, d) => {
+                const v = localStorage.getItem(k);
+                return v === null || v === undefined ? d : v;
+            };
+            const write = (k, v) => {
+                if (v === '' || v === null || v === undefined) localStorage.removeItem(k);
+                else localStorage.setItem(k, String(v));
+            };
+
+            // 初始值
+            enableEl.checked = (read('freechat.web.enable', 'false') === 'true');
+            const engine = read('freechat.web.engine', 'auto');
+            engineEl.value = (engine === 'native' || engine === 'exa') ? engine : 'auto';
+            const maxResults = Math.max(1, Math.min(10, Number(read('freechat.web.maxResults', '5')) || 5));
+            maxEl.value = String(maxResults);
+            const ctx = read('freechat.web.contextSize', '');
+            ctxEl.value = (ctx === 'low' || ctx === 'medium' || ctx === 'high') ? ctx : '';
+            promptEl.value = read('freechat.web.searchPrompt', '');
+
+            // 切换按钮显示/隐藏面板
+            if (panelBtn && panel) {
+                panelBtn.addEventListener('click', () => {
+                    const visible = panel.style.display !== 'none';
+                    panel.style.display = visible ? 'none' : 'block';
+                });
+            }
+
+            // 变更事件：实时写入 localStorage
+            enableEl.addEventListener('change', () => write('freechat.web.enable', enableEl.checked ? 'true' : 'false'));
+            engineEl.addEventListener('change', () => write('freechat.web.engine', engineEl.value));
+            maxEl.addEventListener('change', () => {
+                const n = Math.max(1, Math.min(10, Number(maxEl.value) || 5));
+                maxEl.value = String(n);
+                write('freechat.web.maxResults', String(n));
+            });
+            ctxEl.addEventListener('change', () => write('freechat.web.contextSize', ctxEl.value));
+            promptEl.addEventListener('input', () => write('freechat.web.searchPrompt', promptEl.value));
         }
 
         /**
@@ -455,6 +546,32 @@
                         const contentHolder = document.createElement('div');
                         contentHolder.innerHTML = cleanHtml;
                         messageElement.appendChild(contentHolder);
+                        // 引用来源渲染（若存在 annotations）
+                        try {
+                            const anns = (message.citations || []).filter(x => x && x.type === 'url_citation' && x.url_citation && x.url_citation.url);
+                            if (anns.length) {
+                                const citeBlock = document.createElement('div');
+                                citeBlock.className = 'citations';
+                                const title = document.createElement('div');
+                                title.className = 'citations-title';
+                                title.textContent = '参考来源';
+                                const list = document.createElement('ul');
+                                for (const a of anns) {
+                                    const url = a.url_citation.url;
+                                    const li = document.createElement('li');
+                                    const link = document.createElement('a');
+                                    link.href = url;
+                                    link.target = '_blank';
+                                    link.rel = 'noopener noreferrer';
+                                    link.textContent = extractDomain(url) || url;
+                                    li.appendChild(link);
+                                    list.appendChild(li);
+                                }
+                                citeBlock.appendChild(title);
+                                citeBlock.appendChild(list);
+                                messageElement.appendChild(citeBlock);
+                            }
+                        } catch (_) { /* 忽略引用渲染异常 */ }
                     } catch (e) {
                         console.error('Markdown 渲染失败，退回纯文本显示：', e);
                         messageElement.textContent = message.content;
@@ -621,9 +738,17 @@
             let systemPromptText = '';
             try { systemPromptText = await buildMemorySystemPrompt(); } catch (_) { systemPromptText = ''; }
 
-            const messagesForRequest = systemPromptText
-                ? [{ role: 'system', content: systemPromptText }].concat(messagesPayload)
-                : messagesPayload;
+            // 若启用联网搜索，则在最前追加“结果综合与引用规范”系统提示，要求先回答、后引用、且按中文时区口径
+            const webEnabledFlag = (localStorage.getItem('freechat.web.enable') || 'false') === 'true';
+            const injectedMsgs = [];
+            if (webEnabledFlag) {
+                try {
+                    const webSynthPrompt = buildWebSynthesisPrompt();
+                    if (webSynthPrompt) injectedMsgs.push({ role: 'system', content: webSynthPrompt });
+                } catch (_) { /* 忽略 */ }
+            }
+            if (systemPromptText) injectedMsgs.push({ role: 'system', content: systemPromptText });
+            const messagesForRequest = injectedMsgs.length ? injectedMsgs.concat(messagesPayload) : messagesPayload;
 
             const requestBody = {
                 model: MODEL_NAME,
@@ -632,6 +757,28 @@
                 max_tokens: 40000,
                 stream: true
             };
+
+            // 按开关注入 OpenRouter Web 插件与搜索上下文选项
+            try {
+                const webEnabled = (localStorage.getItem('freechat.web.enable') || 'false') === 'true';
+                if (webEnabled) {
+                    const engine = (localStorage.getItem('freechat.web.engine') || 'auto').trim();
+                    const maxResultsRaw = Number(localStorage.getItem('freechat.web.maxResults'));
+                    const maxResults = Number.isFinite(maxResultsRaw) ? Math.max(1, Math.min(10, Math.floor(maxResultsRaw))) : 5;
+                    const searchPrompt = (localStorage.getItem('freechat.web.searchPrompt') || '').trim();
+                    const ctx = (localStorage.getItem('freechat.web.contextSize') || '').trim();
+
+                    const webPlugin = { id: 'web' };
+                    if (engine === 'native' || engine === 'exa') webPlugin.engine = engine;
+                    if (maxResults) webPlugin.max_results = maxResults;
+                    if (searchPrompt) webPlugin.search_prompt = searchPrompt;
+                    requestBody.plugins = [ webPlugin ];
+
+                    if (ctx === 'low' || ctx === 'medium' || ctx === 'high') {
+                        requestBody.web_search_options = { search_context_size: ctx };
+                    }
+                }
+            } catch (_) { /* 忽略组装失败，不影响主流程 */ }
 
             const headers = {
                 'Content-Type': 'application/json',
@@ -709,6 +856,30 @@
                                 // 触发界面刷新以（在存在时）显示思考过程
                                 updateLastAssistantMessage(aiMsgObj.content);
                             }
+                            // 引用增量（delta.annotations）
+                            try {
+                                const annDelta = json.choices && json.choices[0] && json.choices[0].delta && json.choices[0].delta.annotations;
+                                if (Array.isArray(annDelta) && annDelta.length) {
+                                    aiMsgObj.citations = Array.isArray(aiMsgObj.citations) ? aiMsgObj.citations : [];
+                                    for (const it of annDelta) {
+                                        if (it && it.type === 'url_citation' && it.url_citation && it.url_citation.url) {
+                                            const url = it.url_citation.url;
+                                            const exists = aiMsgObj.citations.some(x => x && x.type === 'url_citation' && x.url_citation && x.url_citation.url === url);
+                                            if (!exists) aiMsgObj.citations.push(it);
+                                        }
+                                    }
+                                    updateLastAssistantMessage(aiMsgObj.content);
+                                }
+                            } catch (_) { /* 忽略增量引用解析异常 */ }
+                            // 捕获最终消息上的引用注释（若在流片段中提供）
+                            try {
+                                const finalMsg = json.choices && json.choices[0] && json.choices[0].message;
+                                const ann = finalMsg && Array.isArray(finalMsg.annotations) ? finalMsg.annotations : null;
+                                if (ann && ann.length) {
+                                    aiMsgObj.citations = (aiMsgObj.citations || []).concat(ann);
+                                    updateLastAssistantMessage(aiMsgObj.content);
+                                }
+                            } catch (_) { /* 忽略解析异常 */ }
                         } catch (err) {
                             console.debug('解析流片段失败（可能不是 JSON）：', err);
                         }
@@ -879,6 +1050,9 @@
             // 若已存在思考过程容器，移除以避免重复追加
             const existingReasoning = last.querySelector('.reasoning-block');
             if (existingReasoning) existingReasoning.remove();
+            // 若已存在引用容器，移除以避免重复追加
+            const existingCitations = last.querySelector('.citations');
+            if (existingCitations) existingCitations.remove();
 
             const actionsDiv = document.createElement('div');
             actionsDiv.className = 'message-actions';
@@ -951,7 +1125,55 @@
                     last.insertBefore(reasoningBlock, last.firstChild);
                 }
             } catch (_) { /* 忽略思考过程渲染异常 */ }
+            // 渲染引用来源（若有）
+            try {
+                // 取出会话中最后一个 assistant 对象的 citations
+                let lastAssistantIndex = -1;
+                for (let i = currentConversation.length - 1; i >= 0; i--) {
+                    if (currentConversation[i] && currentConversation[i].role === 'assistant') { lastAssistantIndex = i; break; }
+                }
+                if (lastAssistantIndex !== -1) {
+                    const msg = currentConversation[lastAssistantIndex];
+                    const anns = (msg.citations || []).filter(x => x && x.type === 'url_citation' && x.url_citation && x.url_citation.url);
+                    if (anns.length) {
+                        const citeBlock = document.createElement('div');
+                        citeBlock.className = 'citations';
+                        const title = document.createElement('div');
+                        title.className = 'citations-title';
+                        title.textContent = '参考来源';
+                        const list = document.createElement('ul');
+                        for (const a of anns) {
+                            const url = a.url_citation.url;
+                            const li = document.createElement('li');
+                            const link = document.createElement('a');
+                            link.href = url;
+                            link.target = '_blank';
+                            link.rel = 'noopener noreferrer';
+                            link.textContent = extractDomain(url) || url;
+                            li.appendChild(link);
+                            list.appendChild(li);
+                        }
+                        citeBlock.appendChild(title);
+                        citeBlock.appendChild(list);
+                        last.appendChild(citeBlock);
+                    }
+                }
+            } catch (_) { /* 忽略引用渲染异常 */ }
             scrollToBottom();
+        }
+
+        /**
+         * 提取 URL 的域名
+         * 功能：用于将引用以域名作为链接文本
+         */
+        function extractDomain(url) {
+            try {
+                const u = new URL(url);
+                return u.hostname.replace(/^www\./, '');
+            } catch (_) {
+                const m = String(url || '').match(/^https?:\/\/([^\/]+)/i);
+                return m ? m[1] : '';
+            }
         }
 
         /**
@@ -1033,6 +1255,26 @@
          */
         function scrollToBottom() {
             messageContainer.scrollTop = messageContainer.scrollHeight;
+        }
+
+        /**
+         * 构建联网结果综合提示
+         * 功能：当启用 Web 插件时，要求模型先给出“最终答案”，再附带引用；加强准确性与可读性约束
+         */
+        function buildWebSynthesisPrompt() {
+            try {
+                return [
+                    '你可以访问最新的联网检索结果。请按如下要求生成回答：',
+                    '1) 先直接给出“最终答案”，不要只给网址；用简洁结构化中文回答。',
+                    '2) 如问题涉及时间/日期，按中国时区口径（Asia/Shanghai）。',
+                    '3) 如问题涉及天气：包含地点名、当前天气现象、温度(℃)、体感温度、风向风速、湿度/降水、数据时间戳。',
+                    '4) 仅在答案之后追加“参考来源”列表；每条用域名作为 Markdown 链接文本并指向原文。',
+                    '5) 多来源不一致时进行交叉核验，必要时标注不确定性并说明原因；避免臆测。',
+                    '6) 不输出工具调用标记或与用户无关的内部调试信息。'
+                ].join('\n');
+            } catch (_) {
+                return '';
+            }
         }
     </script>
 </body>
