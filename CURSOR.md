@@ -145,6 +145,7 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
   - 颜色：`--bg`、`--fg`、`--muted`、`--brand`、`--brand-2`、`--surface`、`--surface-strong`、`--border`、`--shadow`
   - 圆角/模糊：`--radius`、`--blur`
   - 字体比例：`--fs-body`、`--fs-h1`、`--fs-h2`、`--lh`
+  - 触控/图标层级（移动端收敛）：`--tap`（触控最小尺寸，默认 44px）、`--icon-lg`（头部/附件）、`--icon-md`（圆形主按钮内图标）、`--icon-sm`（消息操作图标）
 - 字体：`Inter`（英数）+ 系统中文（如 `PingFang SC`、`Microsoft YaHei`、`Noto Sans CJK SC`）。
 - 玻璃通用类：`.glass`（半透明白面 + `backdrop-filter: blur(...) saturate(...)` + 细边 + 统一阴影）。
 - 降级策略：对不支持 `backdrop-filter` 的环境，使用 `@supports not (...)` 将玻璃背景替换为更实的 `--surface-strong`。
@@ -156,8 +157,20 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
   - 响应式字号与行高通过 `clamp()` 与 `--lh` 控制；
   - `prefers-reduced-motion` 自动降低动画强度。
 
+#### 移动端尺寸与间距策略（适中风格）
+- 基线：通过 `--tap` 保证主要可点元素的触控尺寸；通过 `--icon-lg/md/sm` 统一 Font Awesome 图标字号（不改 DOM）。
+- 规则：
+  - `@media (max-width: 600px)`：压缩 `.header` 内边距；`.settings-btn/.conversations-btn/.attach-btn` 统一为 `var(--tap)`；`.pill-toggle` 高度 40px、标签 0.95rem；`.action-btn` 28×28 并提高字号；`.message` 右内边距增至 56px 以避免操作按钮遮挡内容。
+  - `@media (max-width: 360px)`：将 `--tap` 压缩至 40px，同时下调 `--icon-lg/md`。
+  - 与既有 `@media (max-width: 480px)` 共存：后者主要控制消息列宽与会话管理区按钮纵排，不冲突。
+
 ---
 ## 变更记录
+- 2025-11-08（移动端图标与间距整体收敛，适中风格）
+  - 目的：在手机浏览器中统一图标比例与触控尺寸，避免操作遮挡，提高可读性与可点性。
+  - 修改项：
+    1. style.css：在 `:root` 新增 `--tap` 与 `--icon-lg/md/sm`；统一按钮内 `<i>` 图标字号；新增 `@media (max-width: 600px/360px)` 对头部、按钮、胶囊开关、消息右内边距与操作按钮尺寸的收敛规则。
+    2. CURSOR.md：新增“触控/图标层级令牌”与“移动端尺寸与间距策略”小节，并记录本条变更。
 - 2025-11-08（统一化联网搜索提示词，覆盖通用数据/事实场景）
   - 目的：将 Web 综合提示从“示例性天气要求”扩展为“适用于通用联网查询”的统一规范。
   - 修改项：

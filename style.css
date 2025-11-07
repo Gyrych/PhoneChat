@@ -20,6 +20,11 @@
     --fs-h1: clamp(18px, 2.4vw, 22px);
     --fs-h2: clamp(16px, 2.0vw, 18px);
     --lh: 1.55;
+    /* 触控与图标层级（移动端尺寸收敛） */
+    --tap: 44px;           /* 触控最小尺寸 */
+    --icon-lg: 1.25rem;    /* 主要图标（头部、附件） */
+    --icon-md: 1.1rem;     /* 圆形主按钮内图标 */
+    --icon-sm: 0.95rem;    /* 消息操作小图标 */
 }
 
 /* 玻璃通用类（可复用到任意容器） */
@@ -266,6 +271,15 @@ body {
     font-size: 0.7rem;
     color: inherit;
 }
+
+/* 图标字号统一（不改 DOM，仅调 <i> 的字号） */
+.settings-btn i,
+.conversations-btn i,
+.attach-btn i { font-size: var(--icon-lg); }
+
+.circle-btn i { font-size: var(--icon-md); }
+.action-btn i { font-size: var(--icon-sm); }
+.pill-toggle i { font-size: 1rem; }
 
 .user-message .action-btn {
     background: rgba(255, 255, 255, 0.2);
@@ -808,6 +822,30 @@ body {
 
 .new-chat-btn:hover {
     background-color: #f0f0f0;
+}
+
+/* 移动端整体尺寸与间距收敛（适中风格） */
+@media (max-width: 600px) {
+    /* 头部内边距轻度压缩 */
+    .header { padding: 12px 16px; }
+
+    /* 统一触控按钮尺寸 */
+    .settings-btn,
+    .conversations-btn,
+    .attach-btn { width: var(--tap); height: var(--tap); }
+
+    /* 胶囊开关高度与标签字号微调 */
+    .pill-toggle { height: 40px; }
+    .pill-toggle .label { font-size: 0.95rem; }
+
+    /* 消息操作按钮更易点，避免遮挡内容 */
+    .action-btn { width: 28px; height: 28px; font-size: 0.85rem; }
+    .message { padding: 12px 16px; padding-right: 56px; }
+}
+
+/* 极小屏再压缩（超小设备） */
+@media (max-width: 360px) {
+    :root { --tap: 40px; --icon-lg: 1.15rem; --icon-md: 1.05rem; }
 }
 
 /* 响应式调整 */
