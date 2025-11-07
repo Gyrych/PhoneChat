@@ -290,7 +290,7 @@
         // 主页面保留“联网搜索”内联开关；参数配置改到设置页
 
         /**
-         * 构建系统提示词：分组记忆（可选为全部分组）+ 当前分组全部会话记忆
+         * 构建多条 system 提示：分组记忆（逐条）+ 当前分组会话记忆（逐条）
          * 说明：
          * - 注入“所有分组的分组记忆”或仅当前分组，受 localStorage 开关控制：
          *   - freechat.memory.inject.allGroups: 'true'|'false'，默认 'true'（注入全部分组记忆）
@@ -298,10 +298,10 @@
          *   - freechat.memory.inject.groupSessions: 'true'|'false'，默认 'true'
          * - 长度控制：
          *   - freechat.memory.maxConvPerGroup: 数量阈值（默认 10）
-         *   - freechat.memory.maxCharsPerSection: 字符阈值（默认 4000）
-         * 返回值：Promise<string>，为空字符串表示无需注入
+         *   - freechat.memory.maxCharsPerSection: 每条 system 最大字符（默认 4000）
+         * 返回值：Promise<Array<{role:'system', content:string}>>，空数组表示无需注入
          */
-        async function buildMemorySystemPrompt() {
+        async function buildMemorySystemPrompts() {
             try {
                 const readBool = (key, defVal) => {
                     const v = (localStorage.getItem(key) || '').trim();
@@ -315,32 +315,28 @@
 
                 const injectAllGroups = readBool('freechat.memory.inject.allGroups', true);
                 const injectGroupSessions = readBool('freechat.memory.inject.groupSessions', true);
-                const maxConvPerGroup = readNum('freechat.memory.maxConvPerGroup', 10);
-                const maxCharsPerSection = readNum('freechat.memory.maxCharsPerSection', 4000);
+                // 新键优先：不存在时回退旧键，保持向后兼容
+                const maxSessionsPerRequest = readNum('freechat.memory.maxSessionsPerRequest', readNum('freechat.memory.maxConvPerGroup', 10));
+                const maxCharsPerItem = readNum('freechat.memory.maxCharsPerItem', readNum('freechat.memory.maxCharsPerSection', 4000));
 
-                let sections = [];
+                const result = [];
 
-                // 分组记忆段：全部分组或仅当前分组
+                // 分组记忆：逐条生成 system
                 try {
                     const groups = JSON.parse(localStorage.getItem('conversationGroups') || '[]');
                     const currentGroupId = currentConversationGroupId || null;
                     const targetGroups = injectAllGroups ? groups : groups.filter(g => g.id === currentGroupId);
-
-                    const lines = [];
                     for (const g of targetGroups) {
                         if (!g || !g.memorySummary) continue;
-                        lines.push(`- 组[${g.name || g.id}]: ${g.memorySummary}`);
-                    }
-                    if (lines.length > 0) {
-                        let text = `分组记忆（${injectAllGroups ? '全部分组' : '当前分组'}）：\n` + lines.join('\n');
-                        if (text.length > maxCharsPerSection) {
-                            text = text.slice(0, maxCharsPerSection) + `\n...（分组记忆超出 ${maxCharsPerSection} 字符，已截断）`;
+                        let text = `[Group Memory] ${g.name || g.id}\n${g.memorySummary}`;
+                        if (text.length > maxCharsPerItem) {
+                            text = text.slice(0, maxCharsPerItem) + `\n...（分组记忆超出 ${maxCharsPerItem} 字符，已截断）`;
                         }
-                        sections.push(text);
+                        result.push({ role: 'system', content: text });
                     }
                 } catch (_) { /* 忽略分组解析异常 */ }
 
-                // 会话记忆段：当前分组全部会话
+                // 会话记忆：当前分组内，按更新时间倒序，逐条生成 system
                 if (injectGroupSessions) {
                     try {
                         const saved = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
@@ -349,26 +345,74 @@
                             .filter(c => (c && (c.groupId || null) === gid) && c.summary)
                             .sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
 
-                        const limited = sameGroupConvs.slice(0, Math.max(1, maxConvPerGroup));
-                        const lines = [];
+                        // 去重：按会话 ID 去重
+                        const seenIds = new Set();
+                        const deduped = [];
+                        for (const c of sameGroupConvs) {
+                            const cid = c && c.id;
+                            if (!cid) continue;
+                            if (seenIds.has(cid)) continue;
+                            seenIds.add(cid);
+                            deduped.push(c);
+                        }
+
+                        const limited = deduped.slice(0, Math.max(1, maxSessionsPerRequest));
                         for (const c of limited) {
                             const name = (c && c.name) ? c.name : (c && c.id) ? c.id : '会话';
-                            lines.push(`- 会话[${name}]: ${c.summary}`);
-                        }
-                        if (lines.length > 0) {
-                            let text = `会话记忆（当前分组全部会话，最多 ${maxConvPerGroup} 条）：\n` + lines.join('\n');
-                            if (text.length > maxCharsPerSection) {
-                                text = text.slice(0, maxCharsPerSection) + `\n...（会话记忆超出 ${maxCharsPerSection} 字符，已截断）`;
+                            let text = `[Session Memory] ${name}\n${c.summary}`;
+                            if (text.length > maxCharsPerItem) {
+                                text = text.slice(0, maxCharsPerItem) + `\n...（会话记忆超出 ${maxCharsPerItem} 字符，已截断）`;
                             }
-                            sections.push(text);
+                            result.push({ role: 'system', content: text });
                         }
                     } catch (_) { /* 忽略会话解析异常 */ }
                 }
 
-                return sections.length > 0 ? sections.join('\n\n') : '';
+                return result;
             } catch (_) {
-                return '';
+                return [];
             }
+        }
+
+        /**
+         * 多 system 兼容判定（静态映射版）与合并工具
+         * 说明：本阶段仅用于“不支持多 system 时自动合并”为单条
+         */
+        function inferProviderFromModel(modelName) {
+            try {
+                if (!modelName) return 'unknown';
+                const idx = modelName.indexOf('/');
+                return idx > 0 ? modelName.slice(0, idx).toLowerCase() : modelName.toLowerCase();
+            } catch (_) {
+                return 'unknown';
+            }
+        }
+        const STATIC_MULTI_SYSTEM_SUPPORT = {
+            'openai': true,
+            'meta-llama': true,
+            'mistralai': true,
+            'deepseek': true,
+            'qwen': true,
+            'x-ai': true,
+            'minimax': true,      // 保守，后续可配合降级
+            'anthropic': false,
+            'google': false,
+            'cohere': false,
+            'ai21': false
+        };
+        function supportsMultiSystem(modelName) {
+            const p = inferProviderFromModel(modelName);
+            if (Object.prototype.hasOwnProperty.call(STATIC_MULTI_SYSTEM_SUPPORT, p)) {
+                return !!STATIC_MULTI_SYSTEM_SUPPORT[p];
+            }
+            // 未知：先按支持处理
+            return true;
+        }
+        function mergeSystemMessages(systemMsgs) {
+            if (!Array.isArray(systemMsgs) || !systemMsgs.length) return null;
+            const sep = '\n\n---\n';
+            const content = systemMsgs.map(m => String(m.content || '').trim()).filter(Boolean).join(sep);
+            return content ? { role: 'system', content } : null;
         }
 
         /**
@@ -735,11 +779,11 @@
             // 可选：在发送前尝试预摘要当前会话，确保首轮也可注入会话摘要
             try { await preSummarizeCurrentConversationMaybe(); } catch (_) { /* 忽略预摘要异常 */ }
 
-            // 构造记忆注入：全部分组记忆 + 当前分组全部会话摘要
-            let systemPromptText = '';
-            try { systemPromptText = await buildMemorySystemPrompt(); } catch (_) { systemPromptText = ''; }
+            // 构造记忆注入：分组记忆（逐条）+ 当前分组会话记忆（逐条）
+            let systemPrompts = [];
+            try { systemPrompts = await buildMemorySystemPrompts(); } catch (_) { systemPrompts = []; }
 
-            // 若启用联网搜索，则在最前追加“结果综合与引用规范”系统提示，要求先回答、后引用、且按中文时区口径
+            // 若启用联网搜索，则在最前追加“结果综合与引用规范”系统提示（置首）
             const webEnabledFlag = (localStorage.getItem('freechat.web.enable') || 'false') === 'true';
             const injectedMsgs = [];
             if (webEnabledFlag) {
@@ -748,8 +792,24 @@
                     if (webSynthPrompt) injectedMsgs.push({ role: 'system', content: webSynthPrompt });
                 } catch (_) { /* 忽略 */ }
             }
-            if (systemPromptText) injectedMsgs.push({ role: 'system', content: systemPromptText });
-            const messagesForRequest = injectedMsgs.length ? injectedMsgs.concat(messagesPayload) : messagesPayload;
+            if (Array.isArray(systemPrompts) && systemPrompts.length) {
+                for (const sm of systemPrompts) {
+                    if (sm && sm.role === 'system' && sm.content) injectedMsgs.push(sm);
+                }
+            }
+            // 根据供应商能力决定是否需要将多条 system 合并为单条
+            const allMessages = injectedMsgs.length ? injectedMsgs.concat(messagesPayload) : messagesPayload;
+            const provider = inferProviderFromModel(MODEL_NAME);
+            const systemCount = injectedMsgs.filter(m => m && m.role === 'system').length;
+            let messagesForRequest = allMessages;
+            let _sysMerged = false;
+            if (!supportsMultiSystem(MODEL_NAME) && systemCount > 0) {
+                const systems = injectedMsgs.filter(m => m && m.role === 'system');
+                const others = allMessages.filter(m => m && m.role !== 'system');
+                const merged = mergeSystemMessages(systems);
+                messagesForRequest = [ merged, ...others ].filter(Boolean);
+                _sysMerged = true;
+            }
 
             const requestBody = {
                 model: MODEL_NAME,
@@ -786,8 +846,13 @@
                 'Authorization': `Bearer ${apiKey}`
             };
 
-            // 在发起请求前，把最终请求体补充到日志
-            try { window.Logger && chatEvtId && window.Logger.append(chatEvtId, { req: { body: requestBody } }); } catch (_) {}
+            // 在发起请求前，把最终请求体与 system 注入信息补充到日志
+            try {
+                window.Logger && chatEvtId && window.Logger.append(chatEvtId, {
+                    req: { body: requestBody },
+                    sys: { count: systemCount, merged: _sysMerged, provider }
+                });
+            } catch (_) {}
 
             const response = await fetch(DEEPSEEK_API_URL, {
                 method: 'POST',
@@ -1280,4 +1345,5 @@
         }
     </script>
 </body>
+</html>
 </html>

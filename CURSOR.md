@@ -33,10 +33,10 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
 
 1. 用户在 `index.html` 输入消息并发送。
 2. 新消息被追加到当前会话数组并保存到 `localStorage`（键名：`deepseekConversation`）。若尚无 `deepseekConversationId`，则自动创建持久会话条目写入 `savedDeepseekConversations`，并记录该 ID（无须手动保存）。
-3. 在发送请求前，若存在记忆则自动注入为一条 system 消息（新版注入策略）：
-   - 分组记忆：默认注入“全部分组”的 `conversationGroups[].memorySummary`（可通过 `freechat.memory.inject.allGroups` 切换为仅当前分组）；
-   - 会话记忆：注入“当前分组内所有会话”的 `savedDeepseekConversations[].summary`（按更新时间裁剪，阈值可配）；
-   注入顺序为“分组记忆（全部/当前） → 当前分组会话记忆（多条） → 历史消息”，且不污染可见的 `currentConversation`。
+3. 在发送请求前，若存在记忆则自动注入为“多条 system 消息”（新版注入策略）：
+   - 分组记忆：逐条注入 `conversationGroups[].memorySummary`（默认注入全部分组，可通过 `freechat.memory.inject.allGroups` 切换为仅当前分组）；
+   - 会话记忆：逐条注入“当前分组内所有会话”的 `savedDeepseekConversations[].summary`（按更新时间倒序裁剪，阈值可配且去重）；
+   注入顺序为“（若启用）Web 搜索输出规范 → 分组记忆（全部/当前，逐条） → 当前分组会话记忆（逐条） → 历史消息”，且不污染可见的 `currentConversation`。不支持多 system 的供应商将自动合并为单条并以 `---` 分隔。
 4. 应用构造请求体并通过 `fetch` 向配置的 API 端点发送请求，使用 `Authorization: Bearer <apiKey>` 头。`apiKey` 优先使用内置加密的演示 Key（`OPENROUTER_API_KEY`），回退到 `localStorage.deepseekApiKey`（若存在）。
 5. 每个持久会话条目会记录 `model` 字段（来源于 `localStorage.chatModel`/`window.MODEL_NAME`），在 `conversations.html` 加载会话时若存在该字段，会自动恢复到 `chatModel`，确保历史会话按其当时模型继续。
 5. 收到 AI 响应后将回复流式追加与渲染，并实时保存会话；同时以 1.5s 节流策略将内容回写到持久会话条目（避免高频写入）。
@@ -76,7 +76,7 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
 - 新建会话分组选择与命名：在会话管理页点击“新建会话”后，弹窗询问是否加入已有分组（下拉菜单）并允许为会话命名；结果分别写入 `deepseekConversationGroupId` 与 `deepseekNewConversationName`，主页面首次创建持久会话时读取并清理。
 - 会话自动无感存储：首次发送消息自动创建持久会话条目；其后对会话的更改以节流（约 1.5s）写回，避免重复与遗忘。
 - 会话自动记忆：每轮生成结束后自动判定是否需要生成会话记忆（去重），将结果保存到会话元数据。
-- 分组记忆与会话记忆注入：请求前自动注入“分组记忆（默认全部分组）+ 当前分组全部会话记忆”（一条 system 消息，可配置与截断）。
+- 分组记忆与会话记忆注入：请求前自动注入“分组记忆（默认全部分组，逐条）+ 当前分组全部会话记忆（逐条）”（多条 system 消息，可配置与截断；对不支持多 system 的供应商自动合并为单条）。
 - 会话记忆模型选择策略：生成会话记忆（自动与手动）时，优先使用该会话记录的 `model`，其后回退到全局 `window.MODEL_NAME`，最后兜底 `'minimax/minimax-m2:free'`；分组记忆始终使用全局模型。
 - Markdown 渲染：AI 回复通过 `marked` 渲染为 HTML，并使用 `DOMPurify` 进行消毒以降低 XSS 风险。
  - 会话模型持久化与恢复：保存会话时写入 `model` 字段；加载会话时自动恢复该模型；会话列表在名称旁显示模型徽标。
@@ -316,3 +316,12 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
     2. config：新增“联网搜索设置”分区（引擎/最大结果/上下文/Search Prompt）；读写 `freechat.web.*` 键；复用“保存设置”按钮一次性保存。
     3. README（中/英）：更新使用说明，指明参数配置在 `config.html`，主页面不再展示地球按钮与面板；更新 `config.html` 文件说明。
     4. CURSOR 主体：更新“主要文件说明”与“联网搜索架构与数据流 → UI”说明，并追加本条变更记录。
+
+- 2025-11-07（多 system 记忆注入 + 供应商静态兼容 + 日志补充）
+  - 目的：将每个分组记忆/会话记忆分别作为独立 system 消息发送；对不支持多 system 的供应商自动合并；补充日志以便排障。
+  - 修改项：
+    1. index：新增 `buildMemorySystemPrompts()`，逐条注入分组与会话记忆；顺序为“Web 搜索规范（启用时置首）→ 分组记忆 → 会话记忆 → 历史消息”。
+    2. index：实现静态供应商映射（openai/mistralai/deepseek/qwen/meta-llama/x-ai/minimax 支持；anthropic/google/cohere/ai21 视为不支持），不支持时自动合并为单条，段间以 `---` 分隔。
+    3. index：会话记忆去重（按会话ID）、新增可选键 `freechat.memory.maxSessionsPerRequest` 与 `freechat.memory.maxCharsPerItem`（不存在时回退旧键），并保留字符截断；
+    4. logger：在聊天请求写入 `sys` 字段（`count`、`merged`、`provider`）。
+  - 文档：本文件主体与 README（中/英）同步“多 system 注入策略、顺序、静态供应商兼容与本地配置键”。

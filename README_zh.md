@@ -8,9 +8,10 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，适用于本地演示和
 - 自动无感持久化：首条消息即创建持久会话条目，后续以节流方式持续写回（无需手动保存）。
 - 保存、加载、删除与重命名会话。
 - 将会话按分组管理，自动生成会话记忆，并自动刷新分组记忆。
-- 在每次请求前以一条 system 消息注入记忆：
-  - 注入“所有分组”的分组记忆（可配置，仅当前分组或全部分组）；
-  - 注入“当前分组内所有会话”的会话记忆（可配置）。
+- 在每次请求前以多条 system 消息分别注入记忆：
+  - 分组记忆逐条注入（默认全部分组，可配置）；
+  - 当前分组的会话记忆逐条注入（可配置，按最近更新时间排序并进行裁剪与去重）。
+  - 对仅支持单条 system 的服务商会自动合并为一条（各段用 `---` 分隔）。
 - 将 AI 回复以 Markdown 渲染（使用 `marked`）并用 `DOMPurify` 进行消毒以防 XSS。
 - 在会话管理页新建会话时，会弹窗询问是否加入已有分组（下拉选择），并可为新会话命名。
 - 主聊天页顶部显示当前模型徽标。
@@ -72,6 +73,8 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，适用于本地演示和
 - `freechat.memory.inject.groupSessions` — `true`/`false`（默认 `true`）：注入“当前分组内全部会话”的记忆。
 - `freechat.memory.maxConvPerGroup` — 当前分组最多注入的会话摘要条数（默认 `10`）。
 - `freechat.memory.maxCharsPerSection` — 每个注入段的最大字符数（默认 `4000`）。
+- `freechat.memory.maxSessionsPerRequest` — 每次请求优先使用的“会话记忆”最大条数（若存在则覆盖 `maxConvPerGroup`）。
+- `freechat.memory.maxCharsPerItem` — 每条 system 项的字符上限（若存在则覆盖 `maxCharsPerSection`）。
 - `freechat.memory.preSummarize` — `true`/`false`（默认 `false`）：是否在首轮发送前预生成“当前会话摘要”，以便首轮也能注入。
 
 ## 使用说明

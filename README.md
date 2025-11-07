@@ -9,9 +9,10 @@ FreeChat is a lightweight local web-based chat application for local prototyping
 - Save, load, delete and rename conversations.
 - Organize conversations into groups and generate per-conversation session memories.
 - Auto-generate per-conversation session memories after each round and refresh group-level memory automatically.
-- Inject memory as a single system message before each request:
-  - All groups' group memories are injected (configurable), and
-  - All session memories within the current group are injected (configurable).
+- Inject memory as multiple system messages before each request:
+  - Group memories are injected one-by-one (all groups by default; configurable), and
+  - Session memories within the current group are injected one-by-one (configurable, sorted by last update with trimming and dedup).
+  - Providers that accept only one system message are handled automatically by merging all system messages into a single one (sections separated by `---`).
 - Render AI assistant replies as Markdown using `marked` and sanitize with `DOMPurify` for safety.
 - When creating a new conversation from the manager page, a modal asks whether to add it to an existing group (with a dropdown selector) and lets you set a name.
 - Show the current model as a badge on the chat header.
@@ -73,6 +74,8 @@ Pricing summary (see providers for details):
 - `freechat.memory.inject.groupSessions` — `true`/`false` (default `true`): inject all session memories within the current group.
 - `freechat.memory.maxConvPerGroup` — number limit for session summaries in the current group (default `10`).
 - `freechat.memory.maxCharsPerSection` — character cap per injected section (default `4000`).
+- `freechat.memory.maxSessionsPerRequest` — preferred max number of session memories to inject (overrides `maxConvPerGroup` if present).
+- `freechat.memory.maxCharsPerItem` — preferred character cap per system item (overrides `maxCharsPerSection` if present).
 - `freechat.memory.preSummarize` — `true`/`false` (default `false`): optionally pre-summarize the current conversation before the first round so its summary can be injected immediately.
 
 ## Usage
