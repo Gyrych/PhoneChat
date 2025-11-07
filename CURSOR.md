@@ -95,7 +95,7 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
     - 分组记忆聚合（`updateGroupMemory`）→ `groupmem_request` / `groupmem_done`
   - `conversations.html`：保存会话生成摘要、重新生成摘要、分组记忆聚合同步记录。
 - 事件字段（要点）：`id`、`ts`、`type`、`endpoint`、`model`、`conversationId`、`groupId`、`req.headersMasked`、`req.body`、`res.status`、`res.streamChunks`（可能截断）、`res.final`、`error.message`、`durationMs`。
-- UI：`index.html` 与 `conversations.html` 右上角新增“导出日志”“清空日志”按钮。
+- UI：`index.html` 与 `conversations.html` 右上角显示“导出日志”按钮；“清空日志”按钮默认隐藏（可恢复）。
 - 配置：`localStorage.freechat.log.maxEntries`（默认 1000）、`localStorage.freechat.log.enable`（默认 true）。
 
 ### 已知限制与建议
@@ -133,6 +133,12 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
 
 ---
 ## 变更记录
+- 2025-11-07（隐藏清空日志按钮，保留功能可恢复）
+  - 目的：主页面与会话管理页顶部“清空日志”按钮平时不使用，避免误触；保留能力以便需要时恢复。
+  - 修改项：
+    1. style：新增 `#clearLogsBtn { display: none !important; }`，两个页面共享隐藏。
+    2. 文档：更新 README（中/英）“请求/响应日志”UI 描述为“仅显示导出，清空默认隐藏（可恢复）”。
+    3. CURSOR 主体：更新“日志架构与数据流 → UI”说明并追加本条变更记录。
  - 2025-11-07（接入 OpenRouter Web 搜索插件 + 引用展示）
  - 2025-11-07（修复：解析流式 delta.annotations 引用）
   - 目的：部分提供方将 url_citation 放在流式 `delta.annotations` 中，之前仅读取尾包 `message.annotations` 导致引用不显示。

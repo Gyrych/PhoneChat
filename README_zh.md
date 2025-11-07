@@ -15,7 +15,7 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，适用于本地演示和
 - 在会话管理页新建会话时，会弹窗询问是否加入已有分组（下拉选择），并可为新会话命名。
 - 主聊天页顶部显示当前模型徽标。
 - 对于具备“思考”能力的模型（如 DeepSeek-R1），当 API 返回推理内容时，将以流式形式显示在助手正文“上方”，默认展开，用户可点击按钮收起/展开。
-- 内置请求/响应日志：记录到 localStorage（遮蔽 Authorization），并提供导出/清空按钮。
+- 内置请求/响应日志：记录到 localStorage（遮蔽 Authorization），提供导出按钮；清空按钮默认隐藏（可恢复）。
  - 现代浅色主题 + 简洁科技风，头部/输入区/AI 气泡/卡片采用磨砂玻璃质感（Glassmorphism）。
  - 字体：Inter 用于英数，中文回退系统字体；通过 CSS 变量实现响应式字号。
  - 联网搜索（OpenRouter Web 插件）：可选开启在线检索增强，支持引擎选择、结果数、上下文强度与自定义搜索提示，并在回复下方渲染引用链接。
@@ -147,9 +147,7 @@ flowchart TB
 - 存储：`localStorage` 键 `freechat.logs`，环形缓冲（默认最多 1000 条）。
 - 隐私：始终将 `Authorization` 遮蔽为 `Bearer ***masked***`；不采集设备指纹。
 - 界面：
-  - 在 `index.html` 与 `conversations.html` 右上角提供两个按钮：
-    - 导出日志（可选 JSON 或 NDJSON）
-    - 清空日志（不可恢复）
+  - 在 `index.html` 与 `conversations.html` 右上角提供导出按钮（JSON/NDJSON）；清空日志按钮默认隐藏（可恢复）。
 - 配置（通过 `localStorage`）：
   - `freechat.log.maxEntries` — 最大保存条目数（默认 1000）
   - `freechat.log.enable` — `true`/`false` 开启/关闭日志

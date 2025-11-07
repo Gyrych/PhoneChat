@@ -16,7 +16,7 @@
 - When creating a new conversation from the manager page, a modal asks whether to add it to an existing group (with a dropdown selector) and lets you set a name.
 - Show the current model as a badge on the chat header.
 - For reasoning-capable models (e.g., DeepSeek-R1), the model's reasoning (if returned by the API) streams live and appears ABOVE the assistant reply. It is visible by default and can be folded/unfolded by the user.
-- Built-in request/response logging to localStorage (auth masked), with Export/Clear buttons.
+- Built-in request/response logging to localStorage (auth masked); Export button visible, Clear button hidden by default (restorable).
  - Modern light theme with clean tech aesthetic and glassmorphism (frosted glass) applied to header, input area, AI bubbles, and cards.
  - Typography: Inter (Latin) with system Chinese fallbacks, responsive font sizes via CSS variables.
 - Web Search (OpenRouter web plugin): optional online grounding with engine selection, max results, context size, and custom search prompt, plus citation rendering.
@@ -150,9 +150,7 @@ Note: Glassmorphism uses `backdrop-filter`; when not supported, the UI gracefull
 - Storage: Ring buffer in `localStorage` key `freechat.logs` (default max 1000 entries).
 - Privacy: `Authorization` is always masked as `Bearer ***masked***`. No device fingerprinting is collected.
 - UI:
-  - On `index.html` and `conversations.html`, use the top-right buttons:
-    - Export logs (choose JSON or NDJSON)
-    - Clear logs (irreversible)
+  - On `index.html` and `conversations.html`, the Export button is visible (JSON/NDJSON). The Clear button is hidden by default (restorable).
 - Config via `localStorage`:
   - `freechat.log.maxEntries` — maximum entries (default 1000)
   - `freechat.log.enable` — `true`/`false` to enable/disable logging

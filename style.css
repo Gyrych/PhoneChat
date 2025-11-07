@@ -811,6 +811,10 @@ body {
 }
 
 /* 模态与遮罩样式（新建会话分组选择） */
+.
+/* 隐藏清空日志按钮（主聊页与会话管理页共用）；如需恢复可删除本规则 */
+#clearLogsBtn { display: none !important; }
+
 .modal-overlay {
     position: fixed;
     top: 0;
