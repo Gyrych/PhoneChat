@@ -21,9 +21,6 @@
             <h1>FreeChat</h1>
             <span id="currentModelBadge" class="model-badge"></span>
         </div>
-        <button id="webPanelToggleBtn" class="settings-btn" title="联网搜索设置">
-            <i class="fas fa-globe"></i>
-        </button>
         <button id="exportLogsBtn" class="settings-btn" title="导出日志">
             <i class="fas fa-file-export"></i>
         </button>
@@ -35,34 +32,6 @@
         </button>
     </header>
 
-    <!-- 联网搜索参数面板（默认隐藏，点击地球图标展开） -->
-    <div id="webPanel" class="web-panel glass" style="display:none;">
-        <div class="web-panel-row">
-            <label class="web-label" for="webEngineSelect">引擎</label>
-            <select id="webEngineSelect" class="web-input">
-                <option value="auto">auto（默认）</option>
-                <option value="native">native</option>
-                <option value="exa">exa</option>
-            </select>
-        </div>
-        <div class="web-panel-row">
-            <label class="web-label" for="webMaxResultsInput">最大结果数</label>
-            <input type="number" id="webMaxResultsInput" class="web-input" min="1" max="10" step="1" />
-        </div>
-        <div class="web-panel-row">
-            <label class="web-label" for="webContextSizeSelect">搜索上下文</label>
-            <select id="webContextSizeSelect" class="web-input">
-                <option value="">- 不指定 -</option>
-                <option value="low">low</option>
-                <option value="medium">medium</option>
-                <option value="high">high</option>
-            </select>
-        </div>
-        <div class="web-panel-row">
-            <label class="web-label" for="webSearchPromptInput">Search Prompt</label>
-            <textarea id="webSearchPromptInput" class="web-input" rows="3" placeholder="留空以使用默认提示"></textarea>
-        </div>
-    </div>
 
     <main class="chat-container">
         <div id="messageContainer" class="message-container"></div>
@@ -178,8 +147,7 @@
             try { updateCurrentModelBadge(); } catch (e) { /* 忽略徽标更新异常 */ }
             loadConversation();
             renderMessages();
-            // 初始化联网搜索面板（读取本地配置并绑定事件）
-            try { initWebPanel(); } catch (e) { /* 忽略面板初始化异常 */ }
+            // 联网搜索参数已迁移至设置页，无需在主页面初始化面板
             if (sendBtn) {
                 sendBtn.addEventListener('click', sendMessage);
                 sendBtn.onclick = sendMessage;
@@ -319,54 +287,7 @@
             try { updateCurrentModelBadge(); } catch (e) { /* 忽略异常 */ }
         }
 
-        /**
-         * 初始化联网搜索面板
-         * 功能：从 localStorage 读取配置，绑定控件事件并实时持久化
-         */
-        function initWebPanel() {
-            const panelBtn = document.getElementById('webPanelToggleBtn');
-            const panel = document.getElementById('webPanel');
-            const engineEl = document.getElementById('webEngineSelect');
-            const maxEl = document.getElementById('webMaxResultsInput');
-            const ctxEl = document.getElementById('webContextSizeSelect');
-            const promptEl = document.getElementById('webSearchPromptInput');
-
-            const read = (k, d) => {
-                const v = localStorage.getItem(k);
-                return v === null || v === undefined ? d : v;
-            };
-            const write = (k, v) => {
-                if (v === '' || v === null || v === undefined) localStorage.removeItem(k);
-                else localStorage.setItem(k, String(v));
-            };
-
-            // 初始值（不再在面板内设置启用/关闭）
-            const engine = read('freechat.web.engine', 'auto');
-            engineEl.value = (engine === 'native' || engine === 'exa') ? engine : 'auto';
-            const maxResults = Math.max(1, Math.min(10, Number(read('freechat.web.maxResults', '5')) || 5));
-            maxEl.value = String(maxResults);
-            const ctx = read('freechat.web.contextSize', '');
-            ctxEl.value = (ctx === 'low' || ctx === 'medium' || ctx === 'high') ? ctx : '';
-            promptEl.value = read('freechat.web.searchPrompt', '');
-
-            // 切换按钮显示/隐藏面板
-            if (panelBtn && panel) {
-                panelBtn.addEventListener('click', () => {
-                    const visible = panel.style.display !== 'none';
-                    panel.style.display = visible ? 'none' : 'block';
-                });
-            }
-
-            // 变更事件：实时写入 localStorage
-            engineEl.addEventListener('change', () => write('freechat.web.engine', engineEl.value));
-            maxEl.addEventListener('change', () => {
-                const n = Math.max(1, Math.min(10, Number(maxEl.value) || 5));
-                maxEl.value = String(n);
-                write('freechat.web.maxResults', String(n));
-            });
-            ctxEl.addEventListener('change', () => write('freechat.web.contextSize', ctxEl.value));
-            promptEl.addEventListener('input', () => write('freechat.web.searchPrompt', promptEl.value));
-        }
+        // 主页面保留“联网搜索”内联开关；参数配置改到设置页
 
         /**
          * 构建系统提示词：分组记忆（可选为全部分组）+ 当前分组全部会话记忆

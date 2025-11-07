@@ -21,7 +21,7 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
 ### 主要文件说明
 
 - `index.html`：主页面，包含聊天界面、消息渲染、发送逻辑与消息持久化；内置加密的 OpenRouter API Key（仅演示用途）。
-- `config.html`：设置页面，仅提供“模型选择并保存到 localStorage（键名 `chatModel`）”，当前不提供 API Key 输入项。
+- `config.html`：设置页面，提供“模型选择（写入 `localStorage.chatModel`）”与“联网搜索设置（写入 `freechat.web.*`）”；当前不提供 API Key 输入项。
 - `conversations.html`：会话管理页面，支持保存/加载/删除会话、分组管理、查看/重新生成会话记忆与分组记忆。
  - `conversations.html`：会话管理页面，支持保存/加载/删除会话、分组管理、查看/重新生成会话记忆与分组记忆；新建会话时弹窗询问是否加入已有分组并提供下拉选择。
 - `prompts.js`：提示词模板，集中管理“会话记忆（SESSION_SUMMARY）/分组记忆（GROUP_SUMMARY）”等提示词常量。
@@ -47,7 +47,7 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
 - 目的：为任意模型按需接入实时 Web 检索，提升事实性与时效性；兼容 OpenRouter Web 插件的统一注解规范。
 - UI：
   - 输入区左侧提供“联网搜索”内联胶囊开关（`#webInlineToggle`），用于启用/关闭；状态持久化键：`freechat.web.enable`。
-  - 头部“地球”按钮仅用于打开参数面板（`#webPanel`），不再包含启用开关。
+  - 参数配置已迁移到设置页（`config.html`）的“联网搜索设置”，不再在主页面展示“地球”按钮与浮层面板。
   - 参数项与本地存储映射：
     - `freechat.web.engine`：`auto|native|exa`；
     - `freechat.web.maxResults`：1..10；
@@ -308,3 +308,11 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
     2. conversations.html：手动“重新生成会话记忆”时，`modelToUse` = 会话模型 > 全局模型 > 兜底。
     3. index.html：`preSummarizeCurrentConversationMaybe` 预摘要使用会话模型优先。
     4. index.html：`autoSummarizeIfNeeded` 自动摘要使用会话模型优先。
+
+- 2025-11-07（将“联网搜索设置按钮”的功能迁移到设置页）
+  - 目的：统一配置入口，简化主页面，仅保留按消息级“联网搜索”开关。
+  - 修改项：
+    1. index：移除头部“地球”按钮与 `#webPanel` 浮层；删除 `initWebPanel()` 及其调用；保留 `#webInlineToggle` 内联开关。
+    2. config：新增“联网搜索设置”分区（引擎/最大结果/上下文/Search Prompt）；读写 `freechat.web.*` 键；复用“保存设置”按钮一次性保存。
+    3. README（中/英）：更新使用说明，指明参数配置在 `config.html`，主页面不再展示地球按钮与面板；更新 `config.html` 文件说明。
+    4. CURSOR 主体：更新“主要文件说明”与“联网搜索架构与数据流 → UI”说明，并追加本条变更记录。

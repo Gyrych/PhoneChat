@@ -31,6 +31,32 @@
                 <option value="qwen/qwen3-235b-a22b:free">qwen/qwen3-235b-a22b:free</option>
             </select>
         </div>
+        <!-- 联网搜索设置（从主页面迁移至设置页） -->
+        <div class="config-item">
+            <label for="webEngineSelectCfg" class="config-label">联网搜索引擎</label>
+            <select id="webEngineSelectCfg" class="config-input">
+                <option value="auto">auto（默认）</option>
+                <option value="native">native</option>
+                <option value="exa">exa</option>
+            </select>
+        </div>
+        <div class="config-item">
+            <label for="webMaxResultsInputCfg" class="config-label">最大结果数</label>
+            <input type="number" id="webMaxResultsInputCfg" class="config-input" min="1" max="10" step="1" placeholder="1 - 10（默认 5）" />
+        </div>
+        <div class="config-item">
+            <label for="webContextSizeSelectCfg" class="config-label">搜索上下文</label>
+            <select id="webContextSizeSelectCfg" class="config-input">
+                <option value="">- 不指定 -</option>
+                <option value="low">low</option>
+                <option value="medium">medium</option>
+                <option value="high">high</option>
+            </select>
+        </div>
+        <div class="config-item">
+            <label for="webSearchPromptInputCfg" class="config-label">Search Prompt（可选）</label>
+            <textarea id="webSearchPromptInputCfg" class="config-input" rows="3" placeholder="留空以使用默认提示"></textarea>
+        </div>
         <button id="saveConfigBtn" class="save-btn">保存设置</button>
         <div id="saveMessage" class="save-message"></div>
     </main>
@@ -45,18 +71,72 @@
             window.location.assign('index.html');
         });
 
-        // 页面加载时获取保存的模型名称
+        // 页面加载时获取保存的模型名称与联网搜索设置
         document.addEventListener('DOMContentLoaded', () => {
             const savedModel = localStorage.getItem('chatModel');
             if (savedModel) {
                 document.getElementById('modelSelect').value = savedModel;
             }
 
+            // 读取并初始化：联网搜索设置（保持与主页面相同键名与默认值）
+            try {
+                const read = (k, d) => {
+                    const v = localStorage.getItem(k);
+                    return (v === null || v === undefined) ? d : v;
+                };
+
+                const engineEl = document.getElementById('webEngineSelectCfg');
+                const maxEl = document.getElementById('webMaxResultsInputCfg');
+                const ctxEl = document.getElementById('webContextSizeSelectCfg');
+                const promptEl = document.getElementById('webSearchPromptInputCfg');
+
+                const engine = read('freechat.web.engine', 'auto');
+                engineEl.value = (engine === 'native' || engine === 'exa') ? engine : 'auto';
+                const maxResults = Math.max(1, Math.min(10, Number(read('freechat.web.maxResults', '5')) || 5));
+                maxEl.value = String(maxResults);
+                const ctx = read('freechat.web.contextSize', '');
+                ctxEl.value = (ctx === 'low' || ctx === 'medium' || ctx === 'high') ? ctx : '';
+                promptEl.value = read('freechat.web.searchPrompt', '');
+            } catch (e) {
+                console.error('初始化 联网搜索设置 失败：', e);
+            }
+
             // 保存按钮事件
             document.getElementById('saveConfigBtn').addEventListener('click', () => {
-                const modelName = document.getElementById('modelSelect').value;
-                if (modelName) {
-                    localStorage.setItem('chatModel', modelName);
+                try {
+                    // 保存模型
+                    const modelName = document.getElementById('modelSelect').value;
+                    if (modelName) {
+                        localStorage.setItem('chatModel', modelName);
+                    }
+
+                    // 保存：联网搜索设置（空值移除，数值范围保护）
+                    const engineEl = document.getElementById('webEngineSelectCfg');
+                    const maxEl = document.getElementById('webMaxResultsInputCfg');
+                    const ctxEl = document.getElementById('webContextSizeSelectCfg');
+                    const promptEl = document.getElementById('webSearchPromptInputCfg');
+
+                    const write = (k, v) => {
+                        if (v === '' || v === null || v === undefined) localStorage.removeItem(k);
+                        else localStorage.setItem(k, String(v));
+                    };
+
+                    // 引擎：写入 auto/native/exa（保持与主页面一致）
+                    const engine = engineEl.value === 'native' || engineEl.value === 'exa' ? engineEl.value : 'auto';
+                    write('freechat.web.engine', engine);
+
+                    // 最大结果数：范围 1..10
+                    const maxVal = Math.max(1, Math.min(10, Number(maxEl.value) || 5));
+                    write('freechat.web.maxResults', String(maxVal));
+
+                    // 上下文强度：允许为空（为空则移除键）
+                    const ctx = (ctxEl.value === 'low' || ctxEl.value === 'medium' || ctxEl.value === 'high') ? ctxEl.value : '';
+                    write('freechat.web.contextSize', ctx);
+
+                    // 自定义搜索提示：允许为空（为空则移除键）
+                    const searchPrompt = (promptEl.value || '').trim();
+                    write('freechat.web.searchPrompt', searchPrompt);
+
                     const saveMessage = document.getElementById('saveMessage');
                     saveMessage.textContent = '保存成功！';
                     saveMessage.classList.add('success');
@@ -66,6 +146,8 @@
                         saveMessage.textContent = '';
                         saveMessage.classList.remove('success');
                     }, 2000);
+                } catch (e) {
+                    console.error('保存设置失败：', e);
                 }
             });
         });

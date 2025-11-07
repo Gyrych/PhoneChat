@@ -1,6 +1,6 @@
 # FreeChat
 
-FreeChat 是一个轻量级的本地 Web 聊天应用，适用于本地演示和快速原型开发。用户可以通过配置的外部聊天 API 发送消息、本地管理会话；默认使用内置加密的演示 OpenRouter Key，也可通过 localStorage 设置自己的 Key；设置页仅负责配置模型（不配置 API Key）。
+FreeChat 是一个轻量级的本地 Web 聊天应用，适用于本地演示和快速原型开发。用户可以通过配置的外部聊天 API 发送消息、本地管理会话；默认使用内置加密的演示 OpenRouter Key，也可通过 localStorage 设置自己的 Key；设置页负责配置模型与“联网搜索参数”（不配置 API Key）。
 
 ## 功能
 
@@ -35,18 +35,19 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，适用于本地演示和
 ## 配置
 
 1. 打开 `config.html`，从下拉菜单选择模型并点击“保存”，模型会以 `chatModel` 键写入 `localStorage`。
-2. 每个已保存会话会在 `savedDeepseekConversations[].model` 记录其所用模型；在 `conversations.html` 加载该会话时，如存在 `model` 字段，会自动恢复到 `localStorage.chatModel`。
-3. 演示默认使用内置的加密 OpenRouter Key（仅用于演示，不可用于生产）。
-4. 如需使用你自己的 Key，可在浏览器控制台执行 `localStorage.setItem('deepseekApiKey', 'YOUR_KEY')`，或替换 `index.html` 中的加密串；会话记忆与分组记忆也会读取该值作为替代。
+2. 在同一页面的“联网搜索设置”中配置：引擎、最大结果数、搜索上下文强度与可选的 Search Prompt；它们会写入下文列出的键名。
+3. 每个已保存会话会在 `savedDeepseekConversations[].model` 记录其所用模型；在 `conversations.html` 加载该会话时，如存在 `model` 字段，会自动恢复到 `localStorage.chatModel`。
+4. 演示默认使用内置的加密 OpenRouter Key（仅用于演示，不可用于生产）。
+5. 如需使用你自己的 Key，可在浏览器控制台执行 `localStorage.setItem('deepseekApiKey', 'YOUR_KEY')`，或替换 `index.html` 中的加密串；会话记忆与分组记忆也会读取该值作为替代。
 
 ### 联网搜索（OpenRouter 插件）
 
 - 在输入区左侧提供两个胶囊开关：
   - “深度思考”：控制是否显示服务商返回的思考过程（仅影响显示，不改变请求）。
   - “联网搜索”：启用/关闭在线检索，状态持久化到 `localStorage.freechat.web.enable`。
-- 点击页眉“地球”按钮仅打开参数面板（不再包含启用开关）。
+- 参数配置已迁移到设置页（`config.html`）的“联网搜索设置”，页眉地球按钮与浮层面板已移除。
 
-面板字段与存储键：
+参数与存储键：
 - `freechat.web.engine` — `auto | native | exa`（为 `auto` 时不显式写入，走供应商默认）
 - `freechat.web.maxResults` — 整数 1..10（默认 5）
 - `freechat.web.contextSize` — `low | medium | high`（为空则不指定）
@@ -105,7 +106,7 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，适用于本地演示和
 ## 文件说明
 
 - `index.html` — 主聊天页面与核心逻辑；包含演示用加密 OpenRouter Key。
-- `config.html` — 模型选择器（保存到 `localStorage` 键 `chatModel`）。
+- `config.html` — 设置页：模型选择（写入 `localStorage.chatModel`）与“联网搜索设置”（写入 `freechat.web.*`）。
 - `conversations.html` — 会话管理页面（保存/加载/删除、分组管理、记忆查看/重新生成）。
 - `prompts.js` — 提示词模板，集中管理会话记忆与分组记忆提示词。
 - `logger.js` — 轻量前端日志库（localStorage 环形存储；导出/清空 UI 挂载）。

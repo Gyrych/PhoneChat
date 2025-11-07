@@ -1,6 +1,6 @@
 # FreeChat
 
- FreeChat is a lightweight local web-based chat application for local prototyping and demo purposes. It enables users to send messages to a configured external chat API and manage/persist conversations in the browser. A built-in encrypted demo OpenRouter API key is used by default; you can also set your own key via localStorage. The settings page configures the model only (not the API key).
+FreeChat is a lightweight local web-based chat application for local prototyping and demo purposes. It enables users to send messages to a configured external chat API and manage/persist conversations in the browser. A built-in encrypted demo OpenRouter API key is used by default; you can also set your own key via localStorage. The settings page configures the model and Web Search parameters (not the API key).
 
 ## Features
 
@@ -36,18 +36,19 @@ Note: The above defaults are provided only as a convenient demo/fallback. For pr
 ## Configuration
 
 1. Open `config.html` and select a model, then click “Save”. The model is stored in `localStorage` under the key `chatModel`.
-2. Each saved conversation stores its model in `savedDeepseekConversations[].model`. When you load a conversation from `conversations.html`, if `model` exists it will restore `localStorage.chatModel` automatically.
-3. Demo uses a built-in encrypted OpenRouter API key inside `index.html` (for demonstration only; do not rely on it for production).
-4. To use your own key, either replace the encrypted string in `index.html` or set `localStorage.setItem('deepseekApiKey', 'YOUR_KEY')` via the browser DevTools; session memories and group memory can read this value as an alternative.
+2. Configure Web Search parameters on the same page under “Web Search Settings”: engine, max results, context size, and optional search prompt. They persist to the keys listed below.
+3. Each saved conversation stores its model in `savedDeepseekConversations[].model`. When you load a conversation from `conversations.html`, if `model` exists it will restore `localStorage.chatModel` automatically.
+4. Demo uses a built-in encrypted OpenRouter API key inside `index.html` (for demonstration only; do not rely on it for production).
+5. To use your own key, either replace the encrypted string in `index.html` or set `localStorage.setItem('deepseekApiKey', 'YOUR_KEY')` via the browser DevTools; session memories and group memory can read this value as an alternative.
 
 ### Web Search (OpenRouter plugin)
 
 - Use the inline toggles in the input area (left of the textbox):
   - "Deep Thinking" controls whether to display the provider's reasoning stream (UI-only).
   - "Web Search" enables/disables online search. Its state is persisted to `localStorage` key `freechat.web.enable`.
-- Click the header globe button to open the Web panel for parameters only (no enable switch).
+- Configure parameters on the settings page (`config.html`) under “Web Search Settings”. The header globe button and floating panel have been removed.
 
-Panel fields and storage keys:
+Parameters and storage keys:
 - `freechat.web.engine` — `auto | native | exa` (omit when `auto` for provider-default behavior)
 - `freechat.web.maxResults` — integer 1..10 (default 5)
 - `freechat.web.contextSize` — `low | medium | high` (omit to use provider default)
@@ -108,7 +109,7 @@ Pricing summary (see providers for details):
 The core files are:
 
 - `index.html` — Main chat UI and core logic. Includes a demo encrypted OpenRouter key.
-- `config.html` — Model selector (stores to `localStorage` key `chatModel`).
+- `config.html` — Settings page: model selector (stores `localStorage.chatModel`) and Web Search settings (stores `freechat.web.*`).
 - `conversations.html` — Conversation manager (save/load/delete), group management and session memories.
 - `prompts.js` — Centralized prompt templates for session memory and group memory.
 - `logger.js` — Lightweight front-end logger (ring buffer in localStorage; export/clear UI hooks).
