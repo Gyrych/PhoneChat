@@ -155,9 +155,24 @@ flowchart TB
 - 隐私：始终将 `Authorization` 遮蔽为 `Bearer ***masked***`；不采集设备指纹。
 - 界面：
   - 在 `index.html` 与 `conversations.html` 右上角提供导出按钮（JSON/NDJSON）；清空日志按钮默认隐藏（可恢复）。
+  - 导出范围默认仅为“当前会话”；可选择 NDJSON 或 JSON；导出文件名包含范围后缀（如 `freechat-logs-current-YYYYMMDD-HHMMSS.ndjson`）。
 - 配置（通过 `localStorage`）：
   - `freechat.log.maxEntries` — 最大保存条目数（默认 1000）
   - `freechat.log.enable` — `true`/`false` 开启/关闭日志
+
+### 导出范围说明
+
+- 按钮默认：仅导出“当前会话”。
+- 控制台示例（开发者工具 Console 中执行）：
+
+```js
+// 当前会话（默认）
+Logger.export({ format: 'ndjson', scope: 'current' });
+// 全部日志
+Logger.export({ format: 'ndjson', scope: 'all' });
+// 指定会话ID
+Logger.export({ format: 'json', scope: 'byConversationId', conversationId: 'YOUR_ID' });
+```
 
 事件示例（截断）：
 

@@ -158,9 +158,24 @@ Note: Glassmorphism uses `backdrop-filter`; when not supported, the UI gracefull
 - Privacy: `Authorization` is always masked as `Bearer ***masked***`. No device fingerprinting is collected.
 - UI:
   - On `index.html` and `conversations.html`, the Export button is visible (JSON/NDJSON). The Clear button is hidden by default (restorable).
+  - Export scope defaults to the current conversation. You can choose NDJSON or JSON; the file name includes a scope suffix (e.g., `freechat-logs-current-YYYYMMDD-HHMMSS.ndjson`).
 - Config via `localStorage`:
   - `freechat.log.maxEntries` — maximum entries (default 1000)
   - `freechat.log.enable` — `true`/`false` to enable/disable logging
+
+### Export scopes
+
+- Default button behavior: current conversation only.
+- Programmatic examples (open DevTools Console):
+
+```js
+// current conversation (default)
+Logger.export({ format: 'ndjson', scope: 'current' });
+// all logs
+Logger.export({ format: 'ndjson', scope: 'all' });
+// by specific conversationId
+Logger.export({ format: 'json', scope: 'byConversationId', conversationId: 'YOUR_ID' });
+```
 
 Example event (truncated):
 

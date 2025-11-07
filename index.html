@@ -245,10 +245,10 @@
                 const clearBtn = document.getElementById('clearLogsBtn');
                 if (exportBtn) {
                     exportBtn.addEventListener('click', () => {
-                        // 简单选择导出格式：默认 ndjson
+                        // 简单选择导出格式：默认 ndjson；默认仅导出“当前会话”
                         const fmt = prompt('选择导出格式：输入 "ndjson" 或 "json"', 'ndjson');
                         const format = (fmt && fmt.toLowerCase() === 'json') ? 'json' : 'ndjson';
-                        try { window.Logger && window.Logger.export({ format }); } catch (_) {}
+                        try { window.Logger && window.Logger.export({ format, scope: 'current' }); } catch (_) {}
                     });
                 }
                 if (clearBtn) {

@@ -159,7 +159,8 @@
                     exportBtn.addEventListener('click', () => {
                         const fmt = prompt('选择导出格式：输入 "ndjson" 或 "json"', 'ndjson');
                         const format = (fmt && fmt.toLowerCase() === 'json') ? 'json' : 'ndjson';
-                        try { window.Logger && window.Logger.export({ format }); } catch (_) {}
+                        // 默认仅导出“当前会话”
+                        try { window.Logger && window.Logger.export({ format, scope: 'current' }); } catch (_) {}
                     });
                 }
                 if (clearBtn) {

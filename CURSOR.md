@@ -97,6 +97,7 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
 - 事件字段（要点）：`id`、`ts`、`type`、`endpoint`、`model`、`conversationId`、`groupId`、`req.headersMasked`、`req.body`、`res.status`、`res.streamChunks`（可能截断）、`res.final`、`error.message`、`durationMs`。
 - UI：`index.html` 与 `conversations.html` 右上角显示“导出日志”按钮；“清空日志”按钮默认隐藏（可恢复）。
 - 配置：`localStorage.freechat.log.maxEntries`（默认 1000）、`localStorage.freechat.log.enable`（默认 true）。
+ - 导出范围：默认仅导出“当前会话”。亦支持导出全部（`scope: 'all'`）或按会话ID（`scope: 'byConversationId', conversationId`）。文件名包含范围后缀（如 `-current`）。
 
 ### 已知限制与建议
 
@@ -133,6 +134,12 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
 
 ---
 ## 变更记录
+- 2025-11-07（日志导出支持按会话范围过滤，默认当前会话）
+  - 目的：避免导出多余历史信息，更聚焦当前排障。
+  - 修改项：
+    1. logger：`export(opts)` 新增 `scope` 与 `conversationId` 支持（`current|all|byConversationId`，默认 `current`），导出文件名追加范围后缀。
+    2. index/conversations：导出按钮默认传入 `scope: 'current'`；仍保留格式选择（ndjson/json）。
+    3. 文档：更新 README（中/英）与本文件主体，说明导出范围与控制台示例。
 - 2025-11-07（主输入区布局更新：内联“联网搜索”开关 + 发送/中止互斥）
   - 同日补充：加入“深度思考”开关与“附件”按钮；占位符改为“给 DeepSeek 发送消息”。
   - 目的：使交互与示例布局一致，快速切换联网搜索，并统一按钮位置与风格。

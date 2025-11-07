@@ -254,19 +254,41 @@
             }
         },
 
-        /** 导出日志（json/ndjson） */
+        /** 导出日志（json/ndjson）
+         * 支持范围：
+         * - scope: 'current' | 'all' | 'byConversationId'（默认 'current'）
+         * - conversationId: 当 scope==='byConversationId' 时使用
+         */
         export(opts) {
             try {
                 const format = (opts && opts.format) || 'ndjson';
-                const logs = readLogsArray();
+                const scope = (opts && opts.scope) || 'current';
+                const allLogs = readLogsArray();
+
+                let data = allLogs;
+                let suffix = '';
+                if (scope === 'current') {
+                    const cid = (localStorage.getItem('deepseekConversationId') || null);
+                    data = cid ? allLogs.filter(x => x && x.conversationId === cid) : [];
+                    suffix = '-current';
+                } else if (scope === 'byConversationId') {
+                    const cid = opts && opts.conversationId;
+                    data = cid ? allLogs.filter(x => x && x.conversationId === cid) : [];
+                    suffix = cid ? (`-cid-${String(cid).slice(-8)}`) : '-cid-unknown';
+                } else {
+                    // 'all'
+                    data = allLogs;
+                    suffix = '-all';
+                }
+
                 const ts = new Date();
                 const pad = (n) => String(n).padStart(2, '0');
-                const fname = `freechat-logs-${ts.getFullYear()}${pad(ts.getMonth()+1)}${pad(ts.getDate())}-${pad(ts.getHours())}${pad(ts.getMinutes())}${pad(ts.getSeconds())}.${format}`;
+                const fname = `freechat-logs${suffix}-${ts.getFullYear()}${pad(ts.getMonth()+1)}${pad(ts.getDate())}-${pad(ts.getHours())}${pad(ts.getMinutes())}${pad(ts.getSeconds())}.${format}`;
                 if (format === 'json') {
-                    triggerDownload(fname, JSON.stringify(logs, null, 2), 'application/json');
+                    triggerDownload(fname, JSON.stringify(data, null, 2), 'application/json');
                 } else {
                     // ndjson：每行一个 JSON 对象
-                    const lines = logs.map(x => {
+                    const lines = data.map(x => {
                         try { return JSON.stringify(x); } catch (_) { return '{}'; }
                     }).join('\n');
                     triggerDownload(fname, lines + '\n', 'application/x-ndjson');
