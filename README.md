@@ -39,6 +39,11 @@ Note: The above defaults are provided only as a convenient demo/fallback. For pr
 3. Demo uses a built-in encrypted OpenRouter API key inside `index.html` (for demonstration only; do not rely on it for production).
 4. To use your own key, either replace the encrypted string in `index.html` or set `localStorage.setItem('deepseekApiKey', 'YOUR_KEY')` via the browser DevTools; session memories and group memory can read this value as an alternative.
 
+### Session/Group memory model selection
+
+- Session memory generation (auto and manual) uses the conversation's saved model first (`savedDeepseekConversations[].model`), then falls back to the global `window.MODEL_NAME`, and finally to `'minimax/minimax-m2:free'`.
+- Group memory generation always uses the global model.
+
 ### Memory injection toggles (via localStorage)
 
 - `freechat.memory.inject.allGroups` — `true`/`false` (default `true`): inject all groups' memories (or only current group).

@@ -281,8 +281,9 @@
                     console.log('生成会话记忆，消息条数：', messagesForSummary.length);
                     const userContent = messagesForSummary.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
 
-                    // 使用全局 MODEL_NAME（与主聊天保持一致）
-                    const modelToUse = window.MODEL_NAME || 'minimax/minimax-m2:free';
+                    // 优先使用该会话记录的模型；若缺失则回退到全局模型，最后兜底
+                    const convModel = (savedIdxForThis !== -1 && savedForSummary[savedIdxForThis].model) || (conversationObj && conversationObj.model) || null;
+                    const modelToUse = convModel || (window.MODEL_NAME || 'minimax/minimax-m2:free');
                     // 日志：开始会话记忆请求
                     let _sumEvtId = null;
                     try {
@@ -632,7 +633,8 @@
                         }
                         const systemPrompt = window.PROMPTS.SESSION_SUMMARY;
                         const userContent = (conv.messages || conv.content || []).map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
-                        const modelToUse = window.MODEL_NAME || 'minimax/minimax-m2:free';
+                        // 该会话记录的模型优先；若无则回退到全局模型
+                        const modelToUse = (conv && conv.model) ? conv.model : (window.MODEL_NAME || 'minimax/minimax-m2:free');
                         // 日志：开始重新生成会话记忆请求
                         let _resumEvtId = null;
                         try {

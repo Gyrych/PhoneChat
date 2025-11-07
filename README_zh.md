@@ -38,6 +38,11 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，适用于本地演示和
 3. 演示默认使用内置的加密 OpenRouter Key（仅用于演示，不可用于生产）。
 4. 如需使用你自己的 Key，可在浏览器控制台执行 `localStorage.setItem('deepseekApiKey', 'YOUR_KEY')`，或替换 `index.html` 中的加密串；会话记忆与分组记忆也会读取该值作为替代。
 
+### 会话/分组记忆的模型选择策略
+
+- 会话记忆生成（自动与手动）优先使用该会话记录的模型（`savedDeepseekConversations[].model`），若缺失则回退到全局 `window.MODEL_NAME`，再兜底 `'minimax/minimax-m2:free'`。
+- 分组记忆生成始终使用全局模型。
+
 ### 记忆注入开关（通过 localStorage 配置）
 
 - `freechat.memory.inject.allGroups` — `true`/`false`（默认 `true`）：注入全部分组记忆，或仅当前分组记忆。

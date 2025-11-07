@@ -49,6 +49,7 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
 - 会话自动无感存储：首次发送消息自动创建持久会话条目；其后对会话的更改以节流（约 1.5s）写回，避免重复与遗忘。
 - 会话自动记忆：每轮生成结束后自动判定是否需要生成会话记忆（去重），将结果保存到会话元数据。
 - 分组记忆与会话记忆注入：请求前自动注入“分组记忆（默认全部分组）+ 当前分组全部会话记忆”（一条 system 消息，可配置与截断）。
+- 会话记忆模型选择策略：生成会话记忆（自动与手动）时，优先使用该会话记录的 `model`，其后回退到全局 `window.MODEL_NAME`，最后兜底 `'minimax/minimax-m2:free'`；分组记忆始终使用全局模型。
 - Markdown 渲染：AI 回复通过 `marked` 渲染为 HTML，并使用 `DOMPurify` 进行消毒以降低 XSS 风险。
  - 会话模型持久化与恢复：保存会话时写入 `model` 字段；加载会话时自动恢复该模型；会话列表在名称旁显示模型徽标。
 - 主聊天页模型徽标：在 `index.html` 顶部显示当前会话所用模型（读取 `localStorage.chatModel` 或已加载会话的 `model`）。
@@ -243,3 +244,10 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
     1. README.md：开头描述修正为“内置加密演示 Key 或通过 localStorage 配置；设置页仅配置模型”；基础聊天第 5 点改为“停止按钮为 UI-only，当前不中止网络请求”。
     2. README_zh.md：同步中文修正，与英文保持语义一致。
     3. CURSOR.md：将 `localStorage.deepeekApiKey` 更正为 `localStorage.deepseekApiKey`；在“已知限制与建议”新增“停止按钮为 UI 级别，建议引入 AbortController”。
+ - 2025-11-06（会话记忆模型选择策略：按会话模型优先）
+  - 目的：重新生成会话记忆使用“该会话所用模型”，自动会话记忆亦同；分组记忆继续使用全局模型。
+  - 修改项：
+    1. conversations.html：保存后异步生成会话记忆时，`modelToUse` = 会话模型 > 全局模型 > 兜底。
+    2. conversations.html：手动“重新生成会话记忆”时，`modelToUse` = 会话模型 > 全局模型 > 兜底。
+    3. index.html：`preSummarizeCurrentConversationMaybe` 预摘要使用会话模型优先。
+    4. index.html：`autoSummarizeIfNeeded` 自动摘要使用会话模型优先。

@@ -308,7 +308,8 @@
 
                 const systemPrompt = window.PROMPTS.SESSION_SUMMARY;
                 const userContent = (entry.messages || []).map(m => `${(m.role||'').toUpperCase()}: ${m.content||''}`).join('\n');
-                const modelToUse = window.MODEL_NAME || 'minimax/minimax-m2:free';
+                // 优先使用会话记录的模型；若缺失则回退到全局模型
+                const modelToUse = (entry && entry.model) ? entry.model : (window.MODEL_NAME || 'minimax/minimax-m2:free');
                 const url = (window.DEEPSEEK_API_URL || 'https://openrouter.ai/api/v1/chat/completions');
 
                 // 简化：不写日志，失败静默
@@ -749,7 +750,8 @@
             const systemPrompt = window.PROMPTS.SESSION_SUMMARY;
             const userContent = currentConversation.map(m => `${(m.role||'').toUpperCase()}: ${m.content||''}`).join('\n');
 
-            const modelToUse = window.MODEL_NAME || 'minimax/minimax-m2:free';
+            // 优先使用当前会话记录的模型；若缺失则回退到全局模型
+            const modelToUse = (entry && entry.model) ? entry.model : (window.MODEL_NAME || 'minimax/minimax-m2:free');
             const url = (window.DEEPSEEK_API_URL || 'https://openrouter.ai/api/v1/chat/completions');
             // 日志：开始摘要请求
             let _sumEvtId = null;
