@@ -316,7 +316,7 @@ body {
     border-top: 1px solid var(--border);
     border-left: 1px solid var(--border);
     border-right: 1px solid var(--border);
-    position: relative; /* 供浮动停止按钮定位 */
+    position: relative;
 }
 
 .message-input {
@@ -334,8 +334,8 @@ body {
     border-color: var(--brand);
 }
 
-.send-btn {
-    background: linear-gradient(135deg, var(--brand), var(--brand-2));
+/* 圆形主按钮通用样式 */
+.circle-btn {
     color: white;
     border: none;
     border-radius: 50%;
@@ -345,7 +345,16 @@ body {
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: background-color 0.2s;
+    transition: background-color 0.2s, filter 0.2s;
+}
+
+.send-btn {
+    background: linear-gradient(135deg, var(--brand), var(--brand-2));
+}
+
+.stop-btn {
+    background: #e74c3c; /* 明确的停止语义色 */
+    display: none; /* 默认隐藏，发送中显示 */
 }
 
 .send-btn:hover {
@@ -357,31 +366,38 @@ body {
     cursor: not-allowed;
 }
 
-/* 停止按钮（浮动）从内联移动至全局样式，统一风格 */
-.stop-btn-floating {
-    position: absolute;
-    right: 86px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 36px;
+/* 内联胶囊开关（通用） */
+.pill-toggle, .web-inline-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 12px;
     height: 36px;
-    border-radius: 50%;
-    border: none;
-    background: #e74c3c; /* 保持明确的停止语义色 */
-    color: #fff;
-    display: none;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: rgba(255,255,255,0.75);
+    color: #08327a;
+    cursor: pointer;
+}
+.pill-toggle .label, .web-inline-toggle .label { font-size: 0.9rem; }
+.pill-toggle.active, .web-inline-toggle.active {
+    background: linear-gradient(135deg, #e9f1ff, #f7faff);
+    border-color: rgba(47,111,228,0.35);
+    box-shadow: 0 6px 16px rgba(47,111,228,0.12) inset;
+}
+
+/* 附件按钮（与发送同高，非主动作） */
+.attach-btn {
+    background: rgba(255,255,255,0.75);
+    border: 1px solid var(--border);
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 999;
     cursor: pointer;
-    box-shadow: 0 6px 16px rgba(231,76,60,0.25);
-    padding: 0;
-    touch-action: manipulation;
-    -webkit-user-select: none;
-    user-select: none;
 }
-.stop-btn-floating:active { transform: translateY(-50%) scale(0.96); }
-.stop-btn-floating .fa-stop { font-size: 14px; }
 
 /* 联网搜索参数面板（玻璃风） */
 .web-panel {

@@ -42,13 +42,13 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
 5. 收到 AI 响应后将回复流式追加与渲染，并实时保存会话；同时以 1.5s 节流策略将内容回写到持久会话条目（避免高频写入）。
 6. 每轮流式结束后自动触发会话记忆：当消息条数超过上次已记忆计数或此前未有会话记忆时调用模型生成记忆，保存到 `savedDeepseekConversations[].summary` 并更新 `lastSummarizedMessageCount`；若会话属于某分组，则随后自动聚合并刷新该分组的 `memorySummary`。
 
-### 联网搜索架构与数据流（新增）
+### 联网搜索架构与数据流（更新）
 
 - 目的：为任意模型按需接入实时 Web 检索，提升事实性与时效性；兼容 OpenRouter Web 插件的统一注解规范。
 - UI：
-  - 头部新增“地球”按钮打开参数面板（`webPanel`）。
-  - 面板项与本地存储映射：
-    - `freechat.web.enable`：是否启用；
+  - 输入区左侧提供“联网搜索”内联胶囊开关（`#webInlineToggle`），用于启用/关闭；状态持久化键：`freechat.web.enable`。
+  - 头部“地球”按钮仅用于打开参数面板（`#webPanel`），不再包含启用开关。
+  - 参数项与本地存储映射：
     - `freechat.web.engine`：`auto|native|exa`；
     - `freechat.web.maxResults`：1..10；
     - `freechat.web.contextSize`：`low|medium|high`；
@@ -133,6 +133,15 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
 
 ---
 ## 变更记录
+- 2025-11-07（主输入区布局更新：内联“联网搜索”开关 + 发送/中止互斥）
+  - 同日补充：加入“深度思考”开关与“附件”按钮；占位符改为“给 DeepSeek 发送消息”。
+  - 目的：使交互与示例布局一致，快速切换联网搜索，并统一按钮位置与风格。
+  - 修改项：
+    1. index：在 `<footer>` 输入区左侧新增 `#thinkingInlineToggle`（控制是否显示推理，仅影响显示）与 `#webInlineToggle`（读写 `localStorage.freechat.web.enable`）；右侧新增 `#attachBtn` + 隐藏 `#fileInput`（仅记录选择）。
+    2. style：新增 `.circle-btn`（圆形按钮通用）、`.stop-btn` 与 `.web-inline-toggle` 样式；移除 `.stop-btn-floating` 浮动样式。
+    3. index：`initWebPanel()` 移除启用复选框逻辑，面板仅保留参数（引擎/结果数/上下文/Search Prompt）。
+    4. README（中/英）：更新“Web Search”与“基础聊天/Basic Chat”说明（启用入口改为输入区开关；停止为同位互斥）。
+    5. CURSOR.md：更新“联网搜索架构与数据流”主体并追加本条变更记录。
 - 2025-11-07（隐藏清空日志按钮，保留功能可恢复）
   - 目的：主页面与会话管理页顶部“清空日志”按钮平时不使用，避免误触；保留能力以便需要时恢复。
   - 修改项：

@@ -38,11 +38,6 @@
     <!-- 联网搜索参数面板（默认隐藏，点击地球图标展开） -->
     <div id="webPanel" class="web-panel glass" style="display:none;">
         <div class="web-panel-row">
-            <label class="web-label">
-                <input type="checkbox" id="webEnableSwitch" /> 启用联网搜索
-            </label>
-        </div>
-        <div class="web-panel-row">
             <label class="web-label" for="webEngineSelect">引擎</label>
             <select id="webEngineSelect" class="web-input">
                 <option value="auto">auto（默认）</option>
@@ -75,16 +70,28 @@
     </main>
 
     <footer class="input-container">
+        <button id="thinkingInlineToggle" class="pill-toggle thinking-inline-toggle" title="深度思考">
+            <i class="fas fa-brain"></i>
+            <span class="label">深度思考</span>
+        </button>
+        <button id="webInlineToggle" class="pill-toggle web-inline-toggle" title="联网搜索">
+            <i class="fas fa-globe"></i>
+            <span class="label">联网搜索</span>
+        </button>
         <textarea
             id="messageInput"
             class="message-input"
-            placeholder="输入消息...（换行请按Shift+Enter）"
+            placeholder="给 大模型 发送消息"
             rows="3"
         ></textarea>
-        <button id="sendBtn" class="send-btn">
+        <button id="attachBtn" class="attach-btn" title="添加附件" aria-label="添加附件">
+            <i class="fas fa-paperclip"></i>
+        </button>
+        <input id="fileInput" type="file" multiple style="display:none" />
+        <button id="sendBtn" class="send-btn circle-btn">
             <i class="fas fa-paper-plane"></i>
         </button>
-        <button id="stopBtn" class="stop-btn-floating" title="停止生成" aria-label="停止生成">
+        <button id="stopBtn" class="stop-btn circle-btn" title="停止生成" aria-label="停止生成">
             <i class="fas fa-stop"></i>
         </button>
     </footer>
@@ -132,6 +139,10 @@
         const messageInput = document.getElementById('messageInput');
         const sendBtn = document.getElementById('sendBtn');
         const stopBtn = document.getElementById('stopBtn');
+        const webInlineToggle = document.getElementById('webInlineToggle');
+        const thinkingInlineToggle = document.getElementById('thinkingInlineToggle');
+        const attachBtn = document.getElementById('attachBtn');
+        const fileInput = document.getElementById('fileInput');
         const statusIndicator = document.getElementById('statusIndicator');
 
         // 本地存储兼容迁移：将历史字段回填到现用字段（一次性、失败忽略）
@@ -184,6 +195,71 @@
                     }
                 });
             }
+
+            // 初始化内联“联网搜索”开关
+            try {
+                const applyToggleUi = (on) => {
+                    if (!webInlineToggle) return;
+                    if (on) webInlineToggle.classList.add('active');
+                    else webInlineToggle.classList.remove('active');
+                    webInlineToggle.setAttribute('aria-pressed', on ? 'true' : 'false');
+                };
+                const enabled = (localStorage.getItem('freechat.web.enable') || 'false') === 'true';
+                applyToggleUi(enabled);
+                if (webInlineToggle) {
+                    webInlineToggle.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        const curr = (localStorage.getItem('freechat.web.enable') || 'false') === 'true';
+                        const next = !curr;
+                        if (next) localStorage.setItem('freechat.web.enable', 'true');
+                        else localStorage.setItem('freechat.web.enable', 'false');
+                        applyToggleUi(next);
+                        try { showStatus(next ? '已启用联网搜索' : '已关闭联网搜索'); setTimeout(hideStatus, 1800); } catch (_) {}
+                    });
+                }
+            } catch (_) { /* 忽略内联开关初始化异常 */ }
+
+            // 初始化“深度思考”开关（仅控制是否显示推理内容，不改变请求参数）
+            try {
+                const applyThinkingUi = (on) => {
+                    if (!thinkingInlineToggle) return;
+                    if (on) thinkingInlineToggle.classList.add('active');
+                    else thinkingInlineToggle.classList.remove('active');
+                    thinkingInlineToggle.setAttribute('aria-pressed', on ? 'true' : 'false');
+                };
+                const rEnabled = (localStorage.getItem('freechat.reasoning.show') || 'true') === 'true';
+                applyThinkingUi(rEnabled);
+                thinkingInlineToggle.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const curr = (localStorage.getItem('freechat.reasoning.show') || 'true') === 'true';
+                    const next = !curr;
+                    localStorage.setItem('freechat.reasoning.show', next ? 'true' : 'false');
+                    applyThinkingUi(next);
+                    try { showStatus(next ? '将显示思考过程' : '将隐藏思考过程'); setTimeout(hideStatus, 1600); } catch (_) {}
+                });
+            } catch (_) { /* 忽略异常 */ }
+
+            // 附件按钮与文件选择（仅记录名称，后续按需接入解析）
+            try {
+                if (attachBtn && fileInput) {
+                    attachBtn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        fileInput.click();
+                    });
+                    fileInput.addEventListener('change', () => {
+                        const files = Array.from(fileInput.files || []);
+                        window._attachedFiles = files; // 临时保存所选文件
+                        if (files.length) {
+                            const names = files.slice(0, 3).map(f => f.name).join('、');
+                            const more = files.length > 3 ? ` 等 ${files.length} 个文件` : '';
+                            showStatus(`已选择：${names}${more}`);
+                        } else {
+                            showStatus('未选择文件');
+                        }
+                        setTimeout(hideStatus, 2000);
+                    });
+                }
+            } catch (_) { /* 忽略附件初始化异常 */ }
 
             stopBtn.addEventListener('pointerdown', (e) => {
                 e.stopPropagation();
@@ -250,7 +326,6 @@
         function initWebPanel() {
             const panelBtn = document.getElementById('webPanelToggleBtn');
             const panel = document.getElementById('webPanel');
-            const enableEl = document.getElementById('webEnableSwitch');
             const engineEl = document.getElementById('webEngineSelect');
             const maxEl = document.getElementById('webMaxResultsInput');
             const ctxEl = document.getElementById('webContextSizeSelect');
@@ -265,8 +340,7 @@
                 else localStorage.setItem(k, String(v));
             };
 
-            // 初始值
-            enableEl.checked = (read('freechat.web.enable', 'false') === 'true');
+            // 初始值（不再在面板内设置启用/关闭）
             const engine = read('freechat.web.engine', 'auto');
             engineEl.value = (engine === 'native' || engine === 'exa') ? engine : 'auto';
             const maxResults = Math.max(1, Math.min(10, Number(read('freechat.web.maxResults', '5')) || 5));
@@ -284,7 +358,6 @@
             }
 
             // 变更事件：实时写入 localStorage
-            enableEl.addEventListener('change', () => write('freechat.web.enable', enableEl.checked ? 'true' : 'false'));
             engineEl.addEventListener('change', () => write('freechat.web.engine', engineEl.value));
             maxEl.addEventListener('change', () => {
                 const n = Math.max(1, Math.min(10, Number(maxEl.value) || 5));
@@ -667,7 +740,11 @@
                 // 节流写回持久会话
                 scheduleUpsertSavedConversation();
 
+                // 记录当前轮是否展示思考过程（仅影响渲染，不改变请求）
+                window._reasoningEnabledSend = (localStorage.getItem('freechat.reasoning.show') || 'true') === 'true';
+
                 showStatus('发送中...', true);
+                if (sendBtn) sendBtn.style.display = 'none';
                 stopBtn.style.display = 'flex';
 
                 // 重置本轮思考过程缓存
@@ -693,6 +770,7 @@
                 await fetchDeepSeekResponseStream(apiKey, messageText, aiMsgObj, _chatEvtId);
 
                 stopBtn.style.display = 'none';
+                if (sendBtn) sendBtn.style.display = 'flex';
                 hideStatus();
                 saveConversation();
                 renderMessages();
@@ -702,6 +780,7 @@
                 showStatus('发送失败：' + (error && error.message ? error.message : '请重试'));
                 setTimeout(hideStatus, 5000);
                 stopBtn.style.display = 'none';
+                if (sendBtn) sendBtn.style.display = 'flex';
                 if (sendBtn) sendBtn.disabled = false;
                 // 记录错误
                 try { window.Logger && window.Logger.error({ endpoint: window.DEEPSEEK_API_URL, model: window.MODEL_NAME }, error); } catch (_) {}
@@ -718,6 +797,7 @@
             console.log("生成已中止");
             showStatus('已中止生成');
             stopBtn.style.display = 'none';
+            if (sendBtn) sendBtn.style.display = 'flex';
         }
 
         /**
@@ -847,7 +927,7 @@
                                     (json.choices[0].delta.reasoning && (json.choices[0].delta.reasoning.content || json.choices[0].delta.reasoning))
                                 )) ||
                                 (json.choices && json.choices[0] && json.choices[0].message && json.choices[0].message.reasoning_content) || '';
-                            if (rDelta) {
+                            if (rDelta && (window._reasoningEnabledSend !== false)) {
                                 const rStr = String(rDelta);
                                 try { window._currentAssistantReasoning = (window._currentAssistantReasoning || '') + rStr; } catch (_) {}
                                 try { aiMsgObj.reasoning = (aiMsgObj.reasoning || '') + rStr; } catch (_) {}
@@ -1092,7 +1172,8 @@
             // 渲染思考过程（仅当存在思考内容时显示，默认展开，置于正文前）
             try {
                 const rText = (window._currentAssistantReasoning || '').trim();
-                if (rText) {
+                const showReasoning = (window._reasoningEnabledSend !== false);
+                if (rText && showReasoning) {
                     const reasoningBlock = document.createElement('div');
                     reasoningBlock.className = 'reasoning-block';
 

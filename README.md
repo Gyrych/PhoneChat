@@ -42,11 +42,12 @@ Note: The above defaults are provided only as a convenient demo/fallback. For pr
 
 ### Web Search (OpenRouter plugin)
 
-- Toggle from the header globe button to open the Web panel.
-- Options are persisted to `localStorage` and applied per request when enabled.
+- Use the inline toggles in the input area (left of the textbox):
+  - "Deep Thinking" controls whether to display the provider's reasoning stream (UI-only).
+  - "Web Search" enables/disables online search. Its state is persisted to `localStorage` key `freechat.web.enable`.
+- Click the header globe button to open the Web panel for parameters only (no enable switch).
 
 Panel fields and storage keys:
-- `freechat.web.enable` — `true`/`false` (default `false`)
 - `freechat.web.engine` — `auto | native | exa` (omit when `auto` for provider-default behavior)
 - `freechat.web.maxResults` — integer 1..10 (default 5)
 - `freechat.web.contextSize` — `low | medium | high` (omit to use provider default)
@@ -76,13 +77,15 @@ Pricing summary (see providers for details):
 ## Usage
 
 ### Basic Chat
-1. Type your message in the input field at the bottom
-2. Press Enter or click the send button
-3. The AI response will appear in the chat area
-4. You can copy or delete messages using the buttons next to each message
-5. During response generation, a stop button appears (UI-only; the network request is not aborted yet)
-6. The current model is shown as a badge in the top header
-7. If you use a reasoning-capable model and the provider returns reasoning content, a reasoning block streams ABOVE the assistant reply; it is visible by default and you can click the toggle to collapse/expand
+1. Optionally toggle "Deep Thinking" and/or "Web Search" using the inline capsules to the left of the input.
+2. Type your message in the input field at the bottom
+3. Press Enter or click the send button
+4. The AI response will appear in the chat area
+5. You can copy or delete messages using the buttons next to each message
+6. During response generation, the stop button replaces the send button in the same position (UI-only; the network request is not aborted yet)
+7. You can attach files with the paperclip button (currently records selection only; parsing/sending can be added later)
+8. The current model is shown as a badge in the top header
+9. If you use a reasoning-capable model and the provider returns reasoning content, a reasoning block streams ABOVE the assistant reply; it is visible by default and you can click the toggle to collapse/expand
 
 ### Model Configuration
 1. Click the settings button in the top navigation bar
