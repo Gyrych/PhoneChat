@@ -1,0 +1,28 @@
+{
+  "name": "13_freechat",
+  "version": "1.0.0",
+  "description": "FreeChat is a lightweight local web-based chat application for local prototyping and demo purposes. It enables users to send messages to a configured external chat API and manage/persist conversations in the browser. A built-in encrypted demo OpenRouter API key is used by default; you can also set your own key via localStorage. The settings page configures the model and Web Search parameters (not the API key).",
+  "main": "logger.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "node scripts/build.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Gyrych/FreeChat.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Gyrych/FreeChat/issues"
+  },
+  "homepage": "https://github.com/Gyrych/FreeChat#readme",
+  "dependencies": {
+    "@capacitor/android": "^7.4.4",
+    "@capacitor/core": "^7.4.4"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.4.4"
+  }
+}

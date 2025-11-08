@@ -1,0 +1,8 @@
+{
+  "appId": "com.example.freechat",
+  "appName": "FreeChat",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  }
+}

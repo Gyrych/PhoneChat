@@ -49,6 +49,6 @@
 
 ### To-dos
 
-- [ ] 更新 style.css：.message 宽度为 min(860px, 88%)，移动端 94%
-- [ ] 同步 CURSOR.md 主体与变更记录，记录新宽度策略
-- [ ] 检查并更新 README 与 README_zh 中的布局描述
+- [x] 更新 style.css：.message 宽度为 min(860px, 88%)，移动端 94%
+- [x] 同步 CURSOR.md 主体与变更记录，记录新宽度策略
+- [x] 检查并更新 README 与 README_zh 中的布局描述
