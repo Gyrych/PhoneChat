@@ -91,6 +91,20 @@ body {
     gap: 4px;
 }
 
+/* 头部品牌横排（Logo + 标题） */
+.header .brand-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+/* 品牌 Logo */
+.header .brand .logo {
+    height: 32px;
+    width: auto;
+    cursor: pointer;
+    border-radius: 6px;
+}
+
 .settings-btn, .back-btn, .conversations-btn, .new-chat-btn {
     background: rgba(255,255,255,0.55);
     border: 1px solid var(--border);
@@ -828,6 +842,8 @@ body {
 @media (max-width: 600px) {
     /* 头部内边距轻度压缩 */
     .header { padding: 12px 16px; }
+    /* 移动端缩小 Logo 高度以协调视觉 */
+    .header .brand .logo { height: 28px; }
 
     /* 输入区改为网格布局：左列(开关，上下) | 中列(输入框) | 右列(附件/发送，上下) */
     .input-container {

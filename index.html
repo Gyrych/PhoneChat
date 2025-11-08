@@ -18,7 +18,10 @@
             <i class="fas fa-history"></i>
         </button>
         <div class="brand">
-            <h1>FreeChat</h1>
+            <div class="brand-line">
+                <img id="brandLogo" class="logo" src="icon/icon.png" alt="FreeChat Logo" title="回到首页" />
+                <h1>FreeChat</h1>
+            </div>
             <span id="currentModelBadge" class="model-badge"></span>
         </div>
         <button id="exportLogsBtn" class="settings-btn" title="导出日志">
@@ -145,6 +148,13 @@
 
             console.log('initApp: attaching handlers');
             try { updateCurrentModelBadge(); } catch (e) { /* 忽略徽标更新异常 */ }
+            // 绑定品牌 Logo 点击：回到首页
+            const brandLogo = document.getElementById('brandLogo');
+            if (brandLogo) {
+                brandLogo.addEventListener('click', function() {
+                    window.location.assign('index.html');
+                });
+            }
             loadConversation();
             renderMessages();
             // 联网搜索参数已迁移至设置页，无需在主页面初始化面板
