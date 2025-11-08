@@ -120,6 +120,7 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
   - `conversations.html`：保存会话生成摘要、重新生成摘要、分组记忆聚合同步记录。
 - 事件字段（要点）：`id`、`ts`、`type`、`endpoint`、`model`、`conversationId`、`groupId`、`req.headersMasked`、`req.body`、`res.status`、`res.streamChunks`（可能截断）、`res.final`、`error.message`、`durationMs`。
 - UI：`index.html` 与 `conversations.html` 右上角显示“导出日志”按钮；“清空日志”按钮默认隐藏（可恢复）。
+- UI：仅 `index.html` 右上角显示“导出日志”按钮；`conversations.html` 不再提供导出入口；“清空日志”按钮默认隐藏（可恢复）。
 - 配置：`localStorage.freechat.log.maxEntries`（默认 1000）、`localStorage.freechat.log.enable`（默认 true）。
  - 导出范围：默认仅导出“当前会话”。亦支持导出全部（`scope: 'all'`）或按会话ID（`scope: 'byConversationId', conversationId`）。文件名包含范围后缀（如 `-current`）。
 
@@ -168,6 +169,12 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
 
 ---
 ## 变更记录
+- 2025-11-08（移除会话管理页“导出日志”按钮，仅主聊天页保留）
+  - 目的：简化 UI，避免在会话管理页“当前会话”语义不稳定导致的误解。
+  - 修改项：
+    1. conversations.html：删除头部导出按钮与其事件绑定，保留清空按钮（仍默认隐藏，可恢复）。
+    2. CURSOR.md：更新“日志架构与数据流 → UI”为“仅 index.html 显示导出按钮；conversations.html 不再提供导出入口”；追加本条变更记录。
+    3. README（中/英）：更新“请求/响应日志”章节，声明仅主聊天页提供导出按钮；如需全部导出可在控制台执行 `Logger.export({ scope: 'all' })`。
 - 2025-11-08（移动端隐藏内联胶囊开关文字标签）
   - 目的：在手机浏览器中节省横向空间，仅显示图标以保持整洁。
   - 修改项：

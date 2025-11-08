@@ -190,7 +190,7 @@ Note: Glassmorphism uses `backdrop-filter`; when not supported, the UI gracefull
 - Storage: Ring buffer in `localStorage` key `freechat.logs` (default max 1000 entries).
 - Privacy: `Authorization` is always masked as `Bearer ***masked***`. No device fingerprinting is collected.
 - UI:
-  - On `index.html` and `conversations.html`, the Export button is visible (JSON/NDJSON). The Clear button is hidden by default (restorable).
+  - On `index.html`, the Export button is visible (JSON/NDJSON). `conversations.html` no longer provides an export entry. The Clear button is hidden by default (restorable).
   - Export scope defaults to the current conversation. You can choose NDJSON or JSON; the file name includes a scope suffix (e.g., `freechat-logs-current-YYYYMMDD-HHMMSS.ndjson`).
 - Config via `localStorage`:
   - `freechat.log.maxEntries` — maximum entries (default 1000)

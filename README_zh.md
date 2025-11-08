@@ -187,7 +187,7 @@ flowchart TB
 - 存储：`localStorage` 键 `freechat.logs`，环形缓冲（默认最多 1000 条）。
 - 隐私：始终将 `Authorization` 遮蔽为 `Bearer ***masked***`；不采集设备指纹。
 - 界面：
-  - 在 `index.html` 与 `conversations.html` 右上角提供导出按钮（JSON/NDJSON）；清空日志按钮默认隐藏（可恢复）。
+  - 在 `index.html` 右上角提供导出按钮（JSON/NDJSON）；`conversations.html` 不再提供导出入口；清空日志按钮默认隐藏（可恢复）。
   - 导出范围默认仅为“当前会话”；可选择 NDJSON 或 JSON；导出文件名包含范围后缀（如 `freechat-logs-current-YYYYMMDD-HHMMSS.ndjson`）。
 - 配置（通过 `localStorage`）：
   - `freechat.log.maxEntries` — 最大保存条目数（默认 1000）

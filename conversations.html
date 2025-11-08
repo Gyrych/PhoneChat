@@ -16,9 +16,6 @@
             <i class="fas fa-arrow-left"></i>
         </button>
         <h1>FreeChat 会话管理</h1>
-        <button id="exportLogsBtn" class="settings-btn" title="导出日志">
-            <i class="fas fa-file-export"></i>
-        </button>
         <button id="clearLogsBtn" class="settings-btn" title="清空日志">
             <i class="fas fa-trash"></i>
         </button>
@@ -153,16 +150,7 @@
 
             // 日志导出与清空按钮
             try {
-                const exportBtn = document.getElementById('exportLogsBtn');
                 const clearBtn = document.getElementById('clearLogsBtn');
-                if (exportBtn) {
-                    exportBtn.addEventListener('click', () => {
-                        const fmt = prompt('选择导出格式：输入 "ndjson" 或 "json"', 'ndjson');
-                        const format = (fmt && fmt.toLowerCase() === 'json') ? 'json' : 'ndjson';
-                        // 默认仅导出“当前会话”
-                        try { window.Logger && window.Logger.export({ format, scope: 'current' }); } catch (_) {}
-                    });
-                }
                 if (clearBtn) {
                     clearBtn.addEventListener('click', () => {
                         if (confirm('确定要清空所有日志吗？该操作不可恢复。')) {
