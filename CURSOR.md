@@ -159,17 +159,26 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
   - 响应式字号与行高通过 `clamp()` 与 `--lh` 控制；
   - `prefers-reduced-motion` 自动降低动画强度。
 
+#### 消息气泡宽度策略（更新）
+- 桌面/平板：`.message { max-width: min(860px, 88%) }`，在宽屏上限制最大片宽 860px，同时在中等宽度下放宽到容器的 88%，提升可读性。
+- 手机（≤480px）：`.message { max-width: 94% }`，保留 3–6% 的边距，避免贴边与操作遮挡。
+
 #### 移动端尺寸与间距策略（适中风格）
 - 基线：通过 `--tap` 保证主要可点元素的触控尺寸；通过 `--icon-lg/md/sm` 统一 Font Awesome 图标字号（不改 DOM）。
 - 规则：
   - `@media (max-width: 600px)`：压缩 `.header` 内边距；`.settings-btn/.conversations-btn/.attach-btn` 统一为 `var(--tap)`；`.pill-toggle` 高度 40px、标签 0.95rem；`.action-btn` 28×28 并提高字号；`.message` 右内边距增至 56px 以避免操作按钮遮挡内容。
   - `@media (max-width: 360px)`：将 `--tap` 压缩至 40px，同时下调 `--icon-lg/md`。
-  - 与既有 `@media (max-width: 480px)` 共存：后者主要控制消息列宽与会话管理区按钮纵排，不冲突。
+  - 与 `@media (max-width: 480px)` 共存：该断点主要控制消息列宽为 94% 与会话管理区按钮纵排，不冲突。
   - 文本标签隐藏：在手机端隐藏 `.pill-toggle .label`（仅显示图标），节省横向空间。
   - 输入区布局：在手机端将 `.input-container` 切换为三列网格：左列为两个胶囊开关上下排列，中列为输入框跨两行，右列为“附件（上）/发送或停止（下）”上下排列；不改 DOM，仅用 CSS 位置编排。
 
 ---
 ## 变更记录
+ - 2025-11-08（对话气泡宽度放宽）
+  - 目的：在桌面与中等屏幕显著提升阅读体验，并在超宽屏限制过长行宽；手机端保留更舒适的边距。
+  - 修改项：
+    1. style.css：`.message { max-width: min(860px, 88%) }`；`@media (max-width: 480px)` 下 `.message { max-width: 94% }`。
+    2. CURSOR.md：新增“消息气泡宽度策略（更新）”小节；在“移动端尺寸与间距策略”中将 480px 断点的说明更新为 94%。
 - 2025-11-08（主聊天页添加品牌 Logo）
   - 目的：提升品牌辨识度与导航一致性（点击 Logo 回首页）。
   - 修改项：

@@ -146,7 +146,7 @@ body {
 
 /* 消息样式（优化视觉，提升可读性） */
 .message {
-    max-width: 72%; /* 页面更窄的消息列更利于阅读 */
+    max-width: min(860px, 88%); /* 放宽阅读宽度并限制超宽屏的最大片宽 */
     padding: 14px 18px;
     border-radius: 16px;
     line-height: 1.5; /* 适度行高，兼顾可读性与美观 */
@@ -894,7 +894,7 @@ body {
 /* 响应式调整 */
 @media (max-width: 480px) {
     .message {
-        max-width: 90%;
+        max-width: 94%;
     }
 
     .conversation-actions {
