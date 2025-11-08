@@ -829,16 +829,41 @@ body {
     /* 头部内边距轻度压缩 */
     .header { padding: 12px 16px; }
 
+    /* 输入区改为网格布局：左列(开关，上下) | 中列(输入框) | 右列(附件/发送，上下) */
+    .input-container {
+        display: grid;
+        grid-template-columns: var(--tap) 1fr var(--tap);
+        grid-auto-rows: min-content;
+        align-items: start;
+        gap: 8px 10px;
+    }
+
     /* 统一触控按钮尺寸 */
     .settings-btn,
     .conversations-btn,
     .attach-btn { width: var(--tap); height: var(--tap); }
 
     /* 胶囊开关高度与标签字号微调 */
-    .pill-toggle { height: 40px; }
+    .pill-toggle { height: 40px; width: var(--tap); padding: 0; justify-content: center; }
     .pill-toggle .label { font-size: 0.95rem; }
     /* 移动端隐藏胶囊开关文字，仅保留图标 */
     .pill-toggle .label { display: none; }
+
+    /* 左列：上下排列两个胶囊开关 */
+    #thinkingInlineToggle { grid-column: 1; grid-row: 1; justify-self: center; }
+    #webInlineToggle { grid-column: 1; grid-row: 2; justify-self: center; }
+
+    /* 中列：输入框跨两行 */
+    .message-input {
+        grid-column: 2;
+        grid-row: 1 / span 2;
+        width: 100%;
+        min-height: calc(var(--tap) * 2 + 8px);
+    }
+
+    /* 右列：附件在上，发送/停止在下（两者互斥显示） */
+    #attachBtn { grid-column: 3; grid-row: 1; justify-self: center; }
+    #sendBtn, #stopBtn { grid-column: 3; grid-row: 2; justify-self: center; }
 
     /* 消息操作按钮更易点，避免遮挡内容 */
     .action-btn { width: 28px; height: 28px; font-size: 0.85rem; }
