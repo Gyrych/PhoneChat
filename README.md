@@ -1,6 +1,6 @@
 # FreeChat
 
-FreeChat is a lightweight local web-based chat application for local prototyping and demo purposes. It enables users to send messages to a configured external chat API and manage/persist conversations in the browser. A built-in encrypted demo OpenRouter API key is used by default; you can also set your own key via localStorage. The settings page configures the model and Web Search parameters (not the API key).
+ FreeChat is a lightweight local web-based chat application for local prototyping and demo purposes. It enables users to send messages to a configured external chat API and manage/persist conversations in the browser. Main chat uses a built-in encrypted demo OpenRouter API key. To use your own key for main chat, replace the encrypted string in `index.html`. The localStorage key `deepseekApiKey` is used only as a fallback for session/group memory generation calls (not for main chat). The settings page configures the model and Web Search parameters (not the API key).
 
 ## Features
 
@@ -77,7 +77,7 @@ npm run build:apk
 2. Configure Web Search parameters on the same page under “Web Search Settings”: engine, max results, context size, and optional search prompt. They persist to the keys listed below.
 3. Each saved conversation stores its model in `savedDeepseekConversations[].model`. When you load a conversation from `conversations.html`, if `model` exists it will restore `localStorage.chatModel` automatically.
 4. Demo uses a built-in encrypted OpenRouter API key inside `index.html` (for demonstration only; do not rely on it for production).
-5. To use your own key, either replace the encrypted string in `index.html` or set `localStorage.setItem('deepseekApiKey', 'YOUR_KEY')` via the browser DevTools; session memories and group memory can read this value as an alternative.
+5. To use your own key for main chat, replace the encrypted string in `index.html`. Optionally set `localStorage.setItem('deepseekApiKey', 'YOUR_KEY')` for session/group memory generation calls; main chat does not read this key.
 
 ### Web Search (OpenRouter plugin)
 

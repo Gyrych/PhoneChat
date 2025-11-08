@@ -1,6 +1,6 @@
 # FreeChat
 
-FreeChat 是一个轻量级的本地 Web 聊天应用，适用于本地演示和快速原型开发。用户可以通过配置的外部聊天 API 发送消息、本地管理会话；默认使用内置加密的演示 OpenRouter Key，也可通过 localStorage 设置自己的 Key；设置页负责配置模型与“联网搜索参数”（不配置 API Key）。
+FreeChat 是一个轻量级的本地 Web 聊天应用，适用于本地演示和快速原型开发。用户可以通过配置的外部聊天 API 发送消息、本地管理会话；默认使用内置加密的演示 OpenRouter Key。若要让主聊天使用自有 Key，请替换 `index.html` 中的加密串。通过 `localStorage` 设置的 `deepseekApiKey` 仅用于会话/分组记忆相关调用的替代来源（主聊天不会读取该键）；设置页负责配置模型与“联网搜索参数”（不配置 API Key）。
 
 ## 功能
 
@@ -77,7 +77,7 @@ npm run build:apk
 2. 在同一页面的“联网搜索设置”中配置：引擎、最大结果数、搜索上下文强度与可选的 Search Prompt；它们会写入下文列出的键名。
 3. 每个已保存会话会在 `savedDeepseekConversations[].model` 记录其所用模型；在 `conversations.html` 加载该会话时，如存在 `model` 字段，会自动恢复到 `localStorage.chatModel`。
 4. 演示默认使用内置的加密 OpenRouter Key（仅用于演示，不可用于生产）。
-5. 如需使用你自己的 Key，可在浏览器控制台执行 `localStorage.setItem('deepseekApiKey', 'YOUR_KEY')`，或替换 `index.html` 中的加密串；会话记忆与分组记忆也会读取该值作为替代。
+5. 如需让“主聊天”使用你的 Key，请替换 `index.html` 中的加密串。你也可以在浏览器控制台执行 `localStorage.setItem('deepseekApiKey', 'YOUR_KEY')` 供“会话记忆/分组记忆”调用回退使用；主聊天不会读取该键。
 
 ### 联网搜索（OpenRouter 插件）
 

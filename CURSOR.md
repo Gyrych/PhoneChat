@@ -37,9 +37,9 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
    - 分组记忆：逐条注入 `conversationGroups[].memorySummary`（默认注入全部分组，可通过 `freechat.memory.inject.allGroups` 切换为仅当前分组）；
    - 会话记忆：逐条注入“当前分组内所有会话”的 `savedDeepseekConversations[].summary`（按更新时间倒序裁剪，阈值可配且去重）；
    注入顺序为“（若启用）Web 搜索输出规范 → 分组记忆（全部/当前，逐条） → 当前分组会话记忆（逐条） → 历史消息”，且不污染可见的 `currentConversation`。不支持多 system 的供应商将自动合并为单条并以 `---` 分隔。
-4. 应用构造请求体并通过 `fetch` 向配置的 API 端点发送请求，使用 `Authorization: Bearer <apiKey>` 头。`apiKey` 优先使用内置加密的演示 Key（`OPENROUTER_API_KEY`），回退到 `localStorage.deepseekApiKey`（若存在）。
+4. 应用构造请求体并通过 `fetch` 向配置的 API 端点发送请求，使用 `Authorization: Bearer <apiKey>` 头。主聊天请求仅使用内置加密的演示 Key（`OPENROUTER_API_KEY`）；如需让主聊天使用自有 Key，请替换 `index.html` 中的加密串。会话记忆与分组记忆相关调用中，`apiKey` 为 `OPENROUTER_API_KEY` 优先，回退到 `localStorage.deepseekApiKey`（若存在）。
 5. 每个持久会话条目会记录 `model` 字段（来源于 `localStorage.chatModel`/`window.MODEL_NAME`），在 `conversations.html` 加载会话时若存在该字段，会自动恢复到 `chatModel`，确保历史会话按其当时模型继续。
-5. 收到 AI 响应后将回复流式追加与渲染，并实时保存会话；同时以 1.5s 节流策略将内容回写到持久会话条目（避免高频写入）。
+6. 收到 AI 响应后将回复流式追加与渲染，并实时保存会话；同时以 1.5s 节流策略将内容回写到持久会话条目（避免高频写入）。
 6. 每轮流式结束后自动触发会话记忆：当消息条数超过上次已记忆计数或此前未有会话记忆时调用模型生成记忆，保存到 `savedDeepseekConversations[].summary` 并更新 `lastSummarizedMessageCount`；若会话属于某分组，则随后自动聚合并刷新该分组的 `memorySummary`。
 
 ### 记忆生成规则（更新，收紧降噪）
@@ -119,7 +119,6 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
     - 分组记忆聚合（`updateGroupMemory`）→ `groupmem_request` / `groupmem_done`
   - `conversations.html`：保存会话生成摘要、重新生成摘要、分组记忆聚合同步记录。
 - 事件字段（要点）：`id`、`ts`、`type`、`endpoint`、`model`、`conversationId`、`groupId`、`req.headersMasked`、`req.body`、`res.status`、`res.streamChunks`（可能截断）、`res.final`、`error.message`、`durationMs`。
-- UI：`index.html` 与 `conversations.html` 右上角显示“导出日志”按钮；“清空日志”按钮默认隐藏（可恢复）。
 - UI：仅 `index.html` 右上角显示“导出日志”按钮；`conversations.html` 不再提供导出入口；“清空日志”按钮默认隐藏（可恢复）。
 - 配置：`localStorage.freechat.log.maxEntries`（默认 1000）、`localStorage.freechat.log.enable`（默认 true）。
  - 导出范围：默认仅导出“当前会话”。亦支持导出全部（`scope: 'all'`）或按会话ID（`scope: 'byConversationId', conversationId`）。文件名包含范围后缀（如 `-current`）。
@@ -473,3 +472,10 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
     3. index：会话记忆去重（按会话ID）、新增可选键 `freechat.memory.maxSessionsPerRequest` 与 `freechat.memory.maxCharsPerItem`（不存在时回退旧键），并保留字符截断；
     4. logger：在聊天请求写入 `sys` 字段（`count`、`merged`、`provider`）。
   - 文档：本文件主体与 README（中/英）同步“多 system 注入策略、顺序、静态供应商兼容与本地配置键”。
+
+- 2025-11-08（文档一致性修复：API Key 使用与日志 UI）
+  - 目的：使文档与当前实现完全一致，消除歧义与重复描述。
+  - 修改项：
+    1. “核心数据流”：明确主聊天仅使用内置加密 Key；记忆相关调用可回退 `localStorage.deepseekApiKey`。
+    2. “日志架构与数据流 → UI”：删除过时“会话管理页也提供导出”的描述，统一为仅主聊天页导出；清空按钮默认隐藏。
+    3. “主要文件说明”：去重 `conversations.html` 条目；修复编号重复问题。
