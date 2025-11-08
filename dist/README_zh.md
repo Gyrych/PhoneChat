@@ -36,11 +36,16 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，适用于本地演示和
 1. 下载或克隆仓库。
 2. 在浏览器中打开 `index.html`（无需构建步骤）。
 
+安全区（刘海/打孔屏）适配：
+- `viewport` 元标签加入 `viewport-fit=cover`。
+- 在 `style.css` 中通过 `env(safe-area-inset-top)`（并兼容 `constant(...)`）为 `body` 顶部增加安全区内边距，避免头部被状态栏/摄像头遮挡（部分安卓机型）。
+
 ## Android（Capacitor）
 
 前置条件：
 - 已安装 Node.js 与 npm
 - 已安装 Android Studio（含 SDK），并准备模拟器或真机
+  - 或仅安装 Android SDK 命令行工具（cmdline-tools + platform-tools + build-tools + platforms）
 
 步骤：
 1. 安装依赖（本仓库已初始化）：`npm install`
@@ -53,6 +58,18 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，适用于本地演示和
 说明：
 - `capacitor.config.json` 设置了 `webDir: "dist"` 与 `server.androidScheme: "https"`。
 - WebView 环境下优先使用 `fetch` 保持流式；若遇到服务商 CORS 限制，建议使用后端代理。原生 HTTP 插件通常不支持 SSE 流式。
+
+### Windows 一键构建 APK（推荐）
+- 前置：已安装 JDK17 与 Android SDK，并使用 `sdkmanager --licenses` 接受许可，安装 `platform-tools`、`build-tools;35.0.0`、`platforms;android-35`（或 34）。
+- 双击运行：
+  - 资源管理器中双击 `scripts/build-apk.cmd` 即可一键构建
+- 或命令行运行：
+```
+npm run build:apk
+```
+- 产物：
+  - 原始 APK：`android/app/build/outputs/apk/debug/app-debug.apk`
+  - 复制副本：`dist/apk/FreeChat-debug.apk`
 
 ## 配置
 

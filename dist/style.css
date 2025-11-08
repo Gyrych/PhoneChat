@@ -59,6 +59,14 @@ body {
     line-height: var(--lh);
 }
 
+/* 刘海/打孔屏安全区适配：为顶部预留安全区，避免品牌标题被摄像头/状态栏遮挡（Android/iOS WebView） */
+@supports (padding-top: env(safe-area-inset-top)) {
+    body { padding-top: env(safe-area-inset-top); }
+}
+@supports (padding-top: constant(safe-area-inset-top)) {
+    body { padding-top: constant(safe-area-inset-top); } /* 兼容旧版 iOS 常量语法 */
+}
+
 /* 顶部导航栏 */
 .header {
     /* 玻璃质感头部 */

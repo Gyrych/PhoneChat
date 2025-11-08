@@ -160,6 +160,13 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
   - 首选使用 WebView 中的 `fetch` 直接访问 OpenRouter，保留流式体验；
   - 若目标服务对 WebView/localhost CORS 收紧，可改造为原生 HTTP 插件（会失去 SSE 流式），或使用后端代理。
 
+#### Windows 一键构建 APK
+- 脚本：`scripts/build-apk.cmd`（双击运行），`scripts/build-apk.ps1`；NPM 命令：`npm run build:apk`
+- 前置：安装 JDK17 与 Android SDK，并通过 `sdkmanager --licenses` 接受许可；安装 `platform-tools`、`build-tools;35.0.0`、`platforms;android-35`（或 34）。
+- 输出：
+  - 原始 APK：`android/app/build/outputs/apk/debug/app-debug.apk`
+  - 复制副本：`dist/apk/FreeChat-debug.apk`
+
 ### 界面风格与设计令牌（新增）
 
 - 主题基调：浅色、简洁科技感 + 磨砂玻璃质感（Glassmorphism）。
@@ -193,8 +200,25 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
   - 文本标签隐藏：在手机端隐藏 `.pill-toggle .label`（仅显示图标），节省横向空间。
   - 输入区布局：在手机端将 `.input-container` 切换为三列网格：左列为两个胶囊开关上下排列，中列为输入框跨两行，右列为“附件（上）/发送或停止（下）”上下排列；不改 DOM，仅用 CSS 位置编排。
 
+#### 安全区适配（刘海/打孔屏）
+- 在 `index.html` 的 `<meta name="viewport">` 中加入 `viewport-fit=cover`，启用 WebView 对安全区的计算。
+- 在 `style.css` 中通过 `env(safe-area-inset-top)`/`constant(safe-area-inset-top)` 为 `body` 顶部增加内边距，避免摄像头/状态栏遮挡头部品牌区域。
+- 该方案对 Android/iOS WebView 均有效；对不支持的环境无副作用。
+
 ---
 ## 变更记录
+- 2025-11-08（新增 Windows 一键构建 APK 脚本）
+  - 目的：简化在 Windows 下的 APK 生成流程，减少手工步骤。
+  - 修改项：
+    1. 新增 `scripts/build-apk.ps1` 与 `scripts/build-apk.cmd`，一键执行“前端构建 → 同步 → Gradle 构建 → 输出 APK 副本”。
+    2. `package.json` 增加 `build:apk` 脚本（调用 PowerShell 脚本）。
+    3. README（中/英）与本文件加入“一键构建 APK”说明。
+- 2025-11-08（移动端刘海/打孔屏安全区适配）
+  - 目的：解决部分机型（如小米）摄像头/状态栏遮挡顶部“FreeChat”标识的问题。
+  - 修改项：
+    1. index.html：`<meta name="viewport">` 增加 `viewport-fit=cover`。
+    2. style.css：在 `body` 上添加 `env(safe-area-inset-top)` 与 `constant(safe-area-inset-top)` 顶部内边距自适配。
+    3. CURSOR.md：新增“安全区适配（刘海/打孔屏）”章节并记录变更。
 - 2025-11-08（新增 Android 封装与构建脚本）
   - 目的：在安卓设备上以 APK/AAB 形态运行本应用。
   - 修改项：

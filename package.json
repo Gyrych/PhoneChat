@@ -5,7 +5,8 @@
   "main": "logger.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "node scripts/build.js"
+    "build": "node scripts/build.js",
+    "build:apk": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-apk.ps1"
   },
   "repository": {
     "type": "git",

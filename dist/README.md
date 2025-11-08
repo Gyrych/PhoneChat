@@ -37,6 +37,10 @@ Note: The above defaults are provided only as a convenient demo/fallback. For pr
 1. Download or clone the repository.
 2. Open `index.html` in your web browser (no build step required).
 
+Safe-area (notch/cutout) support:
+- The viewport meta includes `viewport-fit=cover`.
+- `body` top padding uses `env(safe-area-inset-top)` (and `constant(...)` fallback) to avoid the header being covered by status bar/camera holes on some Android devices.
+
 ## Android (Capacitor)
 
 Prerequisites:
@@ -54,6 +58,18 @@ Steps:
 Notes:
 - `capacitor.config.json` sets `webDir: "dist"` and `server.androidScheme: "https"`.
 - We keep streaming responses via `fetch` in WebView. If you hit CORS limits with your provider, consider a backend proxy. Native HTTP plugins typically do not support SSE streaming.
+
+### Windows one-click build (recommended)
+- Prereqs: JDK 17 and Android SDK installed; run `sdkmanager --licenses`, install `platform-tools`, `build-tools;35.0.0`, `platforms;android-35` (or 34).
+- Double-click:
+  - In File Explorer, double-click `scripts/build-apk.cmd` to build in one go.
+- Or run from terminal:
+```
+npm run build:apk
+```
+- Outputs:
+  - Raw APK: `android/app/build/outputs/apk/debug/app-debug.apk`
+  - Copy: `dist/apk/FreeChat-debug.apk`
 
 ## Configuration
 
