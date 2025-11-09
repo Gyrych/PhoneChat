@@ -42,6 +42,7 @@ Note: The above defaults are provided only as a convenient demo/fallback. For pr
 Safe-area (notch/cutout) support:
 - The viewport meta includes `viewport-fit=cover`.
 - `body` top padding uses `env(safe-area-inset-top)` (and `constant(...)` fallback) to avoid the header being covered by status bar/camera holes on some Android devices.
+- The overlay drawer (`#drawer`) and its scrolling list/footer add safe-area paddings using `env(safe-area-inset-*)` (and `constant(...)`) to avoid notch/bottom gesture bar overlap on phones.
 
 ## Android (Capacitor)
 
@@ -173,6 +174,7 @@ Output format and limits:
 4. Load or delete conversations directly in the drawer; create groups in the drawer via “New group name + Create” controls.
 5. Session memories are generated automatically after each round; group memory refreshes automatically. Injection includes all groups' memories and all session memories of the current group (subject to toggles).
 6. The conversation list shows a model badge next to the name; loading a conversation restores its model.
+7. Settings entry is a gear icon button at the bottom of the drawer (icon-only with `title`/`aria-label`).
 
 ## Project Structure
 

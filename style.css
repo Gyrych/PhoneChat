@@ -940,6 +940,59 @@ body.drawer-open .conversations-fab {
 /* 隐藏清空日志按钮（主聊页与会话管理页共用）；如需恢复可删除本规则 */
 #clearLogsBtn { display: none !important; }
 
+/* 抽屉安全区适配：避免刘海/打孔/底部手势条遮挡（Android/iOS WebView 兼容） */
+@supports (padding-top: env(safe-area-inset-top)) {
+    .drawer {
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
+        padding-left: env(safe-area-inset-left);
+    }
+    .drawer-list {
+        padding-bottom: calc(12px + env(safe-area-inset-bottom));
+    }
+    .drawer-footer {
+        padding-bottom: calc(10px + env(safe-area-inset-bottom));
+    }
+}
+@supports (padding-top: constant(safe-area-inset-top)) {
+    .drawer {
+        padding-top: constant(safe-area-inset-top);
+        padding-bottom: constant(safe-area-inset-bottom);
+    }
+    .drawer-list {
+        padding-bottom: calc(12px + constant(safe-area-inset-bottom));
+    }
+    .drawer-footer {
+        padding-bottom: calc(10px + constant(safe-area-inset-bottom));
+    }
+}
+
+/* 抽屉底部设置图标按钮（替代文字链接） */
+.drawer-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--tap);
+    height: var(--tap);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: rgba(255,255,255,0.75);
+    -webkit-backdrop-filter: blur(var(--blur)) saturate(140%);
+    backdrop-filter: blur(var(--blur)) saturate(140%);
+    color: #08327a;
+    text-decoration: none; /* 去除链接下划线 */
+    text-decoration-skip-ink: none;
+}
+.drawer-icon-btn i { font-size: var(--icon-lg); }
+.drawer-icon-btn:hover {
+    background: rgba(255,255,255,0.9);
+    box-shadow: 0 8px 18px rgba(16,38,84,0.10);
+}
+
+/* 打开抽屉时隐藏左上角历史会话悬浮按钮，避免与抽屉内容冲突 */
+body.drawer-open .conversations-fab {
+    display: none;
+}
 .modal-overlay {
     position: fixed;
     top: 0;
