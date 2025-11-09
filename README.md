@@ -7,6 +7,8 @@
 - Send and receive messages via a configurable external API endpoint.
 - Auto-persist the current conversation to `localStorage` and a durable list (no manual save needed).
 - Save, load, delete and rename conversations.
+- Overlay drawer conversation manager integrated on the main page (desktop/mobile unified). A top “New Chat” button, search box, grouped conversation list, and in-drawer “Create Group” controls (no separate advanced manager page).
+- Welcome hero on empty conversations: shows logo, title and subtitle “在这里可以进行无约束交流。” (clean layout, no quick suggestion chips).
 - Organize conversations into groups and generate per-conversation session memories.
 - Auto-generate per-conversation session memories after each round and refresh group-level memory automatically.
 - Inject memory as multiple system messages before each request:
@@ -15,9 +17,9 @@
   - Providers that accept only one system message are handled automatically by merging all system messages into a single one (sections separated by `---`).
 - Render AI assistant replies as Markdown using `marked` and sanitize with `DOMPurify` for safety.
 - When creating a new conversation from the manager page, a modal asks whether to add it to an existing group (with a dropdown selector) and lets you set a name.
-- Show the current model as a badge on the chat header.
+-
 - For reasoning-capable models (e.g., DeepSeek-R1), the model's reasoning (if returned by the API) streams live and appears ABOVE the assistant reply. It is visible by default and can be folded/unfolded by the user.
-- Built-in request/response logging to localStorage (auth masked); Export button visible, Clear button hidden by default (restorable).
+- Built-in request/response logging to localStorage (auth masked). Header export/clear buttons were removed; export via DevTools console.
  - Modern light theme with clean tech aesthetic and glassmorphism (frosted glass) applied to header, input area, AI bubbles, and cards.
  - Typography: Inter (Latin) with system Chinese fallbacks, responsive font sizes via CSS variables.
 - Web Search (OpenRouter web plugin): optional online grounding with engine selection, max results, context size, and custom search prompt, plus citation rendering.
@@ -155,7 +157,6 @@ Output format and limits:
 5. You can copy or delete messages using the buttons next to each message
 6. During response generation, the stop button replaces the send button in the same position (UI-only; the network request is not aborted yet)
 7. You can attach files with the paperclip button (currently records selection only; parsing/sending can be added later)
-8. The current model is shown as a badge in the top header
 9. If you use a reasoning-capable model and the provider returns reasoning content, a reasoning block streams ABOVE the assistant reply; it is visible by default and you can click the toggle to collapse/expand
 
 ### Model Configuration
@@ -165,14 +166,13 @@ Output format and limits:
 4. Return to the chat page to use the selected model
 
 ### Conversation Management
-1. Click the conversations button in the top navigation bar
-2. View all your chat histories organized by date
-3. Create conversation groups for better organization
-4. Session memories are generated automatically after each assistant reply finishes
-5. Group memory is automatically refreshed when session memories update; injection includes all groups' memories and all session memories of the current group (subject to the toggles above)
-6. Load previous conversations or create new ones
-7. When creating a new conversation, you'll be prompted to choose a group via dropdown (optional) and set a conversation name (optional)
-7. The conversation list shows a model badge next to the name; loading a conversation restores its model
+1. Click the top-left floating conversations button to open the overlay drawer (click outside or press ESC to close).
+2. Use the “New Chat” button at the top to create a conversation; a modal lets you optionally choose a group and set a name.
+   - Updated: The modal now requires a group name. If the group does not exist it will be created automatically.
+3. Use the search box to filter by group or conversation name.
+4. Load or delete conversations directly in the drawer; create groups in the drawer via “New group name + Create” controls.
+5. Session memories are generated automatically after each round; group memory refreshes automatically. Injection includes all groups' memories and all session memories of the current group (subject to toggles).
+6. The conversation list shows a model badge next to the name; loading a conversation restores its model.
 
 ## Project Structure
 
@@ -180,7 +180,7 @@ The core files are:
 
 - `index.html` — Main chat UI and core logic. Includes a demo encrypted OpenRouter key.
 - `config.html` — Settings page: model selector (stores `localStorage.chatModel`) and Web Search settings (stores `freechat.web.*`).
-- `conversations.html` — Conversation manager (save/load/delete), group management and session memories.
+- (Deprecated) `conversations.html` — Previously used for advanced management; functionality has moved into the overlay drawer in `index.html`.
 - `prompts.js` — Centralized prompt templates for session memory and group memory.
 - `logger.js` — Lightweight front-end logger (ring buffer in localStorage; export/clear UI hooks).
 - `style.css` — Styling for the application.
@@ -232,9 +232,8 @@ Note: Glassmorphism uses `backdrop-filter`; when not supported, the UI gracefull
 - Purpose: Help diagnose issues by recording raw request/response metadata in the browser.
 - Storage: Ring buffer in `localStorage` key `freechat.logs` (default max 1000 entries).
 - Privacy: `Authorization` is always masked as `Bearer ***masked***`. No device fingerprinting is collected.
-- UI:
-  - On `index.html`, the Export button is visible (JSON/NDJSON). `conversations.html` no longer provides an export entry. The Clear button is hidden by default (restorable).
-  - Export scope defaults to the current conversation. You can choose NDJSON or JSON; the file name includes a scope suffix (e.g., `freechat-logs-current-YYYYMMDD-HHMMSS.ndjson`).
+- UI: The header export/clear buttons were removed for a cleaner top bar.
+- Export scope defaults to the current conversation. Use DevTools to export (see below). The file name includes a scope suffix (e.g., `freechat-logs-current-YYYYMMDD-HHMMSS.ndjson`).
 - Config via `localStorage`:
   - `freechat.log.maxEntries` — maximum entries (default 1000)
   - `freechat.log.enable` — `true`/`false` to enable/disable logging
