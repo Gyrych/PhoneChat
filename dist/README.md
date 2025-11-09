@@ -162,7 +162,7 @@ Output format and limits:
 
 ### Model Configuration
 1. Click the settings button in the top navigation bar
-2. Select your preferred model from the dropdown menu (options include minimax, deepseek, glm, and more)
+2. Select your preferred model from the dropdown menu on the settings page (the settings list contains the curated available models); the demo default is `minimax/minimax-m2:free`
 3. Save your configuration
 4. Return to the chat page to use the selected model
 

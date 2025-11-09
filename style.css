@@ -526,6 +526,10 @@ body.drawer-open .conversations-fab {
     border-color: #007aff;
 }
 
+/* 模型选择：减小字号并禁止选项换行，减少长模型名换行导致的纵向拥挤 */
+#modelSelect { font-size: 0.85rem; }
+#modelSelect option { white-space: nowrap; }
+
 .save-btn {
     background-color: #007aff;
     color: white;

@@ -13,6 +13,14 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
 
 > 说明：文档中声明的默认端点与模型仅用于演示与回退。生产环境强烈建议使用后端代理服务并使用您自己的 API Key 管理策略，不要将敏感 Key 以明文形式保存在前端。
 
+## 变更记录（自动同步）
+2025-11-09（更新：配置页模型列表已按用户要求替换为新的有序名单）
+ - 目的：同步设置页下拉模型与项目文档，确保默认回退模型为 `minimax/minimax-m2:free` 且模型列表按字母序展示
+ - 修改项：
+   1. `config.html` / `dist/config.html`：替换 `#modelSelect` 下拉项为新名单（去重并按字母排序）
+   2. `style.css`：添加 `#modelSelect` 样式以减小字号并禁止选项换行
+   3. `README.md` / `README_zh.md`：在“模型配置”/“配置”处说明设置页包含已整理模型列表，保留默认演示模型为 `minimax/minimax-m2:free`
+
 ### 技术栈与运行环境
 
 - 技术栈：纯静态前端（HTML、CSS、JavaScript）；移动端封装采用 Capacitor（Android）。
