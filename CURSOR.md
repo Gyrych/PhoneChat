@@ -198,11 +198,13 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
 #### 消息气泡宽度策略（更新）
 - 桌面/平板：`.message { max-width: min(860px, 88%) }`，在宽屏上限制最大片宽 860px，同时在中等宽度下放宽到容器的 88%，提升可读性。
 - 手机（≤480px）：`.message { max-width: 94% }`，保留 3–6% 的边距，避免贴边与操作遮挡。
+- 手机（≤600px）：在 `@media (max-width: 600px)` 下进一步通过减小消息左右内边距并微调字体与行高来增加每行可显示字符数（例如将左右内边距从 ~12–18px 缩小至 8px 左右），同时保留触控目标尺寸 `--tap` 不变以保证可点性。
 
 #### 移动端尺寸与间距策略（适中风格）
 - 基线：通过 `--tap` 保证主要可点元素的触控尺寸；通过 `--icon-lg/md/sm` 统一 Font Awesome 图标字号（不改 DOM）。
 - 规则：
   - `@media (max-width: 600px)`：压缩 `.header` 内边距；`.settings-btn/.conversations-btn/.attach-btn` 统一为 `var(--tap)`；`.pill-toggle` 高度 40px、标签 0.95rem；`.action-btn` 28×28 并提高字号；`.message` 右内边距增至 56px 以避免操作按钮遮挡内容。
+ - `@media (max-width: 600px)`：压缩 `.header` 内边距；`.settings-btn/.conversations-btn/.attach-btn` 统一为 `var(--tap)`；`.pill-toggle` 高度 40px、标签 0.95rem；`.action-btn` 28×28 并提高字号；在此断点下同时减小 `.message` 的左右内边距并微调 `font-size` 与 `line-height`，以在不缩减触控可点尺寸的前提下增加每行可见文字宽度。
   - `@media (max-width: 360px)`：将 `--tap` 压缩至 40px，同时下调 `--icon-lg/md`。
   - 与 `@media (max-width: 480px)` 共存：该断点主要控制消息列宽为 94% 与会话管理区按钮纵排，不冲突。
   - 文本标签隐藏：在手机端隐藏 `.pill-toggle .label`（仅显示图标），节省横向空间。
@@ -533,3 +535,10 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
     1. “核心数据流”：明确主聊天仅使用内置加密 Key；记忆相关调用可回退 `localStorage.deepseekApiKey`。
     2. “日志架构与数据流 → UI”：删除过时“会话管理页也提供导出”的描述，统一为仅主聊天页导出；清空按钮默认隐藏。
     3. “主要文件说明”：去重 `conversations.html` 条目；修复编号重复问题。
+
+- 2025-11-10（移动端消息宽度与内边距微调）
+  - 目的：在移动设备上增加每行可阅读字符数，提高阅读友好性，同时保持触控目标尺寸与操作可点性。
+  - 修改项：
+    1. `style.css` / `dist/style.css`：在 `@media (max-width:600px)` 下减小 `.message` 的左右内边距（如由 12–18px 缩小至 ~8px），并微调 `font-size` 与 `line-height`（示例：`font-size: clamp(0.95rem, 1vw + 0.15rem, 1rem)`、`line-height: 1.45`），保留右侧操作按钮的预留空间但略为收窄。
+    2. `CURSOR.md`：同步更新“消息气泡宽度策略”与“移动端尺寸与间距策略”节中的说明。
+    3. `README.md` / `README_zh.md`：在“移动端友好/尺寸策略”处补充本次实现说明（实现细节为 UI 优化，非功能变更）。
