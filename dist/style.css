@@ -288,19 +288,25 @@ body.drawer-open .conversations-fab {
 
 /* 消息操作按钮 */
 .message-actions {
-    position: absolute;
-    top: 8px;
-    right: 8px;
+    /* 流式排列，单独占一行并靠右对齐，默认可见 */
+    position: static;
     display: flex;
-    gap: 4px;
-    opacity: 0;
-    transition: opacity 0.2s;
-}
-
-.message:hover .message-actions {
+    gap: 6px;
+    justify-content: flex-end;
+    margin-top: 8px;
     opacity: 1;
+    transition: opacity 0.18s;
 }
 
+.message-model {
+    color: var(--muted);
+    font-size: 0.85rem;
+    align-self: center;
+    padding: 2px 6px;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.0);
+    white-space: nowrap;
+}
 .action-btn {
     background: rgba(0, 0, 0, 0.1);
     border: none;
@@ -916,12 +922,31 @@ body.drawer-open .conversations-fab {
 
     /* 消息操作按钮更易点，避免遮挡内容 */
     .action-btn { width: 28px; height: 28px; font-size: 0.85rem; }
-    /* 减小消息左右内边距以提升每行可显示字符数，同时微调字号与行高以保持可读性 */
+    /* 使消息左右内边距对称，同时将操作按钮定位到气泡外侧以保留正文最大可用宽度。
+       做法：保持水平内边距对称（左右均为 8px），并把操作按钮用绝对定位移出气泡（右侧负偏移），
+       保证视觉对称且不牺牲文本宽度。 */
     .message {
-        padding: 10px 8px;
-        padding-right: 52px; /* 保留右侧操作按钮预留，但略为收窄 */
+        padding: 10px 8px; /* top/bottom 10px, left/right 8px（对称） */
         font-size: clamp(0.95rem, 1vw + 0.15rem, 1rem);
         line-height: 1.45;
+    }
+
+    /* 将操作按钮放在气泡外侧（相对 .message 定位），以不占用文本流的可用宽度 */
+    .message-actions {
+        top: 6px;
+        right: -36px; /* 负偏移将按钮移至气泡外侧，保留文本最大宽度 */
+    }
+
+    .action-btn {
+        width: 26px;
+        height: 26px;
+        font-size: 0.8rem;
+    }
+
+    /* 在更窄屏（≤480px）使用略小的外侧偏移和按钮尺寸 */
+    @media (max-width: 480px) {
+        .message-actions { right: -32px; top: 4px; }
+        .action-btn { width: 24px; height: 24px; font-size: 0.75rem; }
     }
 }
 

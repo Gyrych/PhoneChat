@@ -923,6 +923,16 @@
                 const actionsDiv = document.createElement('div');
                 actionsDiv.className = 'message-actions';
 
+                // 若为助手消息，显示该条消息使用的大模型型号（优先使用消息对象上的 model 字段，回退到全局 MODEL_NAME）
+                if (message.role === 'assistant') {
+                    try {
+                        const modelLabel = document.createElement('div');
+                        modelLabel.className = 'message-model';
+                        modelLabel.textContent = (message.model || window.MODEL_NAME || 'minimax/minimax-m2:free');
+                        actionsDiv.appendChild(modelLabel);
+                    } catch (_) { /* 忽略模型展示异常 */ }
+                }
+
                 const copyBtn = document.createElement('button');
                 copyBtn.className = 'action-btn';
                 copyBtn.innerHTML = '<i class="fas fa-copy"></i>';
@@ -1018,7 +1028,7 @@
                 // 重置本轮思考过程缓存
                 window._currentAssistantReasoning = '';
                 window._reasoningCollapsed = false; // 默认展开
-                const aiMsgObj = { role: 'assistant', content: '', reasoning: '' };
+                const aiMsgObj = { role: 'assistant', content: '', reasoning: '', model: (window.MODEL_NAME || 'minimax/minimax-m2:free') };
                 currentConversation.push(aiMsgObj);
                 saveConversation();
                 scheduleUpsertSavedConversation();
@@ -1202,6 +1212,15 @@
                         }
                         try {
                             const json = JSON.parse(data);
+                            // 若流式片段或尾包中包含模型信息，则更新当前 assistant 对象的 model 字段并刷新 UI
+                            try {
+                                const detectedModel = json.model || json.model_name || (json.choices && json.choices[0] && (json.choices[0].model || (json.choices[0].message && json.choices[0].message.model)));
+                                if (detectedModel) {
+                                    aiMsgObj.model = detectedModel;
+                                    // 触发 UI 更新以显示最新的 model 标签
+                                    updateLastAssistantMessage(aiMsgObj.content);
+                                }
+                            } catch (_) { /* 忽略模型检测异常 */ }
                             // 附加一条流式片段到日志（截断由 logger 控制）
                             try { window.Logger && chatEvtId && window.Logger.append(chatEvtId, { type: 'chat_stream', res: { streamChunks: [data] } }); } catch (_) {}
                             // 内容增量
@@ -1426,6 +1445,21 @@
 
             const actionsDiv = document.createElement('div');
             actionsDiv.className = 'message-actions';
+
+            // 在更新最后一条助手消息时，查找该消息对象的 model 字段用于显示（回退到全局 MODEL_NAME）
+            try {
+                let lastAssistantIndexTemp = -1;
+                for (let i = currentConversation.length - 1; i >= 0; i--) {
+                    if (currentConversation[i] && currentConversation[i].role === 'assistant') { lastAssistantIndexTemp = i; break; }
+                }
+                if (lastAssistantIndexTemp !== -1) {
+                    const m = currentConversation[lastAssistantIndexTemp];
+                    const modelLabel = document.createElement('div');
+                    modelLabel.className = 'message-model';
+                    modelLabel.textContent = (m && m.model) ? m.model : (window.MODEL_NAME || 'minimax/minimax-m2:free');
+                    actionsDiv.appendChild(modelLabel);
+                }
+            } catch (_) {}
 
             const copyBtn = document.createElement('button');
             copyBtn.className = 'action-btn';

@@ -542,3 +542,22 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
     1. `style.css` / `dist/style.css`：在 `@media (max-width:600px)` 下减小 `.message` 的左右内边距（如由 12–18px 缩小至 ~8px），并微调 `font-size` 与 `line-height`（示例：`font-size: clamp(0.95rem, 1vw + 0.15rem, 1rem)`、`line-height: 1.45`），保留右侧操作按钮的预留空间但略为收窄。
     2. `CURSOR.md`：同步更新“消息气泡宽度策略”与“移动端尺寸与间距策略”节中的说明。
     3. `README.md` / `README_zh.md`：在“移动端友好/尺寸策略”处补充本次实现说明（实现细节为 UI 优化，非功能变更）。
+ - 2025-11-11（消息气泡左右对称与操作按钮外侧定位）
+  - 目的：在保证最大可读宽度的同时，使消息气泡左右视觉对称。
+  - 修改项：
+    1. `style.css` / `dist/style.css`：将 `.message` 的左右内边距设置为对称值（左右均为 8px），并把消息操作按钮 `.message-actions` 通过负偏移 `right: -36px`（窄屏为 -32px）定位到气泡外侧，避免按钮占用文本流宽度，同时保证按钮大小与可点性。
+    2. `README.md` / `README_zh.md`：在“移动端友好/尺寸策略”补充本次实现说明（UI 优化，保持触控目标）。
+- 2025-11-12（按消息记录模型信息并显示）
+  - 目的：确保每条 assistant 消息展示其实际生成时所使用的大模型（消息级 model），便于审计与回溯。
+  - 修改项：
+    1. `index.html` / `dist/index.html`：在创建 assistant 占位消息时写入 `aiMsgObj.model = MODEL_NAME`；在流式解析过程中若返回片段或尾包包含模型信息（优先检查 `json.model`、`json.model_name`、`json.choices[0].model`、`json.choices[0].message.model`），则覆盖 `aiMsgObj.model` 并实时刷新 UI 以展示该字段。
+    2. `style.css` / `dist/style.css`：新增 `.message-model` 样式，用于在消息的操作按钮行显示模型标签。
+    3. `CURSOR.md` / `README.md` / `README_zh.md`：补充文档说明，指出回退逻辑为使用消息创建时的 `MODEL_NAME`，以及流式响应中优先采用供应商返回的模型信息。
+  - 回退与兼容性：
+    - 若响应未提供模型信息，消息将保留创建时的 `MODEL_NAME` 作为记录（可靠回退）。
+    - 保存/持久化（localStorage）会保留消息对象的 `model` 字段，保证历史消息可回溯模型来源。
+ - 2025-11-12（将消息操作按钮单独一行）
+  - 目的：把消息旁的操作按钮从气泡右侧移到气泡下方单独一行，提升正文可读宽度与视觉整洁性。
+  - 修改项：
+    1. `style.css` / `dist/style.css`：将 `.message-actions` 改为流式（position: static），并设置 `justify-content: flex-end; margin-top: 8px;`，使按钮单独占一行并靠右对齐；移除绝对定位与外侧负偏移实现。
+    2. `README.md` / `README_zh.md`：在“移动端友好/尺寸策略”补充本次实现说明（UI 优化，按钮单独占行）。
