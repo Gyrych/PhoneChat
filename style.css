@@ -166,6 +166,49 @@ body.drawer-open .conversations-fab {
     flex-direction: column;
 }
 
+/* 会话标题栏：显示当前会话名称与分组（玻璃风格，响应式） */
+.session-title {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 14px;
+    border-radius: var(--radius);
+    -webkit-backdrop-filter: blur(var(--blur)) saturate(140%);
+    backdrop-filter: blur(var(--blur)) saturate(140%);
+    background: rgba(255,255,255,0.6);
+    box-shadow: var(--shadow);
+    width: 100%;
+    max-width: 860px;
+    margin: 8px auto;
+    border: 1px solid var(--border);
+    position: sticky;
+    top: 12px;
+    z-index: 9999;
+}
+.session-title > div { display: flex; flex-direction: column; }
+.session-name { font-size: var(--fs-h2); font-weight: 600; color: var(--fg); }
+.session-group { font-size: 0.85rem; color: var(--muted); margin-top: 2px; }
+.session-title .conversations-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--tap);
+    height: var(--tap);
+    border-radius: 12px;
+    background: rgba(255,255,255,0.75);
+    border: 1px solid var(--border);
+    color: #1d1d1f;
+    cursor: pointer;
+    -webkit-backdrop-filter: blur(var(--blur)) saturate(140%);
+    backdrop-filter: blur(var(--blur)) saturate(140%);
+}
+@media (max-width:600px) {
+  .session-title { padding: 6px 10px; margin: 6px; top: calc(env(safe-area-inset-top) + 8px); }
+  .session-name { font-size: 0.95rem; }
+  .session-title .conversations-btn { width: 40px; height: 40px; }
+}
+
 .message-container {
     flex: 1;
     display: flex;

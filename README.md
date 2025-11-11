@@ -22,6 +22,7 @@
 - Built-in request/response logging to localStorage (auth masked). Header export/clear buttons were removed; export via DevTools console.
  - Modern light theme with clean tech aesthetic and glassmorphism (frosted glass) applied to header, input area, AI bubbles, and cards.
  - Typography: Inter (Latin) with system Chinese fallbacks, responsive font sizes via CSS variables.
+- Main page session title bar: the main chat page now shows a small session title area above messages that displays the current conversation name and its group.
 - Web Search (OpenRouter web plugin): optional online grounding with engine selection, max results, context size, and custom search prompt, plus citation rendering.
  - Mobile-friendly UI: unified icon scales and touch target sizing, with responsive spacing tuned for phones (breakpoints at 600px and 360px).
   - On phones, inline capsule toggles (“Deep Thinking”/“Web Search”) show icon-only (labels hidden) to save space.

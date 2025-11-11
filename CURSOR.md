@@ -29,6 +29,7 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
 ### 主要文件说明
 
 - `index.html`：主页面，包含聊天界面、消息渲染、发送逻辑与消息持久化；内置加密的 OpenRouter API Key（仅演示用途）。
+ - `index.html`：主页面，包含聊天界面、消息渲染、发送逻辑与消息持久化；在主聊天列顶部新增会话标题栏用于展示当前会话名称与分组；内置加密的 OpenRouter API Key（仅演示用途）。
 - `config.html`：设置页面，提供“模型选择（写入 `localStorage.chatModel`）”与“联网搜索设置（写入 `freechat.web.*`）”；当前不提供 API Key 输入项。
 - （已废弃）`conversations.html`：早期的高级会话管理页面；保存/加载/删除、分组管理、记忆查看/重新生成等能力已整合到 `index.html` 的覆盖式抽屉中（含“新分组名 + 创建分组”控件）。
  - `conversations.html`：会话管理页面，支持保存/加载/删除会话、分组管理、查看/重新生成会话记忆与分组记忆；新建会话时弹窗询问是否加入已有分组并提供下拉选择。
@@ -561,3 +562,11 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
   - 修改项：
     1. `style.css` / `dist/style.css`：将 `.message-actions` 改为流式（position: static），并设置 `justify-content: flex-end; margin-top: 8px;`，使按钮单独占一行并靠右对齐；移除绝对定位与外侧负偏移实现。
     2. `README.md` / `README_zh.md`：在“移动端友好/尺寸策略”补充本次实现说明（UI 优化，按钮单独占行）。
+
+- 2025-11-11（新增：主页面会话标题栏）
+  - 目的：在主聊天页面顶部展示当前会话名称与所属分组，提升会话可识别性与上下文可视化。
+  - 修改项：
+    1. `index.html`：在主聊天列顶部新增 `#sessionTitleBar` DOM，包含 `#sessionName` 与 `#sessionGroup`；新增 `renderSessionTitle()` 用于动态渲染并在会话切换/创建时更新显示。
+    2. `style.css` / `dist/style.css`：新增 `.session-title`、`.session-name`、`.session-group` 的样式，继承项目玻璃风令牌并兼容移动端断点。
+    3. `README.md` / `README_zh.md` / `CURSOR.md`：同步更新文档说明并追加本条变更记录。
+  - 回滚：移除 `#sessionTitleBar` DOM 与 `renderSessionTitle()`，并删除新增 CSS 即可回退，不影响本地存储结构或会话逻辑。

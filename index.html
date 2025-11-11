@@ -13,10 +13,7 @@
     <script src="logger.js"></script>
 </head>
 <body>
-    <!-- 顶部仅保留一个悬浮的会话抽屉开关按钮（不再使用横条头部容器） -->
-    <button id="conversationsBtn" class="conversations-btn conversations-fab" aria-label="打开会话抽屉">
-        <i class="fas fa-history"></i>
-    </button>
+
 
 
     <main class="chat-container">
@@ -27,6 +24,15 @@
             </div>
             <p class="welcome-subtitle">在这里可以进行无约束交流。</p>
         </section>
+        <div id="sessionTitleBar" class="session-title glass" aria-hidden="false">
+            <button id="conversationsBtn" class="conversations-btn" aria-label="打开会话抽屉">
+                <i class="fas fa-history"></i>
+            </button>
+            <div style="display:flex;flex-direction:column;">
+                <div class="session-name" id="sessionName">未命名会话</div>
+                <div class="session-group" id="sessionGroup">未分组</div>
+            </div>
+        </div>
         <div id="messageContainer" class="message-container"></div>
         <div id="statusIndicator" class="status-indicator"></div>
     </main>
@@ -432,6 +438,7 @@
                             localStorage.setItem('deepseekConversationId', c.id);
                             if (c.model) localStorage.setItem('chatModel', c.model);
                             loadConversation(); renderMessages(); renderWelcomeIfEmpty();
+                            try { renderSessionTitle(); } catch (_) {}
                             closeDrawer();
                         } catch (e) { console.error('加载会话失败：', e); }
                     });
@@ -578,6 +585,7 @@
             currentConversationGroupId = (grp && grp !== 'undefined' && grp !== 'null') ? grp : null;
             // 加载时尝试同步更新当前模型徽标（若用户从会话管理页恢复了模型）
             try { updateCurrentModelBadge(); } catch (e) { /* 忽略异常 */ }
+            try { renderSessionTitle(); } catch (_) {}
         }
 
         // 主页面保留“联网搜索”内联开关；参数配置改到设置页
@@ -801,6 +809,40 @@
         }
 
         /**
+         * 渲染会话标题栏（会话名 + 分组名）
+         * 优先从持久化 savedDeepseekConversations 中读取 deepseekConversationId 对应条目；
+         * 回退到 deepseekNewConversationName / currentConversation.name / 未命名会话
+         */
+        function renderSessionTitle() {
+            try {
+                const sessionNameEl = document.getElementById('sessionName');
+                const sessionGroupEl = document.getElementById('sessionGroup');
+                if (!sessionNameEl || !sessionGroupEl) return;
+
+                const savedConvs = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
+                const currentId = localStorage.getItem('deepseekConversationId');
+                let sessionObj = savedConvs.find(c => c && c.id === currentId) || null;
+
+                if (!sessionObj) {
+                    const tempName = (localStorage.getItem('deepseekNewConversationName') || '').trim();
+                    const tempGroup = localStorage.getItem('deepseekConversationGroupId') || null;
+                    sessionObj = tempName ? { name: tempName, groupId: tempGroup } : null;
+                }
+
+                const name = sessionObj && sessionObj.name ? sessionObj.name : ((window.currentConversation && window.currentConversation.name) ? window.currentConversation.name : '未命名会话');
+                const groups = JSON.parse(localStorage.getItem('conversationGroups') || '[]');
+                const gid = (sessionObj && sessionObj.groupId) ? sessionObj.groupId : (localStorage.getItem('deepseekConversationGroupId') || null);
+                const group = groups.find(g => g && g.id === gid);
+                const groupName = group && group.name ? group.name : '未分组';
+
+                sessionNameEl.textContent = name;
+                sessionGroupEl.textContent = groupName;
+            } catch (e) {
+                console.error('renderSessionTitle 失败：', e);
+            }
+        }
+
+        /**
          * 持久会话节流更新
          * 功能：将当前会话内容按节流策略写回 savedDeepseekConversations 对应条目，降低频繁写入
          * 参数：无（内部获取 deepseekConversationId）
@@ -1007,6 +1049,7 @@
                         saved.push(newEntry);
                         localStorage.setItem('savedDeepseekConversations', JSON.stringify(saved));
                         localStorage.setItem('deepseekConversationId', newId);
+                        try { renderSessionTitle(); } catch (_) {}
                         // 清理临时名称键，避免影响下一次新建
                         try { localStorage.removeItem('deepseekNewConversationName'); } catch (_) {}
                     }
@@ -1721,7 +1764,9 @@
                         localStorage.setItem('deepseekConversation', JSON.stringify([]));
                         localStorage.removeItem('deepseekConversationId');
                         // 刷新界面与抽屉列表
-                        loadConversation(); renderMessages(); renderWelcomeIfEmpty(); renderDrawerConversationsList();
+                        loadConversation(); renderMessages(); renderWelcomeIfEmpty();
+                        try { renderSessionTitle(); } catch (_) {}
+                        renderDrawerConversationsList();
                         closeNewChatGroupModal(); closeDrawer();
                     });
                     if (cancelBtn) cancelBtn.addEventListener('click', () => { closeNewChatGroupModal(); });
