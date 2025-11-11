@@ -22,6 +22,7 @@
 - Built-in request/response logging to localStorage (auth masked). Header export/clear buttons were removed; export via DevTools console.
  - Modern light theme with clean tech aesthetic and glassmorphism (frosted glass) applied to header, input area, AI bubbles, and cards.
  - Typography: Inter (Latin) with system Chinese fallbacks, responsive font sizes via CSS variables.
+- Main page session title bar: the main chat page now shows a small session title area above messages that displays the current conversation name and its group.
 - Web Search (OpenRouter web plugin): optional online grounding with engine selection, max results, context size, and custom search prompt, plus citation rendering.
  - Mobile-friendly UI: unified icon scales and touch target sizing, with responsive spacing tuned for phones (breakpoints at 600px and 360px).
   - On phones, inline capsule toggles (“Deep Thinking”/“Web Search”) show icon-only (labels hidden) to save space.
@@ -166,6 +167,7 @@ Output format and limits:
 2. Select your preferred model from the dropdown menu on the settings page (the settings list contains the curated available models); the demo default is `minimax/minimax-m2:free`
 3. Save your configuration
 4. Return to the chat page to use the selected model
+5. Note: Each assistant reply is recorded with the exact model used to generate that reply (message-level `model`). If a streaming response contains model metadata from the provider, the message's recorded model will be updated accordingly; otherwise it falls back to the model in effect when the message was created.
 
 ### Conversation Management
 1. Click the top-left floating conversations button to open the overlay drawer (click outside or press ESC to close).

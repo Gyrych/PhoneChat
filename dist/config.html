@@ -17,8 +17,9 @@
 
     <main class="config-container">
         <div class="config-item">
-            <label for="modelSelect" class="config-label">选择模型</label>
-            <select id="modelSelect" class="config-input">
+            <label for="customModelSelect" class="config-label">选择模型</label>
+            <!-- 保留原生 select 作为数据源并隐藏，以保持与现有保存/读取逻辑兼容（value 会由自定义组件同步） -->
+            <select id="modelSelect" class="config-input" style="display:none;">
                 <option value="">请选择模型</option>
                 <option value="agentica-org/deepcoder-14b-preview:free">agentica-org/deepcoder-14b-preview:free</option>
                 <option value="alibaba/tongyi-deepresearch-30b-a3b:free">alibaba/tongyi-deepresearch-30b-a3b:free</option>
@@ -67,6 +68,17 @@
                 <option value="tngtech/deepseek-r1t2-chimera:free">tngtech/deepseek-r1t2-chimera:free</option>
                 <option value="z-ai/glm-4.5-air:free">z-ai/glm-4.5-air:free</option>
             </select>
+            <!-- 自定义下拉组件：在移动端保证单行显示、截断与搜索功能 -->
+            <div class="custom-select" id="customModelSelect" data-value="">
+              <button class="custom-select__trigger" aria-haspopup="listbox" aria-expanded="false" type="button">
+                <span class="custom-select__value">请选择模型</span>
+                <i class="fas fa-caret-down"></i>
+              </button>
+              <div class="custom-select__panel" role="listbox" tabindex="-1" aria-hidden="true">
+                <input class="custom-select__search" placeholder="搜索模型" aria-label="搜索模型">
+                <ul class="custom-select__options"></ul>
+              </div>
+            </div>
         </div>
         <!-- 联网搜索设置（从主页面迁移至设置页） -->
         <div class="config-item">
@@ -108,12 +120,99 @@
             window.location.assign('index.html');
         });
 
+        /**
+         * 构建自定义下拉组件：从隐藏的原生 select 读取选项并在页面内渲染可搜索的列表
+         * selectEl: 原生 <select> 元素（可为 null，若为 null 则不读取）
+         */
+        function buildCustomModelSelect(selectEl) {
+            const container = document.getElementById('customModelSelect');
+            if (!container) return;
+            const trigger = container.querySelector('.custom-select__trigger');
+            const valueEl = container.querySelector('.custom-select__value');
+            const panel = container.querySelector('.custom-select__panel');
+            const searchInput = container.querySelector('.custom-select__search');
+            const optionsListEl = container.querySelector('.custom-select__options');
+
+            // 从原生 select 提取选项数据
+            const options = [];
+            if (selectEl) {
+                for (const opt of Array.from(selectEl.options)) {
+                    if (!opt.value) continue;
+                    options.push({ value: opt.value, label: opt.text });
+                }
+            }
+
+            function renderList(filter = '') {
+                const q = String(filter || '').trim().toLowerCase();
+                optionsListEl.innerHTML = options
+                    .filter(o => o.label.toLowerCase().includes(q) || o.value.toLowerCase().includes(q))
+                    .map(o => `<li role="option" data-value="${o.value}" title="${o.label}">${o.label}</li>`).join('');
+            }
+
+            function openPanel() {
+                panel.setAttribute('aria-hidden', 'false');
+                trigger.setAttribute('aria-expanded', 'true');
+                searchInput.focus();
+            }
+            function closePanel() {
+                panel.setAttribute('aria-hidden', 'true');
+                trigger.setAttribute('aria-expanded', 'false');
+            }
+
+            // 初始渲染
+            renderList();
+
+            // 事件：触发器切换
+            trigger.addEventListener('click', (e) => {
+                const expanded = trigger.getAttribute('aria-expanded') === 'true';
+                if (expanded) closePanel(); else openPanel();
+            });
+
+            // 点击选项
+            optionsListEl.addEventListener('click', (e) => {
+                const li = e.target.closest('li');
+                if (!li) return;
+                const v = li.dataset.value;
+                const label = li.textContent;
+                valueEl.textContent = label;
+                // 同步到原生 select（隐藏）
+                if (selectEl) selectEl.value = v;
+                container.dataset.value = v;
+                closePanel();
+            });
+
+            // 搜索输入
+            searchInput.addEventListener('input', (e) => {
+                renderList(e.target.value);
+            });
+
+            // 点击面板外部时关闭
+            document.addEventListener('click', (e) => {
+                if (!container.contains(e.target)) {
+                    closePanel();
+                }
+            });
+
+            // 如果 localStorage 中已有选中模型，设置显示
+            const saved = localStorage.getItem('chatModel');
+            if (saved) {
+                const found = options.find(o => o.value === saved);
+                if (found) {
+                    valueEl.textContent = found.label;
+                    if (selectEl) selectEl.value = saved;
+                    container.dataset.value = saved;
+                }
+            }
+        }
+
         // 页面加载时获取保存的模型名称与联网搜索设置
         document.addEventListener('DOMContentLoaded', () => {
             const savedModel = localStorage.getItem('chatModel');
             if (savedModel) {
                 document.getElementById('modelSelect').value = savedModel;
             }
+            // 构建自定义下拉（从隐藏的原生 select 读取数据并渲染）
+            buildCustomModelSelect(document.getElementById('modelSelect'));
 
             // 读取并初始化：联网搜索设置（保持与主页面相同键名与默认值）
             try {

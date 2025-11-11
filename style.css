@@ -576,9 +576,76 @@ body.drawer-open .conversations-fab {
     border-color: #007aff;
 }
 
-/* 模型选择：减小字号并禁止选项换行，减少长模型名换行导致的纵向拥挤 */
-#modelSelect { font-size: 0.85rem; }
+/* 模型选择：保留原生 select 作为数据源并隐藏，自定义下拉样式用于可控展示（单行截断、搜索与触控高度） */
+#modelSelect { display: none; font-size: 0.85rem; }
 #modelSelect option { white-space: nowrap; }
+
+/* 自定义下拉组件样式 */
+.custom-select { position: relative; width: 100%; max-width: 100%; }
+.custom-select__trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 1rem;
+  text-align: left;
+}
+.custom-select__value {
+  display: inline-block;
+  max-width: calc(100% - 36px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.custom-select__panel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  margin-top: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  z-index: 999;
+  padding: 8px;
+  display: none;
+  max-height: 56vh;
+  overflow: auto;
+}
+.custom-select__panel[aria-hidden="false"] { display: block; }
+.custom-select__search {
+  width: 100%;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  border-radius: 6px;
+  border: 1px solid #e6e6e6;
+  font-size: 0.95rem;
+  outline: none;
+}
+.custom-select__options { list-style: none; padding: 0; margin: 0; }
+.custom-select__options li {
+  padding: 8px 10px;
+  min-height: 44px; /* 触控目标 */
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-radius: 6px;
+}
+.custom-select__options li:hover { background: rgba(0,0,0,0.03); }
+@media (max-width:600px) {
+  .custom-select__trigger { font-size: 0.95rem; padding: 10px; }
+  .custom-select__search { font-size: 0.95rem; padding: 8px; }
+}
 
 .save-btn {
     background-color: #007aff;
@@ -698,8 +765,9 @@ body.drawer-open .conversations-fab {
     border-radius: 12px;
     padding: 14px;
     display: flex;
+    flex-wrap: wrap; /* 允许内联元素换行，以便摘要独占一行 */
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start; /* 顶部对齐，避免摘要被垂直居中压缩 */
     box-shadow: var(--shadow);
     transition: transform 0.12s ease, box-shadow 0.12s ease, background-color 0.12s ease;
     -webkit-backdrop-filter: blur(var(--blur)) saturate(140%);
@@ -764,12 +832,30 @@ body.drawer-open .conversations-fab {
 .group-delete-btn { border-color: rgba(255,107,107,0.2); color: #c0392b; }
 .group-delete-btn:hover { transform: translateY(-2px); background: linear-gradient(90deg,#fff5f6,#fff7f8); }
 
-.conversation-summary-content, .group-memory {
+.conversation-summary-content,
+.group-memory {
+    /* 确保在抽屉内与分组记忆宽度一致，跟随父容器宽度（--drawer-width） */
+    width: 100%;
+    box-sizing: border-box; /* 保证内边距不影响总宽度 */
+    max-width: 100%;        /* 不超过父容器 */
+    margin: 6px 0;          /* 统一上下间距，避免 inline style 导致差异 */
     background: linear-gradient(90deg, rgba(240,248,255,0.6), rgba(250,250,255,0.8));
     border-radius: 8px;
     padding: 10px;
     color: #122244;
     border: 1px solid rgba(13,71,161,0.04);
+}
+
+/* 保持分组记忆的左侧视觉指示（之前为 inline style） */
+.group-memory {
+    border-left: 2px solid #eee;
+}
+
+/* 会话记忆在显示时独占一行（不与操作按钮同行） */
+.conversation-summary-content {
+    flex-basis: 100%;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 /* 思考过程折叠显示（默认隐藏，点击切换） */
@@ -812,7 +898,8 @@ body.drawer-open .conversations-fab {
 }
 
 .conversation-info {
-    flex: 1;
+    flex: 1 1 auto;
+    min-width: 0; /* 允许在 flex 布局中正确收缩，防止内容溢出 */
 }
 
 .conversation-name {
@@ -1184,6 +1271,7 @@ body.drawer-open .conversations-fab {
     gap: 10px;
     border-bottom: 1px solid var(--border);
 }
+.drawer-section { /* 兼容：保持抽屉内 section 默认样式 */ }
 .drawer-primary {
     background: linear-gradient(135deg, var(--brand), var(--brand-2));
     color: #fff;
@@ -1210,6 +1298,25 @@ body.drawer-open .conversations-fab {
     display: flex;
     flex-direction: column;
     gap: 8px;
+}
+.drawer .conversation-summary-content,
+.drawer .group-memory {
+    /* 仅影响抽屉内的记忆窗格：换行并占满抽屉可用宽度 */
+    flex-basis: 100%;
+    width: 100%;
+    box-sizing: border-box;
+    margin: 6px 0;
+}
+.drawer .drawer-item {
+    /* 允许抽屉内会话项换行，使记忆窗格独占一行而不与按钮同行 */
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+}
+.drawer .drawer-item > div:first-child {
+    /* 抽屉内左侧主信息区域可收缩，防止溢出 */
+    flex: 1 1 auto;
+    min-width: 0;
 }
 .drawer-section {
     border: 1px solid rgba(13,71,161,0.06);

@@ -566,7 +566,40 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
 - 2025-11-11（新增：主页面会话标题栏）
   - 目的：在主聊天页面顶部展示当前会话名称与所属分组，提升会话可识别性与上下文可视化。
   - 修改项：
-    1. `index.html`：在主聊天列顶部新增 `#sessionTitleBar` DOM，包含 `#sessionName` 与 `#sessionGroup`；新增 `renderSessionTitle()` 用于动态渲染并在会话切换/创建时更新显示。
+  1. `index.html`：在主聊天列顶部新增 `#sessionTitleBar` DOM，包含 `#sessionName` 与 `#sessionGroup`；新增 `renderSessionTitle()` 用于动态渲染并在会话切换/创建时更新显示。
     2. `style.css` / `dist/style.css`：新增 `.session-title`、`.session-name`、`.session-group` 的样式，继承项目玻璃风令牌并兼容移动端断点。
     3. `README.md` / `README_zh.md` / `CURSOR.md`：同步更新文档说明并追加本条变更记录。
   - 回滚：移除 `#sessionTitleBar` DOM 与 `renderSessionTitle()`，并删除新增 CSS 即可回退，不影响本地存储结构或会话逻辑。
+
+- 2025-11-11（修复：统一侧边栏内“会话记忆”与“分组记忆”窗格宽度）
+  - 目的：确保覆盖式抽屉（侧边栏）中显示的“会话记忆”和“分组记忆”窗格在宽度与盒模型上保持一致，跟随抽屉可用宽度（`--drawer-width`），提升视觉一致性并便于样式维护。
+  - 修改项：
+    1. `style.css`：为 `.conversation-summary-content, .group-memory` 添加 `width:100%`、`box-sizing:border-box`、`max-width:100%`、`margin:6px 0` 等规则，并为 `.group-memory` 添加 `border-left: 2px solid #eee`，移除对内联样式的依赖。
+    2. `conversations.html`：移除创建分组记忆区域的 padding/borderLeft/margin 的 inline 赋值，改为统一类 `group-memory conversation-summary-content`；同时移除会话记忆模板中用于 margin-top 的 inline style（保留 `display:none` 以便 JS 控制显示）。
+    3. `dist/style.css`：同步更新以使打包产物生效。
+  - 风险与回滚：若需回退，将 `style.css`/`dist/style.css` 中新增规则删除并恢复 `conversations.html` 中被移除的 inline 样式即可回退，不影响数据结构与本地存储。
+
+- 2025-11-11（更新：使会话记忆展示时独占一行，避免与管理按钮同行）
+  - 目的：当用户点击“查看会话记忆”时，使会话记忆窗格独占 `.conversation-item` 的一整行，不再与右侧的管理按钮同列，从而获得更大横向可用宽度并提升可读性。
+  - 修改项：
+    1. `style.css` / `dist/style.css`：将 `.conversation-item` 的 `align-items` 改为 `flex-start` 并添加 `flex-wrap: wrap`，同时为 `.conversation-info` 加入 `min-width: 0`，并为 `.conversation-summary-content` 增加 `flex-basis:100%`（使其换行并占满整行）。
+    2. `conversations.html`：保持摘要 DOM 位置不变（留在 `.conversation-info` 内），但依赖 CSS 控制换行/占行，不再通过 inline style 调整宽度或边距。
+  - 回滚：删除或还原上述 CSS 更改并恢复任何被修改的 inline 样式即可回退。
+
+- 2025-11-11（更新：抽屉作用域下使会话记忆窗格独占宽度）
+  - 目的：只在主页面的覆盖式抽屉（`.drawer`）内，使“会话记忆（conversation-summary-content）”和“分组记忆（group-memory）”在展开时换行并占满抽屉内容宽度，避免与抽屉内的操作按钮同行，从而在不影响 `conversations.html` 页面布局的前提下提升抽屉内记忆可读性。
+  - 修改项：
+    1. `style.css`：在 `.drawer` 作用域下新增以下规则：使 `.drawer .conversation-summary-content, .drawer .group-memory` 为 `flex-basis:100%` 与 `width:100%`，并使 `.drawer .drawer-item` 支持 `flex-wrap: wrap`；确保 `.drawer .drawer-item > div:first-child` 可收缩（`min-width:0`）。这些规则限定在 `.drawer` 作用域，避免影响其他页面。
+    2. `dist/style.css`：同步以上样式变更以使打包产物生效。
+    3. `index.html`：无需 DOM 改动；抽屉内现有生成逻辑已用 `.conversation-summary-content` / `.group-memory` 类名生成记忆块，样式由 CSS 控制展示行为。
+  - 验收：在主页面打开抽屉并展开任意会话的“查看会话记忆”，记忆区域应换行并占满抽屉宽度，左右内边距与分组记忆一致；`conversations.html` 布局不受影响。
+  - 回滚：删除 `.drawer` 作用域 CSS 规则并恢复先前的全局规则或 inline 样式可以回退该行为。
+
+- 2025-11-11（更新：精简主页面抽屉的操作按钮并添加“会话管理”入口）
+  - 目的：在主页面抽屉中减少直接管理操作，保留核心快速操作并在底部提供跳转入口前往完整的会话管理页。
+  - 修改项：
+    1. `index.html`：抽屉内每个会话项仅保留“加载（加载会话）”与“重新生成会话记忆”两个图标按钮；移除“重命名/移动/删除”等按钮以减少误操作和视觉复杂度，完整管理仍在 `conversations.html` 中进行。
+    2. `index.html`：抽屉底部在设置图标旁新增仅图标的“会话管理”入口（`fa-list`），带 `title`/`aria-label`（tooltip）以说明功能，点击跳转 `conversations.html`。
+    3. `style.css` / `dist/style.css`：无须新增样式（使用现有 `drawer-icon-btn`），逻辑通过 DOM 生成脚本控制按钮显示。
+  - 验收：打开主页面抽屉时，会话条目右侧仅显示加载与重新生成按钮；抽屉底部显示列表图标按钮，悬停显示“会话管理”，点击后跳转到 `conversations.html`。
+  - 回滚：恢复 `index.html` 中被移除的按钮创建与事件绑定，并删除 `drawer-footer` 中新增的会话管理链接即可回退。

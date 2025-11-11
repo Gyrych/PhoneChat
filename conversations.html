@@ -389,11 +389,9 @@
 
                 // 分组记忆显示区（默认隐藏），提供查看分组记忆功能
                 const memoryDiv = document.createElement('div');
-                memoryDiv.className = 'group-memory';
+                // 使用统一类名，样式由 CSS 控制；仅通过 style.display 控制显示/隐藏
+                memoryDiv.className = 'group-memory conversation-summary-content';
                 memoryDiv.style.display = 'none';
-                memoryDiv.style.padding = '8px 12px';
-                memoryDiv.style.borderLeft = '2px solid #eee';
-                memoryDiv.style.marginBottom = '8px';
                 memoryDiv.innerHTML = group.memorySummary ? `<strong>分组记忆：</strong><div>${group.memorySummary}</div>` : '<i class="small-muted">暂无分组记忆</i>';
 
                 const viewMemoryBtn = document.createElement('button');
@@ -457,7 +455,7 @@
                             <h3 class="conversation-name">${conversation.name}<span class="model-badge">${conversation.model || '未记录'}</span></h3>
                             <p class="conversation-time">${formattedTime}</p>
                             <button class="toggle-summary-btn">查看会话记忆</button>
-                            <div class="conversation-summary-content" style="display:none; margin-top:6px;">${conversation.summary ? conversation.summary : '<i class="small-muted">记忆生成中或不存在</i>'}</div>
+                            <div class="conversation-summary-content" style="display:none;">${conversation.summary ? conversation.summary : '<i class="small-muted">记忆生成中或不存在</i>'}</div>
                         </div>
                         <div class="conversation-actions">
                             <button class="load-btn" data-id="${conversation.id}"><i class="fas fa-download"></i> 加载</button>
@@ -512,7 +510,7 @@
                             <h3 class="conversation-name">${conversation.name}<span class="model-badge">${conversation.model || '未记录'}</span></h3>
                             <p class="conversation-time">${formattedTime}</p>
                         <button class="toggle-summary-btn">查看会话记忆</button>
-                        <div class="conversation-summary-content" style="display:none; margin-top:6px;">${conversation.summary ? conversation.summary : '<i class="small-muted">记忆生成中或不存在</i>'}</div>
+                        <div class="conversation-summary-content" style="display:none;">${conversation.summary ? conversation.summary : '<i class="small-muted">记忆生成中或不存在</i>'}</div>
                         </div>
                         <div class="conversation-actions">
                         <button class="load-btn" data-id="${conversation.id}"><i class="fas fa-download"></i> 加载</button>

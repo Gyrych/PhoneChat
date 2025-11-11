@@ -46,6 +46,9 @@
         </div>
         <nav id="drawerList" class="drawer-list"></nav>
         <div class="drawer-footer">
+            <a href="conversations.html" class="drawer-icon-btn" aria-label="会话管理" title="会话管理">
+                <i class="fas fa-list"></i>
+            </a>
             <a href="config.html" class="drawer-icon-btn" aria-label="设置" title="设置">
                 <i class="fas fa-cog"></i>
             </a>
@@ -388,8 +391,7 @@
                         try { await updateGroupMemory(groupObj.id); renderDrawerConversationsList(q); alert('分组记忆已更新'); }
                         catch (err) { console.error('重新生成分组记忆失败：', err); alert('更新失败'); }
                     });
-                    // 将分组按钮挂到 summary 上
-                    summary.appendChild(renameBtn);
+                    // 将重新生成分组记忆按钮挂到 summary 上（保留重新生成按钮，移除重命名入口）
                     summary.appendChild(regenBtn);
                     items.appendChild(viewMemoryBtn);
                     items.appendChild(memoryDiv);
@@ -442,51 +444,7 @@
                             closeDrawer();
                         } catch (e) { console.error('加载会话失败：', e); }
                     });
-                    // 重命名
-                    const renameBtn = document.createElement('button');
-                    renameBtn.className = 'action-btn';
-                    renameBtn.title = '重命名';
-                    renameBtn.innerHTML = '<i class="fas fa-edit"></i>';
-                    renameBtn.addEventListener('click', () => {
-                        const newName = prompt('输入新的会话名称：', c.name || '');
-                        if (!newName) return;
-                        try {
-                            let arr = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
-                            const idx = arr.findIndex(x => x.id === c.id);
-                            if (idx !== -1) {
-                                arr[idx].name = newName;
-                                arr[idx].updatedAt = new Date().toISOString();
-                                localStorage.setItem('savedDeepseekConversations', JSON.stringify(arr));
-                                renderDrawerConversationsList(q);
-                            }
-                        } catch (e) { console.error('重命名失败：', e); }
-                    });
-                    // 移动
-                    const moveBtn = document.createElement('button');
-                    moveBtn.className = 'action-btn';
-                    moveBtn.title = '移动到分组';
-                    moveBtn.innerHTML = '<i class="fas fa-folder-open"></i>';
-                    moveBtn.addEventListener('click', () => {
-                        try {
-                            const gs = JSON.parse(localStorage.getItem('conversationGroups') || '[]');
-                            const choice = prompt(`输入目标分组名称（可选）：\n${['无分组'].concat(gs.map(g => g.name)).join('\n')}`);
-                            if (choice === null) return;
-                            let targetGroupId = null;
-                            if (choice !== '' && choice !== '无分组') {
-                                const g = gs.find(x => x && x.name === choice);
-                                if (!g) { alert('未找到该分组名称'); return; }
-                                targetGroupId = g.id;
-                            }
-                            let arr = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
-                            const idx = arr.findIndex(x => x.id === c.id);
-                            if (idx !== -1) {
-                                arr[idx].groupId = targetGroupId;
-                                arr[idx].updatedAt = new Date().toISOString();
-                                localStorage.setItem('savedDeepseekConversations', JSON.stringify(arr));
-                                renderDrawerConversationsList(q);
-                            }
-                        } catch (e) { console.error('移动失败：', e); }
-                    });
+                    // （简化）仅保留加载与重新生成会话记忆按钮，其他管理操作移到会话管理页
                     // 重新生成会话记忆
                     const regenBtn = document.createElement('button');
                     regenBtn.className = 'action-btn';
@@ -538,10 +496,7 @@
                         } catch (e) { console.error('删除会话失败：', e); }
                     });
                     actions.appendChild(loadBtn);
-                    actions.appendChild(renameBtn);
-                    actions.appendChild(moveBtn);
                     actions.appendChild(regenBtn);
-                    actions.appendChild(delBtn);
                     item.appendChild(left);
                     item.appendChild(actions);
                     items.appendChild(item);
