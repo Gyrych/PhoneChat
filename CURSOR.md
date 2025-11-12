@@ -19,7 +19,7 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
  - 修改项：
    1. `config.html` / `dist/config.html`：替换 `#modelSelect` 下拉项为新名单（去重并按字母排序）
    2. `style.css`：添加 `#modelSelect` 样式以减小字号并禁止选项换行
-   3. `README.md` / `README_zh.md`：在“模型配置”/“配置”处说明设置页包含已整理模型列表，保留默认演示模型为 `minimax/minimax-m2:free`
+   3. `README.md` / `README_zh.md`：在"模型配置"/"配置"处说明设置页包含已整理模型列表，保留默认演示模型为 `minimax/minimax-m2:free`
 
 ### 技术栈与运行环境
 
@@ -610,3 +610,11 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
     1. `style.css`：在 `@media (max-width: 768px)` 下将 `.session-title` 改为 `position: fixed` 并使用 `env(safe-area-inset-top)` 兼容刘海屏，同时为 `.chat-container` 增加等高的 `padding-top`（参考高度 56px，可按需微调或替换为 CSS 变量 `--session-title-height`）。
     2. `README.md` / `README_zh.md`：在"移动端友好/尺寸策略"处补充本次实现说明，说明标题栏固定与顶部内边距的目的与效果。
   - 回滚：删除或注释新增的媒体查询样式即可恢复先前行为（不影响数据或功能）。
+
+- 2025-11-12（提示词增强：记忆注入说明与背景资料标记）
+  - 目的：避免将生成的长期记忆误当作当前会话前文，提高注入记忆的可控性。
+  - 修改项：
+    1. `prompts.js`：在 `SESSION_SUMMARY` 与 `GROUP_SUMMARY` 中添加"背景资料"约定，要求记忆条目以短标记指明记忆级别（background | foreground），默认 background；并在输出中简短注明"仅作背景资料，非会话前文；仅在用户明确提及/询问时可引用"。
+    2. `prompts.js`：新增常量 `PROMPTS.MEMORY_INJECTION`，作为在注入记忆为 system/assistant 消息前统一附加的说明文本，提醒模型该批记忆为深层背景资料，默认不作为当前会话前文。
+    3. 文档：在 `README.md` 与 `README_zh.md` 中增加记忆注入约定说明，提示开发者在构造请求时使用 `PROMPTS.MEMORY_INJECTION` 作为注入 wrapper，并说明记忆级别标签的语义与默认行为。
+  - 风险与验证：仅修改提示词与文档，不改动运行时逻辑。验证方式：生成一条记忆并按注入说明将其附加为 system 消息，再行对话以确认模型在未被显式引用时不会将记忆视为当前前文。

@@ -1105,7 +1105,13 @@
                 } catch (_) { /* 忽略 */ }
             }
             if (Array.isArray(systemPrompts) && systemPrompts.length) {
+                // 对于每条记忆项，先注入统一的注入说明（若存在），再注入该记忆项本身
                 for (const sm of systemPrompts) {
+                    try {
+                        if (window.PROMPTS && window.PROMPTS.MEMORY_INJECTION) {
+                            injectedMsgs.push({ role: 'system', content: window.PROMPTS.MEMORY_INJECTION });
+                        }
+                    } catch (_) { /* 忽略 */ }
                     if (sm && sm.role === 'system' && sm.content) injectedMsgs.push(sm);
                 }
             }

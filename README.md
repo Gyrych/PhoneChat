@@ -151,6 +151,8 @@ Output format and limits:
 - Session memory sections: User intent; Key info (0–5); Model notes (≤1); Follow-ups (0–3)
 - Group memory: 5–7 bullets (≤40 chars each, sorted by importance) + Follow-ups (0–3)
 
+Note: `prompts.js` now exposes a helper constant `PROMPTS.MEMORY_INJECTION`. This string should be prepended as a system/assistant wrapper when injecting generated memories into the model. The convention is that generated memories are labeled with a memory-level tag (background | foreground) and default to `background`. Memories labeled `background` MUST be treated as deep background material — not as the conversation's running context — and should only be used/retrieved when the user explicitly references or queries them.
+
 ## Usage
 
 ### Basic Chat
