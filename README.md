@@ -28,6 +28,7 @@
   - On phones, inline capsule toggles (“Deep Thinking”/“Web Search”) show icon-only (labels hidden) to save space.
   - On phones, input footer uses a 3-column grid: left column stacks the two capsule toggles, center column is the textarea spanning two rows, right column stacks attachment (top) and send/stop (bottom).
   - In the `@media (max-width: 600px)` breakpoint we reduce message bubble horizontal padding and slightly adjust font-size and line-height to increase the number of characters per line without reducing touch target sizes.
+ - On phones (≤768px): the session title bar is fixed to the top and the chat container receives top padding so the first message is not covered by the title bar.
 
 ## Default (Demo) API Configuration
 
