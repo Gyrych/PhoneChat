@@ -93,6 +93,22 @@ body {
     color: #1d1d1f;
 }
 
+/* 当头部需要居中标题（带返回按钮且标题居中）时使用此类 */
+.header.title-centered {
+    position: relative;
+}
+.header.title-centered h1 {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    margin: 0;
+    text-align: center;
+    width: calc(100% - 120px); /* 留出左右按钮空间，避免溢出 */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 /* 顶部标题与模型徽标上下排列容器 */
 .header .brand {
     display: flex;
@@ -141,6 +157,30 @@ body {
 /* 左上角悬浮的会话按钮（取代整条头部容器） */
 .conversations-fab {
     position: fixed;
+
+/* 使会话标题栏支持换行，模型徽章单独占一行并右对齐 */
+.session-title {
+  display: flex; /* 保持现有布局 */
+  flex-wrap: wrap; /* 允许换行，将模型徽章推到下一行 */
+  align-items: center;
+  box-sizing: border-box;
+  overflow: hidden; /* 防止溢出 */
+}
+.session-title > div { /* 会话名/分组容器可缩小避免挤压 */
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.session-title .model-badge,
+#currentModelBadge {
+  flex-basis: 100%; /* 单独一行 */
+  width: 100%;
+  text-align: right; /* 右对齐（用户要求） */
+  white-space: normal; /* 允许换行 */
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  box-sizing: border-box;
+  margin-top: 6px; /* 与标题保持间距 */
+}
     left: 12px;
     top: 12px;
     z-index: 10000;
@@ -344,11 +384,18 @@ body.drawer-open .conversations-fab {
 .message-model {
     color: var(--muted);
     font-size: 0.85rem;
-    align-self: center;
+    /* 单独一行并右对齐，限制在气泡宽度内，允许换行 */
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    text-align: right;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
     padding: 2px 6px;
     border-radius: 8px;
     background: rgba(255,255,255,0.0);
-    white-space: nowrap;
+    box-sizing: border-box;
 }
 
 .action-btn {
@@ -608,15 +655,17 @@ body.drawer-open .conversations-fab {
   left: 0;
   right: 0;
   margin-top: 8px;
-  background: var(--surface);
+  /* 使用不透明白底，避免透明/玻璃效果造成可读性问题 */
+  background: #ffffff;
   border: 1px solid var(--border);
   border-radius: 8px;
-  box-shadow: var(--shadow);
+  box-shadow: 0 8px 20px rgba(16,38,84,0.08);
   z-index: 999;
   padding: 8px;
   display: none;
   max-height: 56vh;
   overflow: auto;
+  opacity: 1;
 }
 .custom-select__panel[aria-hidden="false"] { display: block; }
 .custom-select__search {
@@ -1086,6 +1135,38 @@ body.drawer-open .conversations-fab {
     :root { --tap: 40px; --icon-lg: 1.15rem; --icon-md: 1.05rem; }
 }
 
+/* 移动端（宽度 ≤ 768px）：修复会话标题栏遮挡首条消息的问题
+   - 在较窄屏幕下将 .session-title 设为固定定位，并为主聊天容器预留等高的顶部内边距
+   - 兼容刘海/安全区，使用 env(safe-area-inset-top) 作为偏移基准 */
+@media (max-width: 768px) {
+  .session-title {
+    position: fixed !important;
+    top: env(safe-area-inset-top, 0px);
+    left: 0;
+    right: 0;
+    margin: 0;
+    width: 100%;
+    max-width: 100%;
+    /* 取消四角圆角，标题栏全直角 */
+    border-radius: 0;
+    z-index: 10000;
+    /* 保持玻璃视觉但更实色，避免内容透出造成阅读遮挡感 */
+    background: rgba(255,255,255,0.96);
+    box-shadow: 0 6px 20px rgba(16,38,84,0.08);
+    /* 明确标题栏高度并居中内容，便于计算占位空间 */
+    height: var(--session-title-height, 64px);
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+  }
+
+  /* 为聊天容器预留与标题栏等高的空间，避免被遮挡 */
+  .chat-container {
+    padding-top: calc(var(--session-title-height, 64px) + env(safe-area-inset-top, 0px));
+  }
+}
+
 /* 响应式调整 */
 @media (max-width: 480px) {
     .message {
@@ -1169,7 +1250,7 @@ body.drawer-open .conversations-fab {
     align-items: center;
     justify-content: center;
     background: rgba(0, 0, 0, 0.35);
-    z-index: 9999;
+    z-index: 2147483647;
 }
 
 .modal {
@@ -1241,7 +1322,8 @@ body.drawer-open .conversations-fab {
     inset: 0;
     background: rgba(0, 0, 0, 0.35);
     display: none;
-    z-index: 9998;
+    /* 提高遮罩层层级，使其在标题栏之上（但低于抽屉） */
+    z-index: 11000;
 }
 .drawer-overlay.open { display: block; }
 
@@ -1258,7 +1340,8 @@ body.drawer-open .conversations-fab {
     backdrop-filter: blur(var(--blur)) saturate(140%);
     border-right: 1px solid var(--border);
     box-shadow: var(--shadow);
-    z-index: 9999;
+    /* 确保抽屉在所有全局固定元素之上（比如顶部标题栏） */
+    z-index: 11001;
     display: flex;
     flex-direction: column;
 }

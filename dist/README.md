@@ -28,6 +28,7 @@
   - On phones, inline capsule toggles (“Deep Thinking”/“Web Search”) show icon-only (labels hidden) to save space.
   - On phones, input footer uses a 3-column grid: left column stacks the two capsule toggles, center column is the textarea spanning two rows, right column stacks attachment (top) and send/stop (bottom).
   - In the `@media (max-width: 600px)` breakpoint we reduce message bubble horizontal padding and slightly adjust font-size and line-height to increase the number of characters per line without reducing touch target sizes.
+ - On phones (≤768px): the session title bar is fixed to the top and the chat container receives top padding so the first message is not covered by the title bar.
 
 ## Default (Demo) API Configuration
 
@@ -149,6 +150,8 @@ Output format and limits:
 - Total length ≤ 200 characters; each bullet ≤ 40 characters
 - Session memory sections: User intent; Key info (0–5); Model notes (≤1); Follow-ups (0–3)
 - Group memory: 5–7 bullets (≤40 chars each, sorted by importance) + Follow-ups (0–3)
+
+Note: `prompts.js` now exposes a helper constant `PROMPTS.MEMORY_INJECTION`. This string should be prepended as a system/assistant wrapper when injecting generated memories into the model. The convention is that generated memories are labeled with a memory-level tag (background | foreground) and default to `background`. Memories labeled `background` MUST be treated as deep background material — not as the conversation's running context — and should only be used/retrieved when the user explicitly references or queries them.
 
 ## Usage
 

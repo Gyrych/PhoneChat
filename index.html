@@ -769,7 +769,17 @@
             const badge = document.getElementById('currentModelBadge');
             if (!badge) return;
             const name = (window.MODEL_NAME || localStorage.getItem('chatModel') || '').trim();
+            // 设置文本并确保徽章可见（防止样式或脚本导致被隐藏）
             badge.textContent = name || '未选择模型';
+            try {
+                badge.style.display = ''; // 恢复到样式表控制的显示模式
+                badge.style.visibility = 'visible';
+                badge.removeAttribute('hidden');
+                badge.setAttribute('aria-hidden', 'false');
+                if (!badge.classList.contains('model-badge')) badge.classList.add('model-badge');
+                // 同步 title 便于悬停查看完整模型名
+                badge.title = badge.textContent || badge.title || '当前模型';
+            } catch (_) {}
         }
 
         /**

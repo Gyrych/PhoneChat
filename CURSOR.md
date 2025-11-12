@@ -618,3 +618,12 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
     2. `prompts.js`：新增常量 `PROMPTS.MEMORY_INJECTION`，作为在注入记忆为 system/assistant 消息前统一附加的说明文本，提醒模型该批记忆为深层背景资料，默认不作为当前会话前文。
     3. 文档：在 `README.md` 与 `README_zh.md` 中增加记忆注入约定说明，提示开发者在构造请求时使用 `PROMPTS.MEMORY_INJECTION` 作为注入 wrapper，并说明记忆级别标签的语义与默认行为。
   - 风险与验证：仅修改提示词与文档，不改动运行时逻辑。验证方式：生成一条记忆并按注入说明将其附加为 system 消息，再行对话以确认模型在未被显式引用时不会将记忆视为当前前文。
+2025-11-12（样式调整：标题栏模型换行、气泡模型展示与模态置顶）
+- 目的：改进模型名称在头部与消息气泡中的显示，避免长模型名溢出并确保新建会话模态位于最顶层，提升可读性与交互可靠性。
+- 修改项：
+  1. `style.css` / `dist/style.css`：
+     - 使 `#sessionTitleBar` / `.session-title` 支持换行，`#currentModelBadge`（或 `.model-badge`）单独占一行并右对齐，允许长模型名换行显示而不超出标题栏。
+     - 将消息内 `.message-model` 调整为单独一行、宽度不超过气泡、右对齐并允许换行（`overflow-wrap: anywhere` / `word-break: break-word`），避免超出气泡范围。
+     - 将 `.modal-overlay` 的 `z-index` 提升至 `2147483647`，确保新建会话模态位于最顶层，不被其他浮层覆盖。
+  2. 文档：在 `CURSOR.md` 变更记录中追加本条目（即当前条目），说明变更目的与影响。
+- 回退：若需回退，恢复 `style.css` / `dist/style.css` 中被修改的规则；该改动为纯 CSS，不影响消息渲染逻辑或数据持久化。

@@ -32,6 +32,7 @@
                 <div class="session-name" id="sessionName">未命名会话</div>
                 <div class="session-group" id="sessionGroup">未分组</div>
             </div>
+            <div id="currentModelBadge" class="model-badge" title="当前模型">未选择模型</div>
         </div>
         <div id="messageContainer" class="message-container"></div>
         <div id="statusIndicator" class="status-indicator"></div>
@@ -170,6 +171,14 @@
 
             console.log('initApp: attaching handlers');
             try { updateCurrentModelBadge(); } catch (e) { /* 忽略徽标更新异常 */ }
+            // 在跨窗口/标签页更新 localStorage.chatModel 时刷新徽标（便于从配置页修改后自动反映）
+            try {
+                window.addEventListener('storage', (e) => {
+                    try {
+                        if (e.key === 'chatModel') updateCurrentModelBadge();
+                    } catch (_) {}
+                });
+            } catch (_) {}
             // 绑定品牌 Logo 点击：回到首页
             const brandLogo = document.getElementById('brandLogo');
             if (brandLogo) {
@@ -1105,7 +1114,13 @@
                 } catch (_) { /* 忽略 */ }
             }
             if (Array.isArray(systemPrompts) && systemPrompts.length) {
+                // 对于每条记忆项，先注入统一的注入说明（若存在），再注入该记忆项本身
                 for (const sm of systemPrompts) {
+                    try {
+                        if (window.PROMPTS && window.PROMPTS.MEMORY_INJECTION) {
+                            injectedMsgs.push({ role: 'system', content: window.PROMPTS.MEMORY_INJECTION });
+                        }
+                    } catch (_) { /* 忽略 */ }
                     if (sm && sm.role === 'system' && sm.content) injectedMsgs.push(sm);
                 }
             }

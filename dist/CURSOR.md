@@ -19,7 +19,7 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
  - 修改项：
    1. `config.html` / `dist/config.html`：替换 `#modelSelect` 下拉项为新名单（去重并按字母排序）
    2. `style.css`：添加 `#modelSelect` 样式以减小字号并禁止选项换行
-   3. `README.md` / `README_zh.md`：在“模型配置”/“配置”处说明设置页包含已整理模型列表，保留默认演示模型为 `minimax/minimax-m2:free`
+   3. `README.md` / `README_zh.md`：在"模型配置"/"配置"处说明设置页包含已整理模型列表，保留默认演示模型为 `minimax/minimax-m2:free`
 
 ### 技术栈与运行环境
 
@@ -30,10 +30,10 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
 
 - `index.html`：主页面，包含聊天界面、消息渲染、发送逻辑与消息持久化；内置加密的 OpenRouter API Key（仅演示用途）。
  - `index.html`：主页面，包含聊天界面、消息渲染、发送逻辑与消息持久化；在主聊天列顶部新增会话标题栏用于展示当前会话名称与分组；内置加密的 OpenRouter API Key（仅演示用途）。
-- `config.html`：设置页面，提供“模型选择（写入 `localStorage.chatModel`）”与“联网搜索设置（写入 `freechat.web.*`）”；当前不提供 API Key 输入项。
-- （已废弃）`conversations.html`：早期的高级会话管理页面；保存/加载/删除、分组管理、记忆查看/重新生成等能力已整合到 `index.html` 的覆盖式抽屉中（含“新分组名 + 创建分组”控件）。
+- `config.html`：设置页面，提供"模型选择（写入 `localStorage.chatModel`）"与"联网搜索设置（写入 `freechat.web.*`）"；当前不提供 API Key 输入项。
+- （已废弃）`conversations.html`：早期的高级会话管理页面；保存/加载/删除、分组管理、记忆查看/重新生成等能力已整合到 `index.html` 的覆盖式抽屉中（含"新分组名 + 创建分组"控件）。
  - `conversations.html`：会话管理页面，支持保存/加载/删除会话、分组管理、查看/重新生成会话记忆与分组记忆；新建会话时弹窗询问是否加入已有分组并提供下拉选择。
-- `prompts.js`：提示词模板，集中管理“会话记忆（SESSION_SUMMARY）/分组记忆（GROUP_SUMMARY）”等提示词常量。
+- `prompts.js`：提示词模板，集中管理"会话记忆（SESSION_SUMMARY）/分组记忆（GROUP_SUMMARY）"等提示词常量。
 - `style.css`：应用样式与响应式布局。
 - `script.js`：可选的共用脚本（导航、localStorage JSON 助手等）；当前页面未默认引入。
 - `tools/encrypt_key.js`：API 密钥加密工具（占位，当前无实现）。
@@ -42,10 +42,10 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
 
 1. 用户在 `index.html` 输入消息并发送。
 2. 新消息被追加到当前会话数组并保存到 `localStorage`（键名：`deepseekConversation`）。若尚无 `deepseekConversationId`，则自动创建持久会话条目写入 `savedDeepseekConversations`，并记录该 ID（无须手动保存）。
-3. 在发送请求前，若存在记忆则自动注入为“多条 system 消息”（新版注入策略）：
+3. 在发送请求前，若存在记忆则自动注入为"多条 system 消息"（新版注入策略）：
    - 分组记忆：逐条注入 `conversationGroups[].memorySummary`（默认注入全部分组，可通过 `freechat.memory.inject.allGroups` 切换为仅当前分组）；
-   - 会话记忆：逐条注入“当前分组内所有会话”的 `savedDeepseekConversations[].summary`（按更新时间倒序裁剪，阈值可配且去重）；
-   注入顺序为“（若启用）Web 搜索输出规范 → 分组记忆（全部/当前，逐条） → 当前分组会话记忆（逐条） → 历史消息”，且不污染可见的 `currentConversation`。不支持多 system 的供应商将自动合并为单条并以 `---` 分隔。
+   - 会话记忆：逐条注入"当前分组内所有会话"的 `savedDeepseekConversations[].summary`（按更新时间倒序裁剪，阈值可配且去重）；
+   注入顺序为"（若启用）Web 搜索输出规范 → 分组记忆（全部/当前，逐条） → 当前分组会话记忆（逐条） → 历史消息"，且不污染可见的 `currentConversation`。不支持多 system 的供应商将自动合并为单条并以 `---` 分隔。
 4. 应用构造请求体并通过 `fetch` 向配置的 API 端点发送请求，使用 `Authorization: Bearer <apiKey>` 头。主聊天请求仅使用内置加密的演示 Key（`OPENROUTER_API_KEY`）；如需让主聊天使用自有 Key，请替换 `index.html` 中的加密串。会话记忆与分组记忆相关调用中，`apiKey` 为 `OPENROUTER_API_KEY` 优先，回退到 `localStorage.deepseekApiKey`（若存在）。
 5. 每个持久会话条目会记录 `model` 字段（来源于 `localStorage.chatModel`/`window.MODEL_NAME`），在 `conversations.html` 加载会话时若存在该字段，会自动恢复到 `chatModel`，确保历史会话按其当时模型继续。
 6. 收到 AI 响应后将回复流式追加与渲染，并实时保存会话；同时以 1.5s 节流策略将内容回写到持久会话条目（避免高频写入）。
@@ -61,25 +61,25 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
 严禁包含：
 - 问候/寒暄/道歉/感谢/自我介绍/能力列表/操作引导/通用建议
 - 模型元信息（模型名、架构、记忆机制、隐私合规、提供商等）
-- 复述系统提示或模板话术（如“我可以…/欢迎…”）
+- 复述系统提示或模板话术（如"我可以…/欢迎…"）
 
 合并去重：
 - 语义相近合并为更一般化表述；重复信息仅保留一次；仅确认而无新增信息的不记录。
 
 低信号会话处理：
-- 若本轮无“新增用户事实或明确请求”，视为低信号；输出中“用户意图/关键信息/模型要点/待办”均写“无”（仍保持结构，便于管道兼容）。
+- 若本轮无"新增用户事实或明确请求"，视为低信号；输出中"用户意图/关键信息/模型要点/待办"均写"无"（仍保持结构，便于管道兼容）。
 
 输出格式与限制：
-- 会话记忆：用户意图（1 句）/关键信息（0–5）/模型要点（≤1，仅当对后续有指导价值，否则“无”）/待办（0–3）。
+- 会话记忆：用户意图（1 句）/关键信息（0–5）/模型要点（≤1，仅当对后续有指导价值，否则"无"）/待办（0–3）。
 - 分组记忆：5–7 条按重要性排序，集中表达长期可复用的用户画像与稳定约束；待办 0–3 条。
-- 长度限制：总字数 ≤ 200，每条 ≤ 40 字；不得出现“严禁包含”项。
+- 长度限制：总字数 ≤ 200，每条 ≤ 40 字；不得出现"严禁包含"项。
 
 ### 联网搜索架构与数据流（更新）
 
 - 目的：为任意模型按需接入实时 Web 检索，提升事实性与时效性；兼容 OpenRouter Web 插件的统一注解规范。
 - UI：
-  - 输入区左侧提供“联网搜索”内联胶囊开关（`#webInlineToggle`），用于启用/关闭；状态持久化键：`freechat.web.enable`。
-  - 参数配置已迁移到设置页（`config.html`）的“联网搜索设置”，不再在主页面展示“地球”按钮与浮层面板。
+  - 输入区左侧提供"联网搜索"内联胶囊开关（`#webInlineToggle`），用于启用/关闭；状态持久化键：`freechat.web.enable`。
+  - 参数配置已迁移到设置页（`config.html`）的"联网搜索设置"，不再在主页面展示"地球"按钮与浮层面板。
   - 参数项与本地存储映射：
     - `freechat.web.engine`：`auto|native|exa`；
     - `freechat.web.maxResults`：1..10；
@@ -88,8 +88,8 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
 - 请求构造：当启用时在请求体加入：
   - `plugins: [{ id: 'web', engine?, max_results?, search_prompt? }]`
   - `web_search_options: { search_context_size? }`
-  - 引擎为 `auto` 时不显式写入（按“原生优先，回退 Exa”）。
-- 结果综合系统提示：当启用 Web 插件时，会在请求最前插入一条系统消息（来源：`PROMPTS.WEB_SYNTHESIS`，集中定义于 `prompts.js`），要求模型“先给最终答案，后给引用”，并约束：
+  - 引擎为 `auto` 时不显式写入（按"原生优先，回退 Exa"）。
+- 结果综合系统提示：当启用 Web 插件时，会在请求最前插入一条系统消息（来源：`PROMPTS.WEB_SYNTHESIS`，集中定义于 `prompts.js`），要求模型"先给最终答案，后给引用"，并约束：
   - 中文结构化输出；所有时间/日期按 `Asia/Shanghai`；
   - 若涉及事实/数据/统计/价格/指标/赛事/政策/公告等：给出关键数值/单位与来源时间戳，必要时说明口径/区间/币种；
   - 引用列表使用域名作为 Markdown 链接文本；引用须与正文陈述一一对应；
@@ -98,7 +98,7 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
 - 响应解析：
   - 流式正文/思考维持现有解析；
   - 若片段中出现 `delta.annotations[].url_citation` 或尾包中出现 `message.annotations[].url_citation`，均累积到当前助手消息对象 `aiMsgObj.citations`；
-  - 渲染时在助手消息下方以“参考来源”列表展示（使用域名作为链接文本）。
+  - 渲染时在助手消息下方以"参考来源"列表展示（使用域名作为链接文本）。
 - 计费提示：
   - Exa（回退或强制）：按 OpenRouter 额度 $4/1000 结果（默认 5 条≈$0.02/次）+ 模型用量；
   - Native：供应商透传，随上下文强度变化。
@@ -106,15 +106,15 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
 ### 关键功能说明（已实现/部分实现）
 
 - 会话分组：支持将会话归类到分组（文件夹），支持重命名与在分组之间移动会话。
-- 新建会话分组选择与命名：在会话管理页点击“新建会话”后，弹窗询问是否加入已有分组（下拉菜单）并允许为会话命名；结果分别写入 `deepseekConversationGroupId` 与 `deepseekNewConversationName`，主页面首次创建持久会话时读取并清理。
+- 新建会话分组选择与命名：在会话管理页点击"新建会话"后，弹窗询问是否加入已有分组（下拉菜单）并允许为会话命名；结果分别写入 `deepseekConversationGroupId` 与 `deepseekNewConversationName`，主页面首次创建持久会话时读取并清理。
 - 会话自动无感存储：首次发送消息自动创建持久会话条目；其后对会话的更改以节流（约 1.5s）写回，避免重复与遗忘。
 - 会话自动记忆：每轮生成结束后自动判定是否需要生成会话记忆（去重），将结果保存到会话元数据。
-- 分组记忆与会话记忆注入：请求前自动注入“分组记忆（默认全部分组，逐条）+ 当前分组全部会话记忆（逐条）”（多条 system 消息，可配置与截断；对不支持多 system 的供应商自动合并为单条）。
+- 分组记忆与会话记忆注入：请求前自动注入"分组记忆（默认全部分组，逐条）+ 当前分组全部会话记忆（逐条）"（多条 system 消息，可配置与截断；对不支持多 system 的供应商自动合并为单条）。
 - 会话记忆模型选择策略：生成会话记忆（自动与手动）时，优先使用该会话记录的 `model`，其后回退到全局 `window.MODEL_NAME`，最后兜底 `'minimax/minimax-m2:free'`；分组记忆始终使用全局模型。
 - Markdown 渲染：AI 回复通过 `marked` 渲染为 HTML，并使用 `DOMPurify` 进行消毒以降低 XSS 风险。
  - 会话模型持久化与恢复：保存会话时写入 `model` 字段；加载会话时自动恢复该模型；会话列表在名称旁显示模型徽标。
 - 主聊天页模型徽标：在 `index.html` 顶部显示当前会话所用模型（读取 `localStorage.chatModel` 或已加载会话的 `model`）。
-- 思考过程显示：当使用具备“思考”能力的模型且 API 返回推理内容时，以“流式”显示并置于助手正文之前；默认展开，用户可点击按钮收起/展开。
+- 思考过程显示：当使用具备"思考"能力的模型且 API 返回推理内容时，以"流式"显示并置于助手正文之前；默认展开，用户可点击按钮收起/展开。
   - 实现细节：推理内容在流式过程中同时写入当前助手消息对象的 `reasoning` 字段；`renderMessages` 会依据该字段在正文前渲染推理块，避免页面重渲染后丢失。
 
 ### 日志架构与数据流（新增）
@@ -128,9 +128,9 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
     - 分组记忆聚合（`updateGroupMemory`）→ `groupmem_request` / `groupmem_done`
   - `conversations.html`：保存会话生成摘要、重新生成摘要、分组记忆聚合同步记录。
 - 事件字段（要点）：`id`、`ts`、`type`、`endpoint`、`model`、`conversationId`、`groupId`、`req.headersMasked`、`req.body`、`res.status`、`res.streamChunks`（可能截断）、`res.final`、`error.message`、`durationMs`。
-- UI：仅 `index.html` 右上角显示“导出日志”按钮；`conversations.html` 不再提供导出入口；“清空日志”按钮默认隐藏（可恢复）。
+- UI：仅 `index.html` 右上角显示"导出日志"按钮；`conversations.html` 不再提供导出入口；"清空日志"按钮默认隐藏（可恢复）。
 - 配置：`localStorage.freechat.log.maxEntries`（默认 1000）、`localStorage.freechat.log.enable`（默认 true）。
- - 导出范围：默认仅导出“当前会话”。亦支持导出全部（`scope: 'all'`）或按会话ID（`scope: 'byConversationId', conversationId`）。文件名包含范围后缀（如 `-current`）。
+ - 导出范围：默认仅导出"当前会话"。亦支持导出全部（`scope: 'all'`）或按会话ID（`scope: 'byConversationId', conversationId`）。文件名包含范围后缀（如 `-current`）。
 
 ### 已知限制与建议
 
@@ -190,11 +190,11 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
   - 头部 `.header`、输入区 `.input-container`、会话卡片 `.conversation-item`、AI 气泡 `.ai-message`、模态 `.modal` 等均采用玻璃风格；
   - 用户消息采用品牌渐变（`--brand` → `--brand-2`）；
   - 模型徽章 `.model-badge` 使用胶囊玻璃风；
-- 顶部不再使用整条“横向容器”；仅保留左上角一个悬浮的“会话抽屉开关”按钮；品牌 Logo 与标题不在顶部显示；
+- 顶部不再使用整条"横向容器"；仅保留左上角一个悬浮的"会话抽屉开关"按钮；品牌 Logo 与标题不在顶部显示；
   - 图标按钮统一半透明玻璃按钮，悬停轻微浮起与投影；
   - 响应式字号与行高通过 `clamp()` 与 `--lh` 控制；
   - `prefers-reduced-motion` 自动降低动画强度。
-- 页眉极简化：移除“导出日志/清空日志/设置”按钮与模型徽章显示，保留左侧会话抽屉开关与品牌，贴近 DeepSeek 的极简顶部布局；设置入口与高级管理入口移至抽屉底部。
+- 页眉极简化：移除"导出日志/清空日志/设置"按钮与模型徽章显示，保留左侧会话抽屉开关与品牌，贴近 DeepSeek 的极简顶部布局；设置入口与高级管理入口移至抽屉底部。
 
 #### 消息气泡宽度策略（更新）
 - 桌面/平板：`.message { max-width: min(860px, 88%) }`，在宽屏上限制最大片宽 860px，同时在中等宽度下放宽到容器的 88%，提升可读性。
@@ -209,7 +209,7 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
   - `@media (max-width: 360px)`：将 `--tap` 压缩至 40px，同时下调 `--icon-lg/md`。
   - 与 `@media (max-width: 480px)` 共存：该断点主要控制消息列宽为 94% 与会话管理区按钮纵排，不冲突。
   - 文本标签隐藏：在手机端隐藏 `.pill-toggle .label`（仅显示图标），节省横向空间。
-  - 输入区布局：在手机端将 `.input-container` 切换为三列网格：左列为两个胶囊开关上下排列，中列为输入框跨两行，右列为“附件（上）/发送或停止（下）”上下排列；不改 DOM，仅用 CSS 位置编排。
+  - 输入区布局：在手机端将 `.input-container` 切换为三列网格：左列为两个胶囊开关上下排列，中列为输入框跨两行，右列为"附件（上）/发送或停止（下）"上下排列；不改 DOM，仅用 CSS 位置编排。
 
 #### 安全区适配（刘海/打孔屏）
 - 在 `index.html` 的 `<meta name="viewport">` 中加入 `viewport-fit=cover`，启用 WebView 对安全区的计算。
@@ -218,12 +218,12 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
 - 该方案对 Android/iOS WebView 均有效；对不支持的环境无副作用。
 
 #### 抽屉式会话管理与欢迎界面（新增）
-- 覆盖式抽屉：统一桌面/移动端的会话管理交互；点击顶部“会话”按钮打开，点击遮罩或按 ESC 关闭。
-- 抽屉内容：顶部“新建会话”主按钮 + 搜索框 + “新分组名+创建分组”；主体按分组展示会话（加载/删除）；底部仅保留“设置”入口。
-- 设置入口：底部使用“齿轮”图标按钮（仅图标，保留 `title/aria-label` 为“设置”），在移动端节省空间且更易辨识。
+- 覆盖式抽屉：统一桌面/移动端的会话管理交互；点击顶部"会话"按钮打开，点击遮罩或按 ESC 关闭。
+- 抽屉内容：顶部"新建会话"主按钮 + 搜索框 + "新分组名+创建分组"；主体按分组展示会话（加载/删除）；底部仅保留"设置"入口。
+- 设置入口：底部使用"齿轮"图标按钮（仅图标，保留 `title/aria-label` 为"设置"），在移动端节省空间且更易辨识。
 - 新建会话：沿用会话管理页的分组选择/命名模态，写入相同的本地键；创建后返回主聊并显示欢迎界面。
-  - 更新：弹窗改为“分组名称（必填）+ 会话名称（可选）”；当输入的新分组不存在时会自动创建分组，并写入对应的 `conversationGroups` 条目与 `deepseekConversationGroupId`。
-- 欢迎界面：当当前会话为空时显示，包含“Logo（logo.png）+ FreeChat 同行展示”与副标题“在这里可以进行无约束交流。”（整洁布局，不显示建议卡片）。
+  - 更新：弹窗改为"分组名称（必填）+ 会话名称（可选）"；当输入的新分组不存在时会自动创建分组，并写入对应的 `conversationGroups` 条目与 `deepseekConversationGroupId`。
+- 欢迎界面：当当前会话为空时显示，包含"Logo（logo.png）+ FreeChat 同行展示"与副标题"在这里可以进行无约束交流。"（整洁布局，不显示建议卡片）。
 
 ---
 ## 变更记录
@@ -231,127 +231,127 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
   - 目的：在移动端避免抽屉被摄像头/底部手势条遮挡；设置入口更直观、省空间。
   - 修改项：
     1. style.css：为 `.drawer`/`.drawer-list`/`.drawer-footer` 添加 `env(safe-area-inset-*)`/`constant(...)` 内边距；新增 `.drawer-icon-btn`（齿轮图标按钮样式）。
-    2. index.html：将抽屉底部文字“设置”改为齿轮图标按钮，保留无障碍属性。
-    3. CURSOR.md：在“安全区适配”补充抽屉适配说明；在“抽屉式会话管理”标注设置入口为图标按钮；追加本条变更记录。
+    2. index.html：将抽屉底部文字"设置"改为齿轮图标按钮，保留无障碍属性。
+    3. CURSOR.md：在"安全区适配"补充抽屉适配说明；在"抽屉式会话管理"标注设置入口为图标按钮；追加本条变更记录。
 - 2025-11-09（页眉极简化：移除导出/清空/设置/模型徽章）
   - 目的：进一步贴近 DeepSeek 主页的极简页眉设计，减少视觉噪声。
   - 修改项：
-    1. index.html：移除页眉“导出日志/清空日志/设置”按钮与模型徽章；日志导出改为控制台调用 `Logger.export(...)`。
+    1. index.html：移除页眉"导出日志/清空日志/设置"按钮与模型徽章；日志导出改为控制台调用 `Logger.export(...)`。
     2. CURSOR.md/README（中/英）：同步更新页眉与日志导出使用说明。
 - 2025-11-09（页眉再简化：移除 Logo 与标题，仅保留抽屉按钮）
-  - 目的：完全对齐“仅左侧抽屉开关”的极简顶部布局。
+  - 目的：完全对齐"仅左侧抽屉开关"的极简顶部布局。
   - 修改项：
-    1. index.html：删除品牌 Logo 与“FreeChat”标题的 DOM；去掉整条头部容器，改为左上角悬浮按钮。
-    2. CURSOR.md：主体“界面风格”改为“顶部仅悬浮按钮”；追加本条变更记录。
+    1. index.html：删除品牌 Logo 与"FreeChat"标题的 DOM；去掉整条头部容器，改为左上角悬浮按钮。
+    2. CURSOR.md：主体"界面风格"改为"顶部仅悬浮按钮"；追加本条变更记录。
 - 2025-11-09（移除高级管理页；分组创建移入抽屉）
   - 目的：简化导航，将所有管理能力统一到主页面抽屉。
   - 修改项：
-    1. index.html：抽屉内新增“新分组名 + 创建分组”控件；删除抽屉底部“高级管理”入口。
+    1. index.html：抽屉内新增"新分组名 + 创建分组"控件；删除抽屉底部"高级管理"入口。
     2. README（中/英）：移除高级管理页描述；标注 `conversations.html` 为废弃。
-    3. CURSOR.md：更新“主要文件说明”与“抽屉式会话管理”章节，追加本条变更记录。
+    3. CURSOR.md：更新"主要文件说明"与"抽屉式会话管理"章节，追加本条变更记录。
 - 2025-11-09（欢迎界面简化与 Logo 更新）
   - 目的：保持欢迎区整洁、贴近目标风格；统一使用 `logo.webp`。
   - 修改项：
-    1. index.html：欢迎区改为“logo.png + FreeChat 同行”+ 副标题，移除建议按钮。
+    1. index.html：欢迎区改为"logo.png + FreeChat 同行"+ 副标题，移除建议按钮。
     2. README（中/英）与本文件主体描述同步调整。
 - 2025-11-09（覆盖式抽屉会话管理与欢迎界面）
-  - 目的：对齐 DeepSeek 主页的整体排布与交互；将会话管理统一为“覆盖式抽屉”；为空会话提供欢迎界面与快速建议卡。
+  - 目的：对齐 DeepSeek 主页的整体排布与交互；将会话管理统一为"覆盖式抽屉"；为空会话提供欢迎界面与快速建议卡。
   - 修改项：
-    1. index.html：新增抽屉与遮罩 DOM；新增“新建会话”主按钮、搜索框、分组/会话列表（支持加载/删除）；抽屉底部提供“高级管理/设置”入口；将“会话”按钮改为开关抽屉（支持 ESC/遮罩关闭）。
-    2. index.html：新增欢迎界面（Logo/标题/副标题“在这里可以进行无约束交流。”/建议卡）；新增一键填充输入框逻辑；根据是否有消息自动显示/隐藏欢迎界面。
-    3. index.html：迁移并接线“新建会话（分组选择/命名）”模态，沿用既有本地存储键；新建后清空临时会话并回到主聊。
+    1. index.html：新增抽屉与遮罩 DOM；新增"新建会话"主按钮、搜索框、分组/会话列表（支持加载/删除）；抽屉底部提供"高级管理/设置"入口；将"会话"按钮改为开关抽屉（支持 ESC/遮罩关闭）。
+    2. index.html：新增欢迎界面（Logo/标题/副标题"在这里可以进行无约束交流。"/建议卡）；新增一键填充输入框逻辑；根据是否有消息自动显示/隐藏欢迎界面。
+    3. index.html：迁移并接线"新建会话（分组选择/命名）"模态，沿用既有本地存储键；新建后清空临时会话并回到主聊。
     4. style.css：新增抽屉/遮罩/列表/主按钮/搜索样式与动效；新增欢迎界面与建议卡样式；保持玻璃风与移动端响应式一致性。
-    5. README（中/英）：更新功能列表与“会话管理”章节，说明抽屉式管理与欢迎界面；将 `conversations.html` 定位为“高级管理”。
-    6. CURSOR.md：主体新增“抽屉式会话管理与欢迎界面”小节，并记录本次变更。
+    5. README（中/英）：更新功能列表与"会话管理"章节，说明抽屉式管理与欢迎界面；将 `conversations.html` 定位为"高级管理"。
+    6. CURSOR.md：主体新增"抽屉式会话管理与欢迎界面"小节，并记录本次变更。
 - 2025-11-08（新增 Windows 一键构建 APK 脚本）
   - 目的：简化在 Windows 下的 APK 生成流程，减少手工步骤。
   - 修改项：
-    1. 新增 `scripts/build-apk.ps1` 与 `scripts/build-apk.cmd`，一键执行“前端构建 → 同步 → Gradle 构建 → 输出 APK 副本”。
+    1. 新增 `scripts/build-apk.ps1` 与 `scripts/build-apk.cmd`，一键执行"前端构建 → 同步 → Gradle 构建 → 输出 APK 副本"。
     2. `package.json` 增加 `build:apk` 脚本（调用 PowerShell 脚本）。
-    3. README（中/英）与本文件加入“一键构建 APK”说明。
+    3. README（中/英）与本文件加入"一键构建 APK"说明。
 - 2025-11-08（移动端刘海/打孔屏安全区适配）
-  - 目的：解决部分机型（如小米）摄像头/状态栏遮挡顶部“FreeChat”标识的问题。
+  - 目的：解决部分机型（如小米）摄像头/状态栏遮挡顶部"FreeChat"标识的问题。
   - 修改项：
     1. index.html：`<meta name="viewport">` 增加 `viewport-fit=cover`。
     2. style.css：在 `body` 上添加 `env(safe-area-inset-top)` 与 `constant(safe-area-inset-top)` 顶部内边距自适配。
-    3. CURSOR.md：新增“安全区适配（刘海/打孔屏）”章节并记录变更。
+    3. CURSOR.md：新增"安全区适配（刘海/打孔屏）"章节并记录变更。
 - 2025-11-08（新增 Android 封装与构建脚本）
   - 目的：在安卓设备上以 APK/AAB 形态运行本应用。
   - 修改项：
     1. 新增 `capacitor.config.json`，设置 `webDir: "dist"` 与 `server.androidScheme: "https"`；
     2. 新增 `scripts/build.js` 与 `package.json` 的 `"build"` 脚本，用于将静态资源复制到 `dist/`；
     3. 通过 `npx cap add android` 生成 `android/` 原生工程；`npx cap copy` 同步资源；
-    4. CURSOR.md 主体新增“Android 打包与运行（Capacitor）”章节并记录本次变更。
+    4. CURSOR.md 主体新增"Android 打包与运行（Capacitor）"章节并记录本次变更。
  - 2025-11-08（对话气泡宽度放宽）
   - 目的：在桌面与中等屏幕显著提升阅读体验，并在超宽屏限制过长行宽；手机端保留更舒适的边距。
   - 修改项：
     1. style.css：`.message { max-width: min(860px, 88%) }`；`@media (max-width: 480px)` 下 `.message { max-width: 94% }`。
-    2. CURSOR.md：新增“消息气泡宽度策略（更新）”小节；在“移动端尺寸与间距策略”中将 480px 断点的说明更新为 94%。
+    2. CURSOR.md：新增"消息气泡宽度策略（更新）"小节；在"移动端尺寸与间距策略"中将 480px 断点的说明更新为 94%。
 - 2025-11-08（主聊天页添加品牌 Logo）
   - 目的：提升品牌辨识度与导航一致性（点击 Logo 回首页）。
   - 修改项：
     1. index.html：在标题左侧加入 `icon/icon.png`，高度 32px，点击回首页。
     2. style.css：新增 `.brand-line` 与 `.brand .logo` 样式；≤600px 高度 28px。
-    3. CURSOR.md：更新“界面风格与设计令牌”主体并记录本次变更。
-- 2025-11-08（移除会话管理页“导出日志”按钮，仅主聊天页保留）
-  - 目的：简化 UI，避免在会话管理页“当前会话”语义不稳定导致的误解。
+    3. CURSOR.md：更新"界面风格与设计令牌"主体并记录本次变更。
+- 2025-11-08（移除会话管理页"导出日志"按钮，仅主聊天页保留）
+  - 目的：简化 UI，避免在会话管理页"当前会话"语义不稳定导致的误解。
   - 修改项：
     1. conversations.html：删除头部导出按钮与其事件绑定，保留清空按钮（仍默认隐藏，可恢复）。
-    2. CURSOR.md：更新“日志架构与数据流 → UI”为“仅 index.html 显示导出按钮；conversations.html 不再提供导出入口”；追加本条变更记录。
-    3. README（中/英）：更新“请求/响应日志”章节，声明仅主聊天页提供导出按钮；如需全部导出可在控制台执行 `Logger.export({ scope: 'all' })`。
+    2. CURSOR.md：更新"日志架构与数据流 → UI"为"仅 index.html 显示导出按钮；conversations.html 不再提供导出入口"；追加本条变更记录。
+    3. README（中/英）：更新"请求/响应日志"章节，声明仅主聊天页提供导出按钮；如需全部导出可在控制台执行 `Logger.export({ scope: 'all' })`。
 - 2025-11-08（移动端隐藏内联胶囊开关文字标签）
   - 目的：在手机浏览器中节省横向空间，仅显示图标以保持整洁。
   - 修改项：
     1. style.css：在 `@media (max-width: 600px)` 中对 `.pill-toggle .label` 设置 `display: none;`。
-    2. CURSOR.md：在“移动端尺寸与间距策略”补充“文本标签隐藏”条目，并记录本次变更。
+    2. CURSOR.md：在"移动端尺寸与间距策略"补充"文本标签隐藏"条目，并记录本次变更。
 - 2025-11-08（移动端输入区上下排列布局）
   - 目的：在手机端提高空间利用率与可点性，将左右两侧控件上下排列，保持输入区居中且不挤压。
   - 修改项：
     1. style.css：`@media (max-width: 600px)` 下将 `.input-container` 切换为三列网格，左列两个开关上下排列，中列输入框跨两行，右列附件在上、发送/停止在下；仅使用 CSS，不改变 DOM 结构。
-    2. CURSOR.md：在“移动端尺寸与间距策略”中补充“输入区布局”描述，并登记本条变更。
+    2. CURSOR.md：在"移动端尺寸与间距策略"中补充"输入区布局"描述，并登记本条变更。
 - 2025-11-08（移动端图标与间距整体收敛，适中风格）
   - 目的：在手机浏览器中统一图标比例与触控尺寸，避免操作遮挡，提高可读性与可点性。
   - 修改项：
     1. style.css：在 `:root` 新增 `--tap` 与 `--icon-lg/md/sm`；统一按钮内 `<i>` 图标字号；新增 `@media (max-width: 600px/360px)` 对头部、按钮、胶囊开关、消息右内边距与操作按钮尺寸的收敛规则。
-    2. CURSOR.md：新增“触控/图标层级令牌”与“移动端尺寸与间距策略”小节，并记录本条变更。
+    2. CURSOR.md：新增"触控/图标层级令牌"与"移动端尺寸与间距策略"小节，并记录本条变更。
 - 2025-11-08（统一化联网搜索提示词，覆盖通用数据/事实场景）
-  - 目的：将 Web 综合提示从“示例性天气要求”扩展为“适用于通用联网查询”的统一规范。
+  - 目的：将 Web 综合提示从"示例性天气要求"扩展为"适用于通用联网查询"的统一规范。
   - 修改项：
-    1. prompts.js：扩展 `PROMPTS.WEB_SYNTHESIS`，加入对数据/统计/价格/政策等通用条款与“引用与正文对齐”的要求；保留天气为示例。
-    2. CURSOR.md：同步更新“结果综合系统提示”的要点列表，以反映统一规范。
+    1. prompts.js：扩展 `PROMPTS.WEB_SYNTHESIS`，加入对数据/统计/价格/政策等通用条款与"引用与正文对齐"的要求；保留天气为示例。
+    2. CURSOR.md：同步更新"结果综合系统提示"的要点列表，以反映统一规范。
 - 2025-11-08（将联网搜索综合提示迁移到 prompts.js 统一管理）
   - 目的：消除 `index.html` 中的硬编码提示词，统一提示词来源，便于维护与复用。
   - 修改项：
-    1. prompts.js：新增 `PROMPTS.WEB_SYNTHESIS` 常量，承载“联网搜索结果综合”系统提示。
+    1. prompts.js：新增 `PROMPTS.WEB_SYNTHESIS` 常量，承载"联网搜索结果综合"系统提示。
     2. index.html：`buildWebSynthesisPrompt()` 改为读取 `PROMPTS.WEB_SYNTHESIS` 并在缺失时安全回退为空字符串。
-    3. CURSOR.md：在“联网搜索架构与数据流”中注明提示来源，并追加本条变更记录。
+    3. CURSOR.md：在"联网搜索架构与数据流"中注明提示来源，并追加本条变更记录。
 - 2025-11-07（会话/分组记忆提示词收紧以降低噪声）
   - 目的：减少问候、自述、模型元信息等无关内容进入记忆，提升长期复用价值密度。
   - 修改项：
-    1. prompts.js：重写 `SESSION_SUMMARY`/`GROUP_SUMMARY` 模板，加入“必须保留/严禁包含/合并去重/低信号处理/长度限制”。
-    2. README（中/英）：新增“记忆生成规则”章节，阐明保留/禁止/低信号/格式与长度限制。
-    3. CURSOR.md：在主体新增“记忆生成规则（更新）”，并记录本次变更。
+    1. prompts.js：重写 `SESSION_SUMMARY`/`GROUP_SUMMARY` 模板，加入"必须保留/严禁包含/合并去重/低信号处理/长度限制"。
+    2. README（中/英）：新增"记忆生成规则"章节，阐明保留/禁止/低信号/格式与长度限制。
+    3. CURSOR.md：在主体新增"记忆生成规则（更新）"，并记录本次变更。
 - 2025-11-07（日志导出支持按会话范围过滤，默认当前会话）
   - 目的：避免导出多余历史信息，更聚焦当前排障。
   - 修改项：
     1. logger：`export(opts)` 新增 `scope` 与 `conversationId` 支持（`current|all|byConversationId`，默认 `current`），导出文件名追加范围后缀。
     2. index/conversations：导出按钮默认传入 `scope: 'current'`；仍保留格式选择（ndjson/json）。
     3. 文档：更新 README（中/英）与本文件主体，说明导出范围与控制台示例。
-- 2025-11-07（主输入区布局更新：内联“联网搜索”开关 + 发送/中止互斥）
-  - 同日补充：加入“深度思考”开关与“附件”按钮；占位符改为“给 DeepSeek 发送消息”。
+- 2025-11-07（主输入区布局更新：内联"联网搜索"开关 + 发送/中止互斥）
+  - 同日补充：加入"深度思考"开关与"附件"按钮；占位符改为"给 DeepSeek 发送消息"。
   - 目的：使交互与示例布局一致，快速切换联网搜索，并统一按钮位置与风格。
   - 修改项：
     1. index：在 `<footer>` 输入区左侧新增 `#thinkingInlineToggle`（控制是否显示推理，仅影响显示）与 `#webInlineToggle`（读写 `localStorage.freechat.web.enable`）；右侧新增 `#attachBtn` + 隐藏 `#fileInput`（仅记录选择）。
     2. style：新增 `.circle-btn`（圆形按钮通用）、`.stop-btn` 与 `.web-inline-toggle` 样式；移除 `.stop-btn-floating` 浮动样式。
     3. index：`initWebPanel()` 移除启用复选框逻辑，面板仅保留参数（引擎/结果数/上下文/Search Prompt）。
-    4. README（中/英）：更新“Web Search”与“基础聊天/Basic Chat”说明（启用入口改为输入区开关；停止为同位互斥）。
-    5. CURSOR.md：更新“联网搜索架构与数据流”主体并追加本条变更记录。
+    4. README（中/英）：更新"Web Search"与"基础聊天/Basic Chat"说明（启用入口改为输入区开关；停止为同位互斥）。
+    5. CURSOR.md：更新"联网搜索架构与数据流"主体并追加本条变更记录。
 - 2025-11-07（隐藏清空日志按钮，保留功能可恢复）
-  - 目的：主页面与会话管理页顶部“清空日志”按钮平时不使用，避免误触；保留能力以便需要时恢复。
+  - 目的：主页面与会话管理页顶部"清空日志"按钮平时不使用，避免误触；保留能力以便需要时恢复。
   - 修改项：
     1. style：新增 `#clearLogsBtn { display: none !important; }`，两个页面共享隐藏。
-    2. 文档：更新 README（中/英）“请求/响应日志”UI 描述为“仅显示导出，清空默认隐藏（可恢复）”。
-    3. CURSOR 主体：更新“日志架构与数据流 → UI”说明并追加本条变更记录。
+    2. 文档：更新 README（中/英）"请求/响应日志"UI 描述为"仅显示导出，清空默认隐藏（可恢复）"。
+    3. CURSOR 主体：更新"日志架构与数据流 → UI"说明并追加本条变更记录。
  - 2025-11-07（接入 OpenRouter Web 搜索插件 + 引用展示）
  - 2025-11-07（修复：解析流式 delta.annotations 引用）
   - 目的：部分提供方将 url_citation 放在流式 `delta.annotations` 中，之前仅读取尾包 `message.annotations` 导致引用不显示。
@@ -360,20 +360,20 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
     2. index：`updateLastAssistantMessage` 渲染前移除已有 `.citations`，避免重复叠加。
   - 目的：为聊天响应提供可选的联网检索增强与标准化引用展示；用户可在对话页配置开关与参数。
   - 修改项：
-    1. index：新增头部“地球”按钮与 `webPanel` 面板（引擎/结果数/上下文强度/Search Prompt/开关），参数持久化至 `localStorage`；
+    1. index：新增头部"地球"按钮与 `webPanel` 面板（引擎/结果数/上下文强度/Search Prompt/开关），参数持久化至 `localStorage`；
     2. index：当启用时向请求体注入 `plugins` 与 `web_search_options`；
-    3. index：在流式解析过程中捕获 `message.annotations[].url_citation` 并渲染“参考来源”链接（域名为文本）；
+    3. index：在流式解析过程中捕获 `message.annotations[].url_citation` 并渲染"参考来源"链接（域名为文本）；
     4. style：新增 `.web-panel` 与 `.citations` 样式；
-    5. 文档：更新 README（中/英）增加“Web Search”章节与结构图；
-    6. CURSOR.md：新增“联网搜索架构与数据流”主体说明并记录新增本地存储键。
+    5. 文档：更新 README（中/英）增加"Web Search"章节与结构图；
+    6. CURSOR.md：新增"联网搜索架构与数据流"主体说明并记录新增本地存储键。
 - 2025-11-06（术语统一与存储兼容迁移：会话记忆/分组记忆）
-  - 目的：统一名词体系，明确“记忆系统=会话记忆+分组记忆”，避免“会话摘要/分组摘要”等混用；兼容历史字段。
+  - 目的：统一名词体系，明确"记忆系统=会话记忆+分组记忆"，避免"会话摘要/分组摘要"等混用；兼容历史字段。
   - 修改项：
-    1. 文案/UI：将所有用户可见“会话摘要”更新为“会话记忆”；分组相关统一为“分组记忆”。
-    2. 提示词：`prompts.js` 中 `GROUP_SUMMARY` 文案由“会话摘要”改为“会话记忆”。
+    1. 文案/UI：将所有用户可见"会话摘要"更新为"会话记忆"；分组相关统一为"分组记忆"。
+    2. 提示词：`prompts.js` 中 `GROUP_SUMMARY` 文案由"会话摘要"改为"会话记忆"。
     3. 注释/说明：`index.html`、`conversations.html` 注释同步用词；README（中/英）与 CURSOR 主体同步。
     4. 兼容迁移：在 `index.html`/`conversations.html` 注入一次性迁移，将历史 `memory`→`summary`，`groupMemory`→`memorySummary`。
-    5. 说明：日志事件名 `summary_request/summary_done` 未改名，但其含义对应“会话记忆生成”。
+    5. 说明：日志事件名 `summary_request/summary_done` 未改名，但其含义对应"会话记忆生成"。
 - 2025-11-06（UI 现代化：浅色玻璃风 + Inter 字体 + 设计令牌）
   - 目的：统一现代审美，提升可读性、层级与品牌一致性；引入可复用的设计令牌。
   - 修改项：
@@ -382,7 +382,7 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
     3. 用户消息采用品牌渐变；
     4. 将 `index.html` 内联的停止按钮样式迁移至 `style.css`（统一风格与维护便捷性）。
 - 2025-11-06（记忆注入策略升级：全部分组记忆 + 当前分组全部会话摘要）
- - 目的：契合用户“在同一分组内会话时注入全局分组记忆与同组全部会话摘要”的设计意图。
+ - 目的：契合用户"在同一分组内会话时注入全局分组记忆与同组全部会话摘要"的设计意图。
  - 修改项：
    1. index：新增 `buildMemorySystemPrompt()` 并在请求前注入；支持可选首轮预摘要（`freechat.memory.preSummarize`）与可配置阈值/开关（分组范围、会话条数、字符截断）。
    2. 文档：更新 README（中/英）与 CURSOR.md 主体说明与变更记录，新增 localStorage 配置项说明。
@@ -391,8 +391,8 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
   - 修改项：
     1. 新增 `logger.js`（环形缓冲、本地存储、导出/清空、遮蔽 Authorization）。
     2. `index.html` 与 `conversations.html` 接入日志：聊天主请求（含流式）、自动摘要、分组记忆、保存/重新摘要等。
-    3. 两页面 header 新增“导出日志/清空日志”按钮。
-    4. 更新 `README.md`/`README_zh.md` 增加“请求/响应日志”章节与结构图。
+    3. 两页面 header 新增"导出日志/清空日志"按钮。
+    4. 更新 `README.md`/`README_zh.md` 增加"请求/响应日志"章节与结构图。
  - 2025-11-06（思考过程显示默认展开并置于正文前，流式）
   - 目的：提升可读性，先给出推理再给出答案，且允许用户手动折叠。
   - 修改项：
@@ -410,13 +410,13 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
   - 目的：在主聊天页明确显示当前模型；在使用思考类模型时提供推理过程查看能力且默认不打扰阅读。
   - 修改项：
     1. index：在 header 新增 `#currentModelBadge.model-badge` 并在初始化/加载时更新显示；
-    2. index：在流式解析中捕获 `reasoning_content`（含常见变体）并累积；在最后一条助手消息下渲染“查看思考过程”可折叠面板；
+    2. index：在流式解析中捕获 `reasoning_content`（含常见变体）并累积；在最后一条助手消息下渲染"查看思考过程"可折叠面板；
     3. style：新增 `.reasoning-block`、`.reasoning-toggle`、`.reasoning-content` 样式；
     4. 文档：更新 README（中/英）与 CURSOR.md 主体说明与本变更记录。
  - 2025-11-05（新建会话分组选择弹窗）
   - 目的：新建会话时引导用户将会话加入已有分组，提升组织性与后续记忆注入的准确性。
   - 修改项：
-    1. conversations：新增分组选择与命名模态（下拉菜单+名称输入，确认/跳过/取消）；改造“新建会话”流程为弹窗→根据选择写入/清理 `deepseekConversationGroupId` 与 `deepseekNewConversationName` 并重置临时会话后跳转；
+    1. conversations：新增分组选择与命名模态（下拉菜单+名称输入，确认/跳过/取消）；改造"新建会话"流程为弹窗→根据选择写入/清理 `deepseekConversationGroupId` 与 `deepseekNewConversationName` 并重置临时会话后跳转；
     2. style：新增 `.modal-overlay`、`.modal`、`.modal-actions` 等样式；
     3. 文档：更新 README（中/英）与 CURSOR.md 主体说明与本变更记录；
     4. index：首次自动创建持久会话时优先使用 `deepseekNewConversationName` 作为名称并清理该键。
@@ -430,7 +430,7 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
 - 2025-11-05（自动无感存储/摘要与记忆注入改造）
   - 目的：避免手动保存遗漏与重复保存；确保记忆进入推理上下文。
   - 修改项：
-    1. index：首条用户消息自动创建 `savedDeepseekConversations` 条目；节流回写；流结束触发自动摘要；同组时注入“会话摘要”，并全局注入“分组记忆”。
+    1. index：首条用户消息自动创建 `savedDeepseekConversations` 条目；节流回写；流结束触发自动摘要；同组时注入"会话摘要"，并全局注入"分组记忆"。
     2. index：新增本页 `updateGroupMemory`，并在自动摘要成功后刷新分组记忆。
     3. conversations：统一 API Key 优先级（内置 OPENROUTER → 本地存储）；统一模型与端点；重新摘要/分组记忆均使用 `MODEL_NAME`。
     4. 文档：同步 CURSOR.md 与 README（中/英）以反映上述机制。
@@ -438,9 +438,9 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
   - 目的：使文档与当前实现完全一致，减少读者误解。
   - 修改项：
     1. 将主文档中的默认端点统一为 `https://openrouter.ai/api/v1/chat/completions`（与代码一致）。
-    2. 更新“主要文件说明”：明确 `config.html` 仅提供模型选择；补充 `prompts.js` 与 `tools/encrypt_key.js`；标注 `script.js` 为可选且当前未默认引入。
-    3. 更新“核心数据流”：明确演示 Key 的来源与 `deepseekApiKey` 的可替代读取方式，并指出设置页不提供 Key 输入。
-    4. 新增“依赖说明”：补充 `CryptoJS` 与 `Font Awesome`。
+    2. 更新"主要文件说明"：明确 `config.html` 仅提供模型选择；补充 `prompts.js` 与 `tools/encrypt_key.js`；标注 `script.js` 为可选且当前未默认引入。
+    3. 更新"核心数据流"：明确演示 Key 的来源与 `deepseekApiKey` 的可替代读取方式，并指出设置页不提供 Key 输入。
+    4. 新增"依赖说明"：补充 `CryptoJS` 与 `Font Awesome`。
 
 
 - 2025-11-05（文档与代码一致性审查）：
@@ -502,52 +502,52 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
 - 2025-11-06（文档一致性修复：API Key/停止按钮说明与键名修正）
   - 目的：使文档与实现完全对齐，澄清设置页不管理 API Key，停止按钮当前为 UI 级别。
   - 修改项：
-    1. README.md：开头描述修正为“内置加密演示 Key 或通过 localStorage 配置；设置页仅配置模型”；基础聊天第 5 点改为“停止按钮为 UI-only，当前不中止网络请求”。
+    1. README.md：开头描述修正为"内置加密演示 Key 或通过 localStorage 配置；设置页仅配置模型"；基础聊天第 5 点改为"停止按钮为 UI-only，当前不中止网络请求"。
     2. README_zh.md：同步中文修正，与英文保持语义一致。
-    3. CURSOR.md：将 `localStorage.deepeekApiKey` 更正为 `localStorage.deepseekApiKey`；在“已知限制与建议”新增“停止按钮为 UI 级别，建议引入 AbortController”。
+    3. CURSOR.md：将 `localStorage.deepeekApiKey` 更正为 `localStorage.deepseekApiKey`；在"已知限制与建议"新增"停止按钮为 UI 级别，建议引入 AbortController"。
  - 2025-11-06（会话记忆模型选择策略：按会话模型优先）
-  - 目的：重新生成会话记忆使用“该会话所用模型”，自动会话记忆亦同；分组记忆继续使用全局模型。
+  - 目的：重新生成会话记忆使用"该会话所用模型"，自动会话记忆亦同；分组记忆继续使用全局模型。
   - 修改项：
     1. conversations.html：保存后异步生成会话记忆时，`modelToUse` = 会话模型 > 全局模型 > 兜底。
-    2. conversations.html：手动“重新生成会话记忆”时，`modelToUse` = 会话模型 > 全局模型 > 兜底。
+    2. conversations.html：手动"重新生成会话记忆"时，`modelToUse` = 会话模型 > 全局模型 > 兜底。
     3. index.html：`preSummarizeCurrentConversationMaybe` 预摘要使用会话模型优先。
     4. index.html：`autoSummarizeIfNeeded` 自动摘要使用会话模型优先。
 
-- 2025-11-07（将“联网搜索设置按钮”的功能迁移到设置页）
-  - 目的：统一配置入口，简化主页面，仅保留按消息级“联网搜索”开关。
+- 2025-11-07（将"联网搜索设置按钮"的功能迁移到设置页）
+  - 目的：统一配置入口，简化主页面，仅保留按消息级"联网搜索"开关。
   - 修改项：
-    1. index：移除头部“地球”按钮与 `#webPanel` 浮层；删除 `initWebPanel()` 及其调用；保留 `#webInlineToggle` 内联开关。
-    2. config：新增“联网搜索设置”分区（引擎/最大结果/上下文/Search Prompt）；读写 `freechat.web.*` 键；复用“保存设置”按钮一次性保存。
+    1. index：移除头部"地球"按钮与 `#webPanel` 浮层；删除 `initWebPanel()` 及其调用；保留 `#webInlineToggle` 内联开关。
+    2. config：新增"联网搜索设置"分区（引擎/最大结果/上下文/Search Prompt）；读写 `freechat.web.*` 键；复用"保存设置"按钮一次性保存。
     3. README（中/英）：更新使用说明，指明参数配置在 `config.html`，主页面不再展示地球按钮与面板；更新 `config.html` 文件说明。
-    4. CURSOR 主体：更新“主要文件说明”与“联网搜索架构与数据流 → UI”说明，并追加本条变更记录。
+    4. CURSOR 主体：更新"主要文件说明"与"联网搜索架构与数据流 → UI"说明，并追加本条变更记录。
 
 - 2025-11-07（多 system 记忆注入 + 供应商静态兼容 + 日志补充）
   - 目的：将每个分组记忆/会话记忆分别作为独立 system 消息发送；对不支持多 system 的供应商自动合并；补充日志以便排障。
   - 修改项：
-    1. index：新增 `buildMemorySystemPrompts()`，逐条注入分组与会话记忆；顺序为“Web 搜索规范（启用时置首）→ 分组记忆 → 会话记忆 → 历史消息”。
+    1. index：新增 `buildMemorySystemPrompts()`，逐条注入分组与会话记忆；顺序为"Web 搜索规范（启用时置首）→ 分组记忆 → 会话记忆 → 历史消息"。
     2. index：实现静态供应商映射（openai/mistralai/deepseek/qwen/meta-llama/x-ai/minimax 支持；anthropic/google/cohere/ai21 视为不支持），不支持时自动合并为单条，段间以 `---` 分隔。
     3. index：会话记忆去重（按会话ID）、新增可选键 `freechat.memory.maxSessionsPerRequest` 与 `freechat.memory.maxCharsPerItem`（不存在时回退旧键），并保留字符截断；
     4. logger：在聊天请求写入 `sys` 字段（`count`、`merged`、`provider`）。
-  - 文档：本文件主体与 README（中/英）同步“多 system 注入策略、顺序、静态供应商兼容与本地配置键”。
+  - 文档：本文件主体与 README（中/英）同步"多 system 注入策略、顺序、静态供应商兼容与本地配置键"。
 
 - 2025-11-08（文档一致性修复：API Key 使用与日志 UI）
   - 目的：使文档与当前实现完全一致，消除歧义与重复描述。
   - 修改项：
-    1. “核心数据流”：明确主聊天仅使用内置加密 Key；记忆相关调用可回退 `localStorage.deepseekApiKey`。
-    2. “日志架构与数据流 → UI”：删除过时“会话管理页也提供导出”的描述，统一为仅主聊天页导出；清空按钮默认隐藏。
-    3. “主要文件说明”：去重 `conversations.html` 条目；修复编号重复问题。
+    1. "核心数据流"：明确主聊天仅使用内置加密 Key；记忆相关调用可回退 `localStorage.deepseekApiKey`。
+    2. "日志架构与数据流 → UI"：删除过时"会话管理页也提供导出"的描述，统一为仅主聊天页导出；清空按钮默认隐藏。
+    3. "主要文件说明"：去重 `conversations.html` 条目；修复编号重复问题。
 
 - 2025-11-10（移动端消息宽度与内边距微调）
   - 目的：在移动设备上增加每行可阅读字符数，提高阅读友好性，同时保持触控目标尺寸与操作可点性。
   - 修改项：
     1. `style.css` / `dist/style.css`：在 `@media (max-width:600px)` 下减小 `.message` 的左右内边距（如由 12–18px 缩小至 ~8px），并微调 `font-size` 与 `line-height`（示例：`font-size: clamp(0.95rem, 1vw + 0.15rem, 1rem)`、`line-height: 1.45`），保留右侧操作按钮的预留空间但略为收窄。
-    2. `CURSOR.md`：同步更新“消息气泡宽度策略”与“移动端尺寸与间距策略”节中的说明。
-    3. `README.md` / `README_zh.md`：在“移动端友好/尺寸策略”处补充本次实现说明（实现细节为 UI 优化，非功能变更）。
+    2. `CURSOR.md`：同步更新"消息气泡宽度策略"与"移动端尺寸与间距策略"节中的说明。
+    3. `README.md` / `README_zh.md`：在"移动端友好/尺寸策略"处补充本次实现说明（实现细节为 UI 优化，非功能变更）。
  - 2025-11-11（消息气泡左右对称与操作按钮外侧定位）
   - 目的：在保证最大可读宽度的同时，使消息气泡左右视觉对称。
   - 修改项：
     1. `style.css` / `dist/style.css`：将 `.message` 的左右内边距设置为对称值（左右均为 8px），并把消息操作按钮 `.message-actions` 通过负偏移 `right: -36px`（窄屏为 -32px）定位到气泡外侧，避免按钮占用文本流宽度，同时保证按钮大小与可点性。
-    2. `README.md` / `README_zh.md`：在“移动端友好/尺寸策略”补充本次实现说明（UI 优化，保持触控目标）。
+    2. `README.md` / `README_zh.md`：在"移动端友好/尺寸策略"补充本次实现说明（UI 优化，保持触控目标）。
 - 2025-11-12（按消息记录模型信息并显示）
   - 目的：确保每条 assistant 消息展示其实际生成时所使用的大模型（消息级 model），便于审计与回溯。
   - 修改项：
@@ -561,7 +561,7 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
   - 目的：把消息旁的操作按钮从气泡右侧移到气泡下方单独一行，提升正文可读宽度与视觉整洁性。
   - 修改项：
     1. `style.css` / `dist/style.css`：将 `.message-actions` 改为流式（position: static），并设置 `justify-content: flex-end; margin-top: 8px;`，使按钮单独占一行并靠右对齐；移除绝对定位与外侧负偏移实现。
-    2. `README.md` / `README_zh.md`：在“移动端友好/尺寸策略”补充本次实现说明（UI 优化，按钮单独占行）。
+    2. `README.md` / `README_zh.md`：在"移动端友好/尺寸策略"补充本次实现说明（UI 优化，按钮单独占行）。
 
 - 2025-11-11（新增：主页面会话标题栏）
   - 目的：在主聊天页面顶部展示当前会话名称与所属分组，提升会话可识别性与上下文可视化。
@@ -571,8 +571,8 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
     3. `README.md` / `README_zh.md` / `CURSOR.md`：同步更新文档说明并追加本条变更记录。
   - 回滚：移除 `#sessionTitleBar` DOM 与 `renderSessionTitle()`，并删除新增 CSS 即可回退，不影响本地存储结构或会话逻辑。
 
-- 2025-11-11（修复：统一侧边栏内“会话记忆”与“分组记忆”窗格宽度）
-  - 目的：确保覆盖式抽屉（侧边栏）中显示的“会话记忆”和“分组记忆”窗格在宽度与盒模型上保持一致，跟随抽屉可用宽度（`--drawer-width`），提升视觉一致性并便于样式维护。
+- 2025-11-11（修复：统一侧边栏内"会话记忆"与"分组记忆"窗格宽度）
+  - 目的：确保覆盖式抽屉（侧边栏）中显示的"会话记忆"和"分组记忆"窗格在宽度与盒模型上保持一致，跟随抽屉可用宽度（`--drawer-width`），提升视觉一致性并便于样式维护。
   - 修改项：
     1. `style.css`：为 `.conversation-summary-content, .group-memory` 添加 `width:100%`、`box-sizing:border-box`、`max-width:100%`、`margin:6px 0` 等规则，并为 `.group-memory` 添加 `border-left: 2px solid #eee`，移除对内联样式的依赖。
     2. `conversations.html`：移除创建分组记忆区域的 padding/borderLeft/margin 的 inline 赋值，改为统一类 `group-memory conversation-summary-content`；同时移除会话记忆模板中用于 margin-top 的 inline style（保留 `display:none` 以便 JS 控制显示）。
@@ -580,26 +580,41 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
   - 风险与回滚：若需回退，将 `style.css`/`dist/style.css` 中新增规则删除并恢复 `conversations.html` 中被移除的 inline 样式即可回退，不影响数据结构与本地存储。
 
 - 2025-11-11（更新：使会话记忆展示时独占一行，避免与管理按钮同行）
-  - 目的：当用户点击“查看会话记忆”时，使会话记忆窗格独占 `.conversation-item` 的一整行，不再与右侧的管理按钮同列，从而获得更大横向可用宽度并提升可读性。
+  - 目的：当用户点击"查看会话记忆"时，使会话记忆窗格独占 `.conversation-item` 的一整行，不再与右侧的管理按钮同列，从而获得更大横向可用宽度并提升可读性。
   - 修改项：
     1. `style.css` / `dist/style.css`：将 `.conversation-item` 的 `align-items` 改为 `flex-start` 并添加 `flex-wrap: wrap`，同时为 `.conversation-info` 加入 `min-width: 0`，并为 `.conversation-summary-content` 增加 `flex-basis:100%`（使其换行并占满整行）。
     2. `conversations.html`：保持摘要 DOM 位置不变（留在 `.conversation-info` 内），但依赖 CSS 控制换行/占行，不再通过 inline style 调整宽度或边距。
   - 回滚：删除或还原上述 CSS 更改并恢复任何被修改的 inline 样式即可回退。
 
 - 2025-11-11（更新：抽屉作用域下使会话记忆窗格独占宽度）
-  - 目的：只在主页面的覆盖式抽屉（`.drawer`）内，使“会话记忆（conversation-summary-content）”和“分组记忆（group-memory）”在展开时换行并占满抽屉内容宽度，避免与抽屉内的操作按钮同行，从而在不影响 `conversations.html` 页面布局的前提下提升抽屉内记忆可读性。
+  - 目的：只在主页面的覆盖式抽屉（`.drawer`）内，使"会话记忆（conversation-summary-content）"和"分组记忆（group-memory）"在展开时换行并占满抽屉内容宽度，避免与抽屉内的操作按钮同行，从而在不影响 `conversations.html` 页面布局的前提下提升抽屉内记忆可读性。
   - 修改项：
     1. `style.css`：在 `.drawer` 作用域下新增以下规则：使 `.drawer .conversation-summary-content, .drawer .group-memory` 为 `flex-basis:100%` 与 `width:100%`，并使 `.drawer .drawer-item` 支持 `flex-wrap: wrap`；确保 `.drawer .drawer-item > div:first-child` 可收缩（`min-width:0`）。这些规则限定在 `.drawer` 作用域，避免影响其他页面。
     2. `dist/style.css`：同步以上样式变更以使打包产物生效。
     3. `index.html`：无需 DOM 改动；抽屉内现有生成逻辑已用 `.conversation-summary-content` / `.group-memory` 类名生成记忆块，样式由 CSS 控制展示行为。
-  - 验收：在主页面打开抽屉并展开任意会话的“查看会话记忆”，记忆区域应换行并占满抽屉宽度，左右内边距与分组记忆一致；`conversations.html` 布局不受影响。
+  - 验收：在主页面打开抽屉并展开任意会话的"查看会话记忆"，记忆区域应换行并占满抽屉宽度，左右内边距与分组记忆一致；`conversations.html` 布局不受影响。
   - 回滚：删除 `.drawer` 作用域 CSS 规则并恢复先前的全局规则或 inline 样式可以回退该行为。
 
-- 2025-11-11（更新：精简主页面抽屉的操作按钮并添加“会话管理”入口）
+- 2025-11-11（更新：精简主页面抽屉的操作按钮并添加"会话管理"入口）
   - 目的：在主页面抽屉中减少直接管理操作，保留核心快速操作并在底部提供跳转入口前往完整的会话管理页。
   - 修改项：
-    1. `index.html`：抽屉内每个会话项仅保留“加载（加载会话）”与“重新生成会话记忆”两个图标按钮；移除“重命名/移动/删除”等按钮以减少误操作和视觉复杂度，完整管理仍在 `conversations.html` 中进行。
-    2. `index.html`：抽屉底部在设置图标旁新增仅图标的“会话管理”入口（`fa-list`），带 `title`/`aria-label`（tooltip）以说明功能，点击跳转 `conversations.html`。
+    1. `index.html`：抽屉内每个会话项仅保留"加载（加载会话）"与"重新生成会话记忆"两个图标按钮；移除"重命名/移动/删除"等按钮以减少误操作和视觉复杂度，完整管理仍在 `conversations.html` 中进行。
+    2. `index.html`：抽屉底部在设置图标旁新增仅图标的"会话管理"入口（`fa-list`），带 `title`/`aria-label`（tooltip）以说明功能，点击跳转 `conversations.html`。
     3. `style.css` / `dist/style.css`：无须新增样式（使用现有 `drawer-icon-btn`），逻辑通过 DOM 生成脚本控制按钮显示。
-  - 验收：打开主页面抽屉时，会话条目右侧仅显示加载与重新生成按钮；抽屉底部显示列表图标按钮，悬停显示“会话管理”，点击后跳转到 `conversations.html`。
+  - 验收：打开主页面抽屉时，会话条目右侧仅显示加载与重新生成按钮；抽屉底部显示列表图标按钮，悬停显示"会话管理"，点击后跳转到 `conversations.html`。
   - 回滚：恢复 `index.html` 中被移除的按钮创建与事件绑定，并删除 `drawer-footer` 中新增的会话管理链接即可回退。
+
+- 2025-11-12（修复：移动端会话标题栏遮挡首条消息）
+  - 目的：解决在部分手机视口中，顶部会话标题栏以粘性/悬浮方式显示时遮挡消息首行的问题，提升移动端可读性与交互可靠性。
+  - 修改项：
+    1. `style.css`：在 `@media (max-width: 768px)` 下将 `.session-title` 改为 `position: fixed` 并使用 `env(safe-area-inset-top)` 兼容刘海屏，同时为 `.chat-container` 增加等高的 `padding-top`（参考高度 56px，可按需微调或替换为 CSS 变量 `--session-title-height`）。
+    2. `README.md` / `README_zh.md`：在"移动端友好/尺寸策略"处补充本次实现说明，说明标题栏固定与顶部内边距的目的与效果。
+  - 回滚：删除或注释新增的媒体查询样式即可恢复先前行为（不影响数据或功能）。
+
+- 2025-11-12（提示词增强：记忆注入说明与背景资料标记）
+  - 目的：避免将生成的长期记忆误当作当前会话前文，提高注入记忆的可控性。
+  - 修改项：
+    1. `prompts.js`：在 `SESSION_SUMMARY` 与 `GROUP_SUMMARY` 中添加"背景资料"约定，要求记忆条目以短标记指明记忆级别（background | foreground），默认 background；并在输出中简短注明"仅作背景资料，非会话前文；仅在用户明确提及/询问时可引用"。
+    2. `prompts.js`：新增常量 `PROMPTS.MEMORY_INJECTION`，作为在注入记忆为 system/assistant 消息前统一附加的说明文本，提醒模型该批记忆为深层背景资料，默认不作为当前会话前文。
+    3. 文档：在 `README.md` 与 `README_zh.md` 中增加记忆注入约定说明，提示开发者在构造请求时使用 `PROMPTS.MEMORY_INJECTION` 作为注入 wrapper，并说明记忆级别标签的语义与默认行为。
+  - 风险与验证：仅修改提示词与文档，不改动运行时逻辑。验证方式：生成一条记忆并按注入说明将其附加为 system 消息，再行对话以确认模型在未被显式引用时不会将记忆视为当前前文。
