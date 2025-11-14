@@ -19,6 +19,8 @@
 - When creating a new conversation from the manager page, a modal asks whether to add it to an existing group (with a dropdown selector) and lets you set a name.
 -
 - For reasoning-capable models (e.g., DeepSeek-R1), the model's reasoning (if returned by the API) streams live and appears ABOVE the assistant reply. It is visible by default and can be folded/unfolded by the user.
+ - Network/UX improvements: stop button now genuinely aborts network generation requests (AbortController), saving and rendering are batched to reduce localStorage I/O and DOM thrashing, and non-streaming requests (summaries/group memory) use a retry-with-backoff wrapper to improve robustness.
+ - Performance: Markdown rendering and sanitization libraries (`marked` and `DOMPurify`) are loaded asynchronously to reduce blocking on first paint.
 - Built-in request/response logging to localStorage (auth masked). Header export/clear buttons were removed; export via DevTools console.
  - Modern light theme with clean tech aesthetic and glassmorphism (frosted glass) applied to header, input area, AI bubbles, and cards.
  - Typography: Inter (Latin) with system Chinese fallbacks, responsive font sizes via CSS variables.

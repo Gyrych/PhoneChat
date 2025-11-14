@@ -7,8 +7,30 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="prompts.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/dompurify@2.4.0/dist/purify.min.js"></script>
+    <script>
+        // 按需加载 Markdown 渲染与消毒库（非阻塞，用于减少首屏加载体积）
+        window._markdownLibsLoaded = false;
+        function ensureMarkdownLibs() {
+            if (window._markdownLibsLoaded) return Promise.resolve();
+            return new Promise((resolve, reject) => {
+                try {
+                    const m = document.createElement('script');
+                    m.src = 'https://cdn.jsdelivr.net/npm/marked/marked.min.js';
+                    m.async = true;
+                    m.onload = () => {
+                        const d = document.createElement('script');
+                        d.src = 'https://cdn.jsdelivr.net/npm/dompurify@2.4.0/dist/purify.min.js';
+                        d.async = true;
+                        d.onload = () => { window._markdownLibsLoaded = true; resolve(); };
+                        d.onerror = reject;
+                        document.head.appendChild(d);
+                    };
+                    m.onerror = reject;
+                    document.head.appendChild(m);
+                } catch (e) { reject(e); }
+            });
+        }
+    </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
     <script src="logger.js"></script>
 </head>
@@ -35,7 +57,7 @@
             <div id="currentModelBadge" class="model-badge" title="当前模型">未选择模型</div>
         </div>
         <div id="messageContainer" class="message-container"></div>
-        <div id="statusIndicator" class="status-indicator"></div>
+        <div id="statusIndicator" class="status-indicator" aria-live="polite"></div>
     </main>
 
     <!-- 覆盖式会话抽屉与遮罩 -->
@@ -124,6 +146,63 @@
         const OPENROUTER_API_KEY = decryptApiKey(ENCRYPTED_OPENROUTER_KEY, LOCAL_PASSPHRASE);
         window.OPENROUTER_API_KEY = OPENROUTER_API_KEY;
         const messageContainer = document.getElementById('messageContainer');
+        /**
+         * 批量/合并 localStorage 写入（按 key 合并，延迟执行以减少同步 I/O）
+         * 用法：batchedStorageSetJson('deepseekConversation', obj)
+         */
+        const _batchedStorageQueue = Object.create(null);
+        function batchedStorageSetJson(key, value, delay = 400) {
+            try {
+                if (!_batchedStorageQueue[key]) {
+                    _batchedStorageQueue[key] = { timer: null, val: null };
+                }
+                _batchedStorageQueue[key].val = value;
+                if (_batchedStorageQueue[key].timer) return;
+                _batchedStorageQueue[key].timer = setTimeout(() => {
+                    try {
+                        const v = _batchedStorageQueue[key].val;
+                        localStorage.setItem(key, JSON.stringify(v));
+                    } catch (e) { console.error('batchedStorageSetJson 写入失败：', e); }
+                    clearTimeout(_batchedStorageQueue[key].timer);
+                    _batchedStorageQueue[key].timer = null;
+                }, delay);
+            } catch (e) { console.error('batchedStorageSetJson 调度失败：', e); }
+        }
+
+        /**
+         * 懒加载 Markdown / DOMPurify 库（首次使用时动态注入脚本）
+         * 返回 Promise，在库加载完成后 resolve
+         */
+        let _markdownLibsPromise = null;
+        function ensureMarkdownLibs() {
+            if (typeof window.marked !== 'undefined' && typeof window.DOMPurify !== 'undefined') {
+                return Promise.resolve();
+            }
+            if (_markdownLibsPromise) return _markdownLibsPromise;
+            _markdownLibsPromise = new Promise((resolve, reject) => {
+                try {
+                    const loadScript = (src) => new Promise((res, rej) => {
+                        const s = document.createElement('script');
+                        s.src = src;
+                        s.onload = () => res();
+                        s.onerror = (e) => rej(e);
+                        document.head.appendChild(s);
+                    });
+                    // 依次加载 marked 与 DOMPurify（保证两者均可用）
+                    loadScript('https://cdn.jsdelivr.net/npm/marked/marked.min.js')
+                        .then(() => loadScript('https://cdn.jsdelivr.net/npm/dompurify@2.4.0/dist/purify.min.js'))
+                        .then(() => resolve())
+                        .catch((err) => {
+                            console.error('加载 Markdown 库失败：', err);
+                            resolve(); // 回退为文本渲染，避免阻塞主流程
+                        });
+                } catch (e) {
+                    console.error('ensureMarkdownLibs 异常：', e);
+                    resolve();
+                }
+            });
+            return _markdownLibsPromise;
+        }
         const messageInput = document.getElementById('messageInput');
         const sendBtn = document.getElementById('sendBtn');
         const stopBtn = document.getElementById('stopBtn');
@@ -132,6 +211,9 @@
         const attachBtn = document.getElementById('attachBtn');
         const fileInput = document.getElementById('fileInput');
         const statusIndicator = document.getElementById('statusIndicator');
+        // 当前请求控制器与发送锁，用于支持真正中止和防止并发发送
+        window._currentRequestController = null;
+        window._sendingInProgress = false;
         // 抽屉相关元素
         const drawerEl = document.getElementById('drawer');
         const drawerOverlayEl = document.getElementById('drawerOverlay');
@@ -170,6 +252,10 @@
             window._appInitialized = true;
 
             console.log('initApp: attaching handlers');
+            // 后台预加载 Markdown 库以降低首次渲染延迟（非阻塞）
+            try { ensureMarkdownLibs().catch(()=>{}); } catch (_) {}
+            // 异步加载 Marked/DOMPurify，非阻塞首屏
+            try { ensureMarkdownLibs().catch(() => {}); } catch (_) {}
             try { updateCurrentModelBadge(); } catch (e) { /* 忽略徽标更新异常 */ }
             // 在跨窗口/标签页更新 localStorage.chatModel 时刷新徽标（便于从配置页修改后自动反映）
             try {
@@ -592,8 +678,37 @@
                 // 新键优先：不存在时回退旧键，保持向后兼容
                 const maxSessionsPerRequest = readNum('freechat.memory.maxSessionsPerRequest', readNum('freechat.memory.maxConvPerGroup', 10));
                 const maxCharsPerItem = readNum('freechat.memory.maxCharsPerItem', readNum('freechat.memory.maxCharsPerSection', 4000));
+                // 强制上限以避免一次请求注入过多上下文导致网络/模型延迟（可通过 localStorage 覆盖）
+                const effectiveMaxSessions = Math.max(1, Math.min(readNum('freechat.memory.enforcedMaxSessions', 3), maxSessionsPerRequest));
+                const effectiveMaxCharsPerItem = Math.max(256, Math.min(readNum('freechat.memory.enforcedMaxCharsPerItem', 1000), maxCharsPerItem));
 
                 const result = [];
+
+                // 辅助：判断是否为低信号或纯寒暄文本
+                const isLowSignalOrGreeting = (str) => {
+                    try {
+                        if (!str) return true;
+                        const s = String(str || '').trim();
+                        if (s.length < 20) return true;
+                        const lowSignals = ['无', 'none', 'no', 'n/a'];
+                        if (lowSignals.includes(s)) return true;
+                        // 常见寒暄词或感谢语
+                        const greetingRe = /^(你好|您好|hi\b|hello\b|thanks|thank you|谢谢|感谢)/i;
+                        if (greetingRe.test(s)) return true;
+                        return false;
+                    } catch (_) { return false; }
+                };
+
+                // 辅助：确保记忆条目带有记忆级别前缀（默认 background）
+                const ensureMemoryPrefix = (txt) => {
+                    try {
+                        const t = String(txt || '').trim();
+                        if (!t) return '';
+                        const tl = t.trim();
+                        if (tl.startsWith('【记忆级别:') || tl.startsWith('【背景资料') || tl.toLowerCase().startsWith('[memory-level:')) return t;
+                        return `【记忆级别: background】\n${t}`;
+                    } catch (_) { return txt; }
+                };
 
                 // 分组记忆：逐条生成 system
                 try {
@@ -602,10 +717,13 @@
                     const targetGroups = injectAllGroups ? groups : groups.filter(g => g.id === currentGroupId);
                     for (const g of targetGroups) {
                         if (!g || !g.memorySummary) continue;
+                        // 过滤低信号或寒暄
+                        if (isLowSignalOrGreeting(g.memorySummary)) continue;
                         let text = `[Group Memory] ${g.name || g.id}\n${g.memorySummary}`;
-                        if (text.length > maxCharsPerItem) {
-                            text = text.slice(0, maxCharsPerItem) + `\n...（分组记忆超出 ${maxCharsPerItem} 字符，已截断）`;
+                        if (text.length > effectiveMaxCharsPerItem) {
+                            text = text.slice(0, effectiveMaxCharsPerItem) + `\n...（分组记忆超出 ${effectiveMaxCharsPerItem} 字符，已截断）`;
                         }
+                        text = ensureMemoryPrefix(text);
                         result.push({ role: 'system', content: text });
                     }
                 } catch (_) { /* 忽略分组解析异常 */ }
@@ -630,13 +748,17 @@
                             deduped.push(c);
                         }
 
-                        const limited = deduped.slice(0, Math.max(1, maxSessionsPerRequest));
+                        const limited = deduped.slice(0, Math.max(1, effectiveMaxSessions));
                         for (const c of limited) {
+                            if (!c || !c.summary) continue;
+                            // 低信号过滤：避免把“无”或寒暄存入记忆
+                            if (isLowSignalOrGreeting(c.summary)) continue;
                             const name = (c && c.name) ? c.name : (c && c.id) ? c.id : '会话';
                             let text = `[Session Memory] ${name}\n${c.summary}`;
-                            if (text.length > maxCharsPerItem) {
-                                text = text.slice(0, maxCharsPerItem) + `\n...（会话记忆超出 ${maxCharsPerItem} 字符，已截断）`;
+                            if (text.length > effectiveMaxCharsPerItem) {
+                                text = text.slice(0, effectiveMaxCharsPerItem) + `\n...（会话记忆超出 ${effectiveMaxCharsPerItem} 字符，已截断）`;
                             }
+                            text = ensureMemoryPrefix(text);
                             result.push({ role: 'system', content: text });
                         }
                     } catch (_) { /* 忽略会话解析异常 */ }
@@ -716,11 +838,11 @@
                 const url = (window.DEEPSEEK_API_URL || 'https://openrouter.ai/api/v1/chat/completions');
 
                 // 简化：不写日志，失败静默
-                const resp = await fetch(url, {
+                const resp = await fetchWithRetry(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
                     body: JSON.stringify({ model: modelToUse, messages: [ { role: 'system', content: systemPrompt }, { role: 'user', content: userContent } ], temperature: 0.2 })
-                });
+                }, { retries: 2, backoff: 500, timeout: 20000 });
                 if (!resp.ok) return;
                 const data = await resp.json();
                 const summaryText = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content ? data.choices[0].message.content : null;
@@ -756,7 +878,33 @@
          * 返回值：无
          */
         function saveConversation() {
-            localStorage.setItem('deepseekConversation', JSON.stringify(currentConversation));
+            // 批量写入 deepseekConversation：避免高频流式更新导致 localStorage 同步 I/O 卡顿
+            batchedStorageSetJson('deepseekConversation', currentConversation);
+        }
+
+        // 简单的 per-key 批量写入器：在短时间内合并多次写入为一次实际 setItem
+        const _batchedWrites = Object.create(null);
+        function batchedStorageSetJson(key, value, delay = 400) {
+            try {
+                if (_batchedWrites[key] && _batchedWrites[key].timer) {
+                    clearTimeout(_batchedWrites[key].timer);
+                }
+                _batchedWrites[key] = _batchedWrites[key] || {};
+                _batchedWrites[key].value = value;
+                _batchedWrites[key].timer = setTimeout(() => {
+                    try {
+                        localStorage.setItem(key, JSON.stringify(_batchedWrites[key].value));
+                    } catch (e) {
+                        console.error('batchedStorageSetJson 写入失败：', key, e);
+                    } finally {
+                        try { clearTimeout(_batchedWrites[key].timer); } catch(_) {}
+                        delete _batchedWrites[key];
+                    }
+                }, delay);
+            } catch (e) {
+                // 若批量写入逻辑本身异常，则回退到直接写入，避免丢数据
+                try { localStorage.setItem(key, JSON.stringify(value)); } catch (_) {}
+            }
         }
 
         /**
@@ -837,7 +985,8 @@
                 saved[idx].model = window.MODEL_NAME;
                 // 保持分组ID与当前内存一致
                 saved[idx].groupId = currentConversationGroupId || null;
-                localStorage.setItem('savedDeepseekConversations', JSON.stringify(saved));
+                // 使用批量写入以减少同步 I/O（与 saveConversation 保持一致的写入策略）
+                try { batchedStorageSetJson('savedDeepseekConversations', saved); } catch (e) { console.error('upsertSavedConversationNow 写入失败：', e); }
             } catch (e) {
                 console.error('upsertSavedConversationNow 失败：', e);
             }
@@ -858,8 +1007,12 @@
          */
         function renderMessages() {
             messageContainer.innerHTML = '';
-
-            currentConversation.forEach((message, index) => {
+            // 为了减少移动端 DOM 节点数量，限制一次渲染的消息数（默认保留最新 200 条，可通过 localStorage 调整）
+            const maxRender = Math.max(20, Number(localStorage.getItem('freechat.ui.maxRenderedMessages') || 200));
+            const start = Math.max(0, currentConversation.length - maxRender);
+            for (let i = start; i < currentConversation.length; i++) {
+                const message = currentConversation[i];
+                const index = i;
                 const messageElement = document.createElement('div');
                 messageElement.className = `message ${message.role === 'user' ? 'user-message' : 'ai-message'}`;
                 if (message.role === 'assistant') {
@@ -870,39 +1023,33 @@
                         if (reasoningText) {
                             const reasoningBlock = document.createElement('div');
                             reasoningBlock.className = 'reasoning-block';
-
                             const toggleBtn = document.createElement('button');
                             toggleBtn.className = 'reasoning-toggle';
-                            toggleBtn.textContent = '收起思考过程'; // 默认展开
-
+                            toggleBtn.textContent = '收起思考过程';
                             const rDiv = document.createElement('div');
                             rDiv.className = 'reasoning-content';
                             try {
-                                const rHtml = marked.parse(reasoningText);
-                                rDiv.innerHTML = DOMPurify.sanitize(rHtml);
+                                const rHtml = (window.marked ? marked.parse(reasoningText) : reasoningText);
+                                rDiv.innerHTML = (window.DOMPurify ? DOMPurify.sanitize(rHtml) : rHtml);
                             } catch (_) {
                                 rDiv.textContent = reasoningText;
                             }
                             rDiv.style.display = 'block';
-
                             toggleBtn.addEventListener('click', (e) => {
                                 e.stopPropagation();
                                 const willShow = (rDiv.style.display === 'none');
                                 rDiv.style.display = willShow ? 'block' : 'none';
                                 toggleBtn.textContent = willShow ? '收起思考过程' : '展开思考过程';
                             });
-
                             reasoningBlock.appendChild(toggleBtn);
                             reasoningBlock.appendChild(rDiv);
                             messageElement.appendChild(reasoningBlock);
                         }
-
-                        const rawHtml = marked.parse(message.content || '');
-                        const cleanHtml = DOMPurify.sanitize(rawHtml);
+                        const rawHtml = (window.marked ? marked.parse(message.content || '') : message.content || '');
+                        const cleanHtml = (window.DOMPurify ? DOMPurify.sanitize(rawHtml) : rawHtml);
                         const contentHolder = document.createElement('div');
                         contentHolder.innerHTML = cleanHtml;
                         messageElement.appendChild(contentHolder);
-                        // 引用来源渲染（若存在 annotations）
                         try {
                             const anns = (message.citations || []).filter(x => x && x.type === 'url_citation' && x.url_citation && x.url_citation.url);
                             if (anns.length) {
@@ -935,43 +1082,29 @@
                 } else {
                     messageElement.textContent = message.content;
                 }
-
                 const actionsDiv = document.createElement('div');
                 actionsDiv.className = 'message-actions';
-
-                // 若为助手消息，显示该条消息使用的大模型型号（优先使用消息对象上的 model 字段，回退到全局 MODEL_NAME）
                 if (message.role === 'assistant') {
                     try {
                         const modelLabel = document.createElement('div');
                         modelLabel.className = 'message-model';
                         modelLabel.textContent = (message.model || window.MODEL_NAME || 'minimax/minimax-m2:free');
                         actionsDiv.appendChild(modelLabel);
-                    } catch (_) { /* 忽略模型展示异常 */ }
+                    } catch (_) {}
                 }
-
                 const copyBtn = document.createElement('button');
                 copyBtn.className = 'action-btn';
                 copyBtn.innerHTML = '<i class="fas fa-copy"></i>';
-                copyBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    copyToClipboard(message.content);
-                });
-
+                copyBtn.addEventListener('click', (e) => { e.stopPropagation(); copyToClipboard(message.content); });
                 const deleteBtn = document.createElement('button');
                 deleteBtn.className = 'action-btn';
                 deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
-                deleteBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    deleteMessage(index);
-                });
-
+                deleteBtn.addEventListener('click', (e) => { e.stopPropagation(); deleteMessage(index); });
                 actionsDiv.appendChild(copyBtn);
                 actionsDiv.appendChild(deleteBtn);
                 messageElement.appendChild(actionsDiv);
-
                 messageContainer.appendChild(messageElement);
-            });
-
+            }
             scrollToBottom();
         }
 
@@ -983,6 +1116,12 @@
          */
         async function sendMessage() {
             console.log('sendMessage invoked');
+            // 并发保护：若已有发送在进行中则直接提示并返回
+            if (window._sendingInProgress) {
+                try { showStatus('正在发送中，请稍候'); setTimeout(hideStatus, 1200); } catch (_) {}
+                return;
+            }
+            window._sendingInProgress = true;
             try {
                 // 在发送期间禁用发送按钮，防止用户重复触发并发发送
                 if (sendBtn) sendBtn.disabled = true;
@@ -991,6 +1130,7 @@
                 if (!messageText) {
                     // 若为空则立即恢复发送按钮状态并返回
                     if (sendBtn) sendBtn.disabled = false;
+                    window._sendingInProgress = false;
                     return;
                 }
                 // 增加发送中样式提示（图标旋转）
@@ -1069,27 +1209,38 @@
                 } catch (_) { /* 忽略日志异常 */ }
 
                 await fetchDeepSeekResponseStream(apiKey, messageText, aiMsgObj, _chatEvtId);
-                // 清理发送中样式与 UI
-                if (sendBtn) sendBtn.classList.remove('sending');
-                stopBtn.style.display = 'none';
-                if (sendBtn) sendBtn.style.display = 'flex';
-                hideStatus();
-                saveConversation();
-                renderMessages();
-                renderWelcomeIfEmpty();
+                // 注意：fetchDeepSeekResponseStream 内负责在流结束后保存与渲染
+                // 清理发送中样式与 UI（通常在流结束后执行）
+                try {
+                    if (sendBtn) sendBtn.classList.remove('sending');
+                    stopBtn.style.display = 'none';
+                    if (sendBtn) sendBtn.style.display = 'flex';
+                    hideStatus();
+                    saveConversation();
+                    renderMessages();
+                    renderWelcomeIfEmpty();
+                } catch (_) {}
                 if (sendBtn) sendBtn.disabled = false;
             } catch (error) {
                 console.error('发送消息失败:', error);
                 showStatus('发送失败：' + (error && error.message ? error.message : '请重试'));
                 setTimeout(hideStatus, 5000);
                 stopBtn.style.display = 'none';
+                if (sendBtn) sendBtn.style.display = 'flex';
+                // 清理发送状态
                 if (sendBtn) {
-                    sendBtn.style.display = 'flex';
                     sendBtn.classList.remove('sending');
                     sendBtn.disabled = false;
                 }
                 // 记录错误
                 try { window.Logger && window.Logger.error({ endpoint: window.DEEPSEEK_API_URL, model: window.MODEL_NAME }, error); } catch (_) {}
+            } finally {
+                // 无论成功或失败，解除发送锁（若还有未完成请求，fetchDeepSeekResponseStream 会在结束时清理 controller）
+                window._sendingInProgress = false;
+                // 确保 current controller 在已中止或完成后被清理
+                if (window._currentRequestController && window._currentRequestController.signal && window._currentRequestController.signal.aborted) {
+                    window._currentRequestController = null;
+                }
             }
         }
 
@@ -1101,11 +1252,20 @@
          */
         function stopGeneration() {
             console.log("生成已中止");
+            // 真正中止正在进行的请求（若存在）
+            try {
+                if (window._currentRequestController && typeof window._currentRequestController.abort === 'function') {
+                    window._currentRequestController.abort();
+                }
+            } catch (e) { console.debug('中止请求时出错：', e); }
+            window._currentRequestController = null;
+            window._sendingInProgress = false;
             showStatus('已中止生成');
             stopBtn.style.display = 'none';
             if (sendBtn) {
                 sendBtn.style.display = 'flex';
                 sendBtn.classList.remove('sending');
+                sendBtn.disabled = false;
             }
         }
 
@@ -1123,28 +1283,62 @@
             // 可选：在发送前尝试预摘要当前会话，确保首轮也可注入会话摘要
             try { await preSummarizeCurrentConversationMaybe(); } catch (_) { /* 忽略预摘要异常 */ }
 
-            // 构造记忆注入：分组记忆（逐条）+ 当前分组会话记忆（逐条）
+            // 构造记忆注入：支持可配置注入顺序（localStorage.freechat.memory.injection.order）
+            // 可选字段：'web','groups','sessions','messages'（messages 表示历史消息）
             let systemPrompts = [];
             try { systemPrompts = await buildMemorySystemPrompts(); } catch (_) { systemPrompts = []; }
-
-            // 若启用联网搜索，则在最前追加“结果综合与引用规范”系统提示（置首）
-            const webEnabledFlag = (localStorage.getItem('freechat.web.enable') || 'false') === 'true';
+            let webEnabledFlag = (localStorage.getItem('freechat.web.enable') || 'false') === 'true';
+            // 限速与计费提示：防止频繁触发联网检索带来高额费用
+            try {
+                if (webEnabledFlag) {
+                    const cooldownMs = Number(localStorage.getItem('freechat.web.cooldownMs')) || 5000;
+                    const lastTs = Number(localStorage.getItem('freechat.web.lastTriggeredTs') || 0);
+                    const nowTs = Date.now();
+                    if (lastTs && (nowTs - lastTs) < cooldownMs) {
+                        // 本次请求临时禁用 Web 插件以节流
+                        webEnabledFlag = false;
+                        try { showStatus('联网搜索短时间内已使用，已临时关闭以节省费用'); setTimeout(hideStatus, 1800); } catch (_) {}
+                    } else {
+                        localStorage.setItem('freechat.web.lastTriggeredTs', String(nowTs));
+                        // 显示估算费用（基于 freechat.web.maxResults 与 $4/1000 计价假设）
+                        const maxResultsRaw = Number(localStorage.getItem('freechat.web.maxResults')) || 5;
+                        const costPerResult = 4.0 / 1000.0; // 约 $0.004/result
+                        const est = (Number.isFinite(maxResultsRaw) ? maxResultsRaw : 5) * costPerResult;
+                        try { showStatus(`联网搜索将额外消耗约 $${est.toFixed(3)} 美元，请留意`); setTimeout(hideStatus, 2200); } catch (_) {}
+                    }
+                }
+            } catch (_) {}
+            const injectionOrderRaw = (localStorage.getItem('freechat.memory.injection.order') || '').trim();
+            const injectionOrder = injectionOrderRaw ? injectionOrderRaw.split(',').map(s => s.trim()).filter(Boolean) : ['web','groups','sessions','messages'];
             const injectedMsgs = [];
-            if (webEnabledFlag) {
+
+            const pushWeb = () => {
+                if (!webEnabledFlag) return;
                 try {
                     const webSynthPrompt = buildWebSynthesisPrompt();
                     if (webSynthPrompt) injectedMsgs.push({ role: 'system', content: webSynthPrompt });
                 } catch (_) { /* 忽略 */ }
-            }
-            if (Array.isArray(systemPrompts) && systemPrompts.length) {
-                // 对于每条记忆项，先注入统一的注入说明（若存在），再注入该记忆项本身
-                for (const sm of systemPrompts) {
-                    try {
-                        if (window.PROMPTS && window.PROMPTS.MEMORY_INJECTION) {
-                            injectedMsgs.push({ role: 'system', content: window.PROMPTS.MEMORY_INJECTION });
-                        }
-                    } catch (_) { /* 忽略 */ }
-                    if (sm && sm.role === 'system' && sm.content) injectedMsgs.push(sm);
+            };
+            const pushGroupsAndSessions = () => {
+                if (Array.isArray(systemPrompts) && systemPrompts.length) {
+                    for (const sm of systemPrompts) {
+                        try {
+                            if (window.PROMPTS && window.PROMPTS.MEMORY_INJECTION) {
+                                injectedMsgs.push({ role: 'system', content: window.PROMPTS.MEMORY_INJECTION });
+                            }
+                        } catch (_) { /* 忽略 */ }
+                        if (sm && sm.role === 'system' && sm.content) injectedMsgs.push(sm);
+                    }
+                }
+            };
+            // 按配置顺序注入
+            for (const key of injectionOrder) {
+                if (key === 'web') pushWeb();
+                else if (key === 'groups' || key === 'sessions') {
+                    // groups/sessions 均由 buildMemorySystemPrompts 返回的 systemPrompts 顺序承载（它内部已区分）
+                    pushGroupsAndSessions();
+                } else if (key === 'messages') {
+                    // messages 表示保留历史消息（在后面合并到请求体）
                 }
             }
             // 根据供应商能力决定是否需要将多条 system 合并为单条
@@ -1204,11 +1398,28 @@
                 });
             } catch (_) {}
 
-            const response = await fetch(DEEPSEEK_API_URL, {
-                method: 'POST',
-                headers,
-                body: JSON.stringify(requestBody)
-            });
+            // 创建可中止控制器，以支持停止按钮真正中止请求/流
+            const controller = new AbortController();
+            window._currentRequestController = controller;
+            let response;
+            try {
+                response = await fetch(DEEPSEEK_API_URL, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify(requestBody),
+                    signal: controller.signal
+                });
+            } catch (err) {
+                // 若为中止错误，安静退出（用户已触发 stop）并记录日志；否则抛出以供上层处理
+                if (err && err.name === 'AbortError') {
+                    try { window.Logger && chatEvtId && window.Logger.end(chatEvtId, { error: { message: '请求被用户中止' } }); } catch (_) {}
+                    console.log('请求已被中止（AbortError）');
+                    // 清理 controller 状态与 UI（stopGeneration 也会处理 UI）
+                    window._currentRequestController = null;
+                    return;
+                }
+                throw err;
+            }
 
             if (!response.ok) {
                 let errText = '';
@@ -1247,43 +1458,71 @@
                             break;
                         }
                         try {
-                            const json = JSON.parse(data);
-                            // 若流式片段或尾包中包含模型信息，则更新当前 assistant 对象的 model 字段并刷新 UI
+                            // 优先使用内联 Web Worker 解析流片段，减少主线程 JSON.parse 开销
+                            const parseWithWorker = (text) => {
+                                return new Promise((resolve, reject) => {
+                                    try {
+                                        if (!window._streamParserWorker) {
+                                            const workerCode = `
+                                                self.onmessage = function(e) {
+                                                    try {
+                                                        const txt = e.data;
+                                                        const parsed = JSON.parse(txt);
+                                                        const out = {};
+                                                        out.detectedModel = parsed.model || parsed.model_name || (parsed.choices && parsed.choices[0] && (parsed.choices[0].model || (parsed.choices[0].message && parsed.choices[0].message.model)));
+                                                        out.delta = parsed.choices && parsed.choices[0] && (parsed.choices[0].delta ? parsed.choices[0].delta.content : (parsed.choices[0].text || ''));
+                                                        out.rDelta = (parsed.choices && parsed.choices[0] && parsed.choices[0].delta && (parsed.choices[0].delta.reasoning_content || (parsed.choices[0].delta.reasoning && (parsed.choices[0].delta.reasoning.content || parsed.choices[0].delta.reasoning)))) || (parsed.choices && parsed.choices[0] && parsed.choices[0].message && parsed.choices[0].message.reasoning_content) || '';
+                                                        out.annDelta = parsed.choices && parsed.choices[0] && parsed.choices[0].delta && parsed.choices[0].delta.annotations;
+                                                        out.finalMsg = parsed.choices && parsed.choices[0] && parsed.choices[0].message;
+                                                        self.postMessage({ ok: true, out });
+                                                    } catch (err) { self.postMessage({ ok: false, err: String(err) }); }
+                                                };
+                                            `;
+                                            const blob = new Blob([workerCode], { type: 'application/javascript' });
+                                            window._streamParserWorker = new Worker(URL.createObjectURL(blob));
+                                        }
+                                        const w = window._streamParserWorker;
+                                        const onmsg = (ev) => {
+                                            w.removeEventListener('message', onmsg);
+                                            if (ev && ev.data && ev.data.ok) resolve(ev.data.out);
+                                            else reject((ev && ev.data && ev.data.err) || 'worker parse failed');
+                                        };
+                                        w.addEventListener('message', onmsg);
+                                        w.postMessage(text);
+                                    } catch (e) { reject(e); }
+                                });
+                            };
+
+                            let parsed = null;
+                            try { parsed = await parseWithWorker(data); } catch (e) {
+                                try { parsed = JSON.parse(data); } catch (err) { parsed = null; }
+                            }
+                            if (!parsed) continue;
+                            // 模型信息
                             try {
-                                const detectedModel = json.model || json.model_name || (json.choices && json.choices[0] && (json.choices[0].model || (json.choices[0].message && json.choices[0].message.model)));
+                                const detectedModel = parsed.detectedModel;
                                 if (detectedModel) {
                                     aiMsgObj.model = detectedModel;
-                                    // 触发 UI 更新以显示最新的 model 标签
                                     updateLastAssistantMessage(aiMsgObj.content);
                                 }
-                            } catch (_) { /* 忽略模型检测异常 */ }
-                            // 附加一条流式片段到日志（截断由 logger 控制）
+                            } catch (_) {}
                             try { window.Logger && chatEvtId && window.Logger.append(chatEvtId, { type: 'chat_stream', res: { streamChunks: [data] } }); } catch (_) {}
                             // 内容增量
-                            const delta = json.choices && json.choices[0] && (json.choices[0].delta ? json.choices[0].delta.content : (json.choices[0].text || ''));
-                            if (delta) {
-                                aiMsgObj.content += delta;
-                                updateLastAssistantMessage(aiMsgObj.content);
-                            }
-                            // 思考过程增量（兼容多种字段命名）
-                            const rDelta =
-                                (json.choices && json.choices[0] && json.choices[0].delta && (
-                                    json.choices[0].delta.reasoning_content ||
-                                    (json.choices[0].delta.reasoning && (json.choices[0].delta.reasoning.content || json.choices[0].delta.reasoning))
-                                )) ||
-                                (json.choices && json.choices[0] && json.choices[0].message && json.choices[0].message.reasoning_content) || '';
+                            const delta = parsed.delta || '';
+                            if (delta) { aiMsgObj.content += delta; updateLastAssistantMessage(aiMsgObj.content); }
+                            // 思考过程
+                            const rDelta = parsed.rDelta || '';
                             if (rDelta && (window._reasoningEnabledSend !== false)) {
                                 const rStr = String(rDelta);
                                 try { window._currentAssistantReasoning = (window._currentAssistantReasoning || '') + rStr; } catch (_) {}
                                 try { aiMsgObj.reasoning = (aiMsgObj.reasoning || '') + rStr; } catch (_) {}
                                 try { saveConversation(); } catch (_) {}
                                 try { scheduleUpsertSavedConversation(); } catch (_) {}
-                                // 触发界面刷新以（在存在时）显示思考过程
                                 updateLastAssistantMessage(aiMsgObj.content);
                             }
-                            // 引用增量（delta.annotations）
+                            // 引用增量
                             try {
-                                const annDelta = json.choices && json.choices[0] && json.choices[0].delta && json.choices[0].delta.annotations;
+                                const annDelta = parsed.annDelta;
                                 if (Array.isArray(annDelta) && annDelta.length) {
                                     aiMsgObj.citations = Array.isArray(aiMsgObj.citations) ? aiMsgObj.citations : [];
                                     for (const it of annDelta) {
@@ -1295,16 +1534,16 @@
                                     }
                                     updateLastAssistantMessage(aiMsgObj.content);
                                 }
-                            } catch (_) { /* 忽略增量引用解析异常 */ }
-                            // 捕获最终消息上的引用注释（若在流片段中提供）
+                            } catch (_) {}
+                            // 尾包引用注释
                             try {
-                                const finalMsg = json.choices && json.choices[0] && json.choices[0].message;
+                                const finalMsg = parsed.finalMsg;
                                 const ann = finalMsg && Array.isArray(finalMsg.annotations) ? finalMsg.annotations : null;
                                 if (ann && ann.length) {
                                     aiMsgObj.citations = (aiMsgObj.citations || []).concat(ann);
                                     updateLastAssistantMessage(aiMsgObj.content);
                                 }
-                            } catch (_) { /* 忽略解析异常 */ }
+                            } catch (_) {}
                         } catch (err) {
                             console.debug('解析流片段失败（可能不是 JSON）：', err);
                         }
@@ -1317,6 +1556,8 @@
             // 流结束后自动尝试生成会话记忆（具备去重判断）
             try { await autoSummarizeIfNeeded(); } catch (e) { console.error('自动会话记忆失败：', e); }
 
+            // 清理 current controller（请求/流已完成）
+            try { window._currentRequestController = null; } catch (_) {}
             // 结束日志事件
             try { window.Logger && chatEvtId && window.Logger.end(chatEvtId, { type: 'chat_done' }); } catch (_) {}
         }
@@ -1360,7 +1601,7 @@
                 })) || null;
             } catch (_) {}
 
-            const resp = await fetch(url, {
+            const resp = await fetchWithRetry(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
                 body: JSON.stringify({
@@ -1368,7 +1609,7 @@
                     messages: [ { role: 'system', content: systemPrompt }, { role: 'user', content: userContent } ],
                     temperature: 0.2
                 })
-            });
+            }, { retries: 2, backoff: 500, timeout: 20000 });
             try { window.Logger && _sumEvtId && window.Logger.append(_sumEvtId, { res: { status: resp.status } }); } catch (_) {}
             if (!resp.ok) { try { window.Logger && _sumEvtId && window.Logger.end(_sumEvtId, { error: { message: '摘要请求失败' } }); } catch (_) {} return; }
             const data = await resp.json();
@@ -1421,7 +1662,7 @@
                     })) || null;
                 } catch (_) {}
 
-                const resp = await fetch(url, {
+                const resp = await fetchWithRetry(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
                     body: JSON.stringify({
@@ -1429,7 +1670,7 @@
                         messages: [ { role: 'system', content: systemPrompt }, { role: 'user', content: groupSummaries.join('\n\n') } ],
                         temperature: 0.2
                     })
-                });
+                }, { retries: 2, backoff: 500, timeout: 20000 });
                 try { window.Logger && _gmEvtId && window.Logger.append(_gmEvtId, { res: { status: resp.status } }); } catch (_) {}
                 if (!resp.ok) { try { window.Logger && _gmEvtId && window.Logger.end(_gmEvtId, { error: { message: '分组记忆请求失败' } }); } catch (_) {} return; }
                 const data = await resp.json();
@@ -1455,7 +1696,10 @@
          * 参数：content - 要更新的消息内容
          * 返回值：无
          */
-        function updateLastAssistantMessage(content) {
+        // 将对最后一条助手消息的更新合并到下一帧，减少流式高频 DOM 操作
+        window._pendingAssistantUpdate = null;
+        window._pendingAssistantUpdateScheduled = false;
+        function doUpdateLastAssistantMessage(content) {
             const nodes = messageContainer.querySelectorAll('.message.ai-message');
             const last = nodes && nodes.length ? nodes[nodes.length - 1] : null;
             if (!last) {
@@ -1603,6 +1847,169 @@
             scrollToBottom();
         }
 
+        // 执行实际的最后一条助手消息更新（可被 requestAnimationFrame 调度）
+        function doUpdateLastAssistantMessage(content) {
+            const nodes = messageContainer.querySelectorAll('.message.ai-message');
+            const last = nodes && nodes.length ? nodes[nodes.length - 1] : null;
+            if (!last) {
+                renderMessages();
+                return;
+            }
+            try {
+                const rawHtml = marked.parse(content || '');
+                last.innerHTML = DOMPurify.sanitize(rawHtml);
+            } catch (e) {
+                last.textContent = content;
+            }
+
+            const existingActions = last.querySelector('.message-actions');
+            if (existingActions) existingActions.remove();
+
+            // 若已存在思考过程容器，移除以避免重复追加
+            const existingReasoning = last.querySelector('.reasoning-block');
+            if (existingReasoning) existingReasoning.remove();
+            // 若已存在引用容器，移除以避免重复追加
+            const existingCitations = last.querySelector('.citations');
+            if (existingCitations) existingCitations.remove();
+
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'message-actions';
+
+            // 在更新最后一条助手消息时，查找该消息对象的 model 字段用于显示（回退到全局 MODEL_NAME）
+            try {
+                let lastAssistantIndexTemp = -1;
+                for (let i = currentConversation.length - 1; i >= 0; i--) {
+                    if (currentConversation[i] && currentConversation[i].role === 'assistant') { lastAssistantIndexTemp = i; break; }
+                }
+                if (lastAssistantIndexTemp !== -1) {
+                    const m = currentConversation[lastAssistantIndexTemp];
+                    const modelLabel = document.createElement('div');
+                    modelLabel.className = 'message-model';
+                    modelLabel.textContent = (m && m.model) ? m.model : (window.MODEL_NAME || 'minimax/minimax-m2:free');
+                    actionsDiv.appendChild(modelLabel);
+                }
+            } catch (_) {}
+
+            const copyBtn = document.createElement('button');
+            copyBtn.className = 'action-btn';
+            copyBtn.innerHTML = '<i class="fas fa-copy"></i>';
+            copyBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                copyToClipboard(content);
+            });
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'action-btn';
+            deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
+            deleteBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                // 计算当前会话中最后一个 assistant 消息的索引并删除，避免依赖外部闭包变量导致引用错误
+                let lastAssistantIndex = -1;
+                for (let i = currentConversation.length - 1; i >= 0; i--) {
+                    if (currentConversation[i] && currentConversation[i].role === 'assistant') {
+                        lastAssistantIndex = i;
+                        break;
+                    }
+                }
+                if (lastAssistantIndex !== -1) deleteMessage(lastAssistantIndex);
+            });
+
+            actionsDiv.appendChild(copyBtn);
+            actionsDiv.appendChild(deleteBtn);
+            last.appendChild(actionsDiv);
+            // 将实时更新的 assistant 内容保存到 localStorage，防止在生成过程中页面刷新/跳转导致内容丢失
+            try { saveConversation(); } catch (e) { console.error('保存会话失败：', e); }
+            // 节流写回持久会话
+            try { scheduleUpsertSavedConversation(); } catch (e) { /* 忽略上报 */ }
+
+            // 渲染思考过程（仅当存在思考内容时显示，默认展开，置于正文前）
+            try {
+                const rText = (window._currentAssistantReasoning || '').trim();
+                const showReasoning = (window._reasoningEnabledSend !== false);
+                if (rText && showReasoning) {
+                    const reasoningBlock = document.createElement('div');
+                    reasoningBlock.className = 'reasoning-block';
+
+                    const toggleBtn = document.createElement('button');
+                    toggleBtn.className = 'reasoning-toggle';
+                    const collapsed = !!window._reasoningCollapsed;
+                    toggleBtn.textContent = collapsed ? '展开思考过程' : '收起思考过程';
+
+                    const contentDiv = document.createElement('div');
+                    contentDiv.className = 'reasoning-content';
+                    try {
+                        const rHtml = marked.parse(rText);
+                        contentDiv.innerHTML = DOMPurify.sanitize(rHtml);
+                    } catch (_) {
+                        contentDiv.textContent = rText;
+                    }
+                    contentDiv.style.display = collapsed ? 'none' : 'block';
+
+                    toggleBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const willShow = (contentDiv.style.display === 'none');
+                        contentDiv.style.display = willShow ? 'block' : 'none';
+                        window._reasoningCollapsed = !willShow;
+                        toggleBtn.textContent = willShow ? '收起思考过程' : '展开思考过程';
+                    });
+
+                    reasoningBlock.appendChild(toggleBtn);
+                    reasoningBlock.appendChild(contentDiv);
+                    // 插入到消息内容最前面（位于正文之前）
+                    last.insertBefore(reasoningBlock, last.firstChild);
+                }
+            } catch (_) { /* 忽略思考过程渲染异常 */ }
+            // 渲染引用来源（若有）
+            try {
+                // 取出会话中最后一个 assistant 对象的 citations
+                let lastAssistantIndex = -1;
+                for (let i = currentConversation.length - 1; i >= 0; i--) {
+                    if (currentConversation[i] && currentConversation[i].role === 'assistant') { lastAssistantIndex = i; break; }
+                }
+                if (lastAssistantIndex !== -1) {
+                    const msg = currentConversation[lastAssistantIndex];
+                    const anns = (msg.citations || []).filter(x => x && x.type === 'url_citation' && x.url_citation && x.url_citation.url);
+                    if (anns.length) {
+                        const citeBlock = document.createElement('div');
+                        citeBlock.className = 'citations';
+                        const title = document.createElement('div');
+                        title.className = 'citations-title';
+                        title.textContent = '参考来源';
+                        const list = document.createElement('ul');
+                        for (const a of anns) {
+                            const url = a.url_citation.url;
+                            const li = document.createElement('li');
+                            const link = document.createElement('a');
+                            link.href = url;
+                            link.target = '_blank';
+                            link.rel = 'noopener noreferrer';
+                            link.textContent = extractDomain(url) || url;
+                            li.appendChild(link);
+                            list.appendChild(li);
+                        }
+                        citeBlock.appendChild(title);
+                        citeBlock.appendChild(list);
+                        last.appendChild(citeBlock);
+                    }
+                }
+            } catch (_) { /* 忽略引用渲染异常 */ }
+            scrollToBottom();
+        }
+
+        function updateLastAssistantMessage(content) {
+            // 合并到下一帧执行，防止流式高频更新触发多次重绘
+            window._pendingAssistantUpdate = String(content || '');
+            if (window._pendingAssistantUpdateScheduled) return;
+            window._pendingAssistantUpdateScheduled = true;
+            requestAnimationFrame(() => {
+                try {
+                    doUpdateLastAssistantMessage(window._pendingAssistantUpdate || '');
+                } catch (e) { console.error('更新最后一条助手消息失败：', e); }
+                window._pendingAssistantUpdateScheduled = false;
+                window._pendingAssistantUpdate = null;
+            });
+        }
+
         /**
          * 提取 URL 的域名
          * 功能：用于将引用以域名作为链接文本
@@ -1615,6 +2022,72 @@
                 const m = String(url || '').match(/^https?:\/\/([^\/]+)/i);
                 return m ? m[1] : '';
             }
+        }
+
+        /**
+         * 网络请求：带超时与重试的 fetch 封装（不适用于流式 SSE，适用于短请求/摘要/聚合）
+         * opts: { retries, backoff, timeout }
+         */
+        async function fetchWithRetry(url, options = {}, opts = {}) {
+            const retries = Number.isFinite(Number(opts.retries)) ? Number(opts.retries) : 2;
+            const backoff = Number.isFinite(Number(opts.backoff)) ? Number(opts.backoff) : 400;
+            const timeout = Number.isFinite(Number(opts.timeout)) ? Number(opts.timeout) : 15000;
+            let attempt = 0;
+            while (true) {
+                attempt++;
+                const controller = new AbortController();
+                const timer = setTimeout(() => controller.abort(), timeout);
+                try {
+                    const merged = Object.assign({}, options, { signal: controller.signal });
+                    const resp = await fetch(url, merged);
+                    clearTimeout(timer);
+                    if (!resp.ok) {
+                        const txt = await resp.text().catch(() => '');
+                        const err = new Error(`HTTP ${resp.status} ${resp.statusText} ${txt}`);
+                        if (attempt > retries) throw err;
+                        await new Promise(r => setTimeout(r, backoff * attempt));
+                        continue;
+                    }
+                    return resp;
+                } catch (err) {
+                    clearTimeout(timer);
+                    if (err && err.name === 'AbortError') {
+                        // 超时或手动中止
+                        if (attempt > retries) throw err;
+                        await new Promise(r => setTimeout(r, backoff * attempt));
+                        continue;
+                    }
+                    if (attempt > retries) throw err;
+                    await new Promise(r => setTimeout(r, backoff * attempt));
+                }
+            }
+        }
+
+        // 性能采样器：在移动设备上周期性记录时间/内存以便离线分析（用于 chrome://inspect 无法实时连接时）
+        window._perfSampler = window._perfSampler || { timer: null, samples: [] };
+        function startPerfSampler(intervalMs = 500) {
+            try {
+                if (window._perfSampler.timer) return;
+                window._perfSampler.samples = [];
+                window._perfSampler.timer = setInterval(() => {
+                    try {
+                        const now = Date.now();
+                        const perfNow = (typeof performance !== 'undefined' && performance.now) ? performance.now() : null;
+                        const mem = (performance && performance.memory) ? { usedJSHeapSize: performance.memory.usedJSHeapSize, totalJSHeapSize: performance.memory.totalJSHeapSize } : null;
+                        window._perfSampler.samples.push({ ts: now, perfNow, mem });
+                        // 保持样本数量上限，避免占用过多内存
+                        if (window._perfSampler.samples.length > 2000) window._perfSampler.samples.shift();
+                    } catch (_) {}
+                }, Math.max(100, intervalMs));
+            } catch (e) { console.error('startPerfSampler 失败：', e); }
+        }
+        function stopPerfSampler() {
+            try {
+                if (window._perfSampler && window._perfSampler.timer) {
+                    clearInterval(window._perfSampler.timer);
+                    window._perfSampler.timer = null;
+                }
+            } catch (e) { console.error('stopPerfSampler 失败：', e); }
         }
 
         /**

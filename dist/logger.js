@@ -155,6 +155,27 @@
                 }
             } catch (_) { /* 忽略异常 */ }
         },
+        /** 获取日志（程序化接口，支持 scope 与 conversationId） */
+        getLogs(opts) {
+            try {
+                const scope = (opts && opts.scope) || 'all';
+                const allLogs = readLogsArray();
+                if (scope === 'all') return allLogs;
+                if (scope === 'current') {
+                    const cid = (localStorage.getItem('deepseekConversationId') || null);
+                    return cid ? allLogs.filter(x => x && x.conversationId === cid) : [];
+                }
+                if (scope === 'byConversationId') {
+                    const cid = opts && opts.conversationId;
+                    return cid ? allLogs.filter(x => x && x.conversationId === cid) : [];
+                }
+                return allLogs;
+            } catch (_) { return []; }
+        },
+        /** 获取当前配置（只读） */
+        getConfig() {
+            return { maxEntries: state.maxEntries, enable: state.enable };
+        },
 
         /** 开始一个事件，返回 eventId */
         start(eventLike) {
@@ -294,6 +315,33 @@
                     triggerDownload(fname, lines + '\n', 'application/x-ndjson');
                 }
             } catch (_) { /* 忽略导出异常 */ }
+        },
+
+        /** 分析当前日志并返回聚合统计（用于快速定位延迟/错误热点） */
+        summarize() {
+            try {
+                const all = readLogsArray();
+                const total = all.length;
+                if (!total) return { total: 0, avgDurationMs: 0, maxDurationMs: 0, errors: 0, topEndpoints: [] };
+                let sum = 0;
+                let max = 0;
+                let errors = 0;
+                const endpointCounts = Object.create(null);
+                let totalStreamChunks = 0;
+                for (const e of all) {
+                    if (!e) continue;
+                    const d = Number(e.durationMs) || 0;
+                    sum += d;
+                    if (d > max) max = d;
+                    if (e.error) errors++;
+                    const ep = (e.endpoint || 'unknown').toString();
+                    endpointCounts[ep] = (endpointCounts[ep] || 0) + 1;
+                    if (e.res && Array.isArray(e.res.streamChunks)) totalStreamChunks += e.res.streamChunks.length;
+                }
+                const avg = Math.round(sum / total);
+                const topEndpoints = Object.keys(endpointCounts).sort((a,b)=>endpointCounts[b]-endpointCounts[a]).slice(0,8).map(k=>({ endpoint:k, count:endpointCounts[k] }));
+                return { total, avgDurationMs: avg, maxDurationMs: max, errors, avgStreamChunksPerEvent: total ? (totalStreamChunks/total) : 0, topEndpoints };
+            } catch (e) { return { total:0 }; }
         },
 
         /** 清空日志 */

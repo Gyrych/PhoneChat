@@ -626,4 +626,23 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
      - 将消息内 `.message-model` 调整为单独一行、宽度不超过气泡、右对齐并允许换行（`overflow-wrap: anywhere` / `word-break: break-word`），避免超出气泡范围。
      - 将 `.modal-overlay` 的 `z-index` 提升至 `2147483647`，确保新建会话模态位于最顶层，不被其他浮层覆盖。
   2. 文档：在 `CURSOR.md` 变更记录中追加本条目（即当前条目），说明变更目的与影响。
-- 回退：若需回退，恢复 `style.css` / `dist/style.css` 中被修改的规则；该改动为纯 CSS，不影响消息渲染逻辑或数据持久化。
+ - 回退：若需回退，恢复 `style.css` / `dist/style.css` 中被修改的规则；该改动为纯 CSS，不影响消息渲染逻辑或数据持久化。
+
+2025-11-14（实现：前端性能与网络鲁棒性改进）
+- 目的：提升用户交互体验、降低前端 I/O 与渲染压力、并增强网络请求的健壮性与可控性。
+- 修改项：
+  1. `index.html`：
+     - 新增基于 `AbortController` 的请求中止支持：点击“停止生成”将真正中止当前网络请求与流式读取（`window._currentRequestController` 管理），并清理发送锁与 UI 状态。
+     - 实现发送互斥锁 `window._sendingInProgress`，避免并发发送与重复请求。
+     - 为非流式请求新增 `fetchWithRetry()` 封装，支持超时与指数退避重试（配置：重试次数/回退间隔/超时）。
+     - 对高频写入（如当前会话）使用 `batchedStorageSetJson()` 做 per-key 批量写入合并（默认延迟 400ms），减少 `localStorage` 同步 I/O。
+     - 将流式增量渲染合并到下一帧（requestAnimationFrame），减少 DOM 重绘频率并降低 CPU 使用（`updateLastAssistantMessage` 调度到 `doUpdateLastAssistantMessage`）。
+     - 为联网检索添加短期节流配置（`freechat.web.cooldownMs`，默认 5000ms）并在触发时显示估算费用提示，避免短时间内重复触发高成本检索。
+     - 异步加载 Markdown 渲染/消毒库（`marked` 与 `DOMPurify`），通过 `ensureMarkdownLibs()` 在后台预加载以降低首屏阻塞。
+     - 在记忆构建中加入低信号检测与记忆级别前缀（默认 `【记忆级别: background】`），并保持原有的去重逻辑。
+  2. `logger.js`：增加 `getLogs(opts)` 與 `getConfig()` 接口，方便程序化读取与导出；保持环形缓冲逻辑与导出范围支持。
+  3. `README.md` / `README_zh.md`：更新文档以反映以上运行时改进（AbortController、重试/退避、批量写入、DOM 合并更新、库懒加载、联网检索节流与费用提示）。
+  4. `prompts.js`：提示词与注入说明保持不变，但 `index.html` 在注入顺序上支持通过 `localStorage.freechat.memory.injection.order` 配置注入顺序（组合 `web,groups,sessions,messages`）。
+- 风险与回退：
+  - 所有改动均为前端兼容增强；若需回退，可逐项取消新增函数（例如 `ensureMarkdownLibs`、`fetchWithRetry`、`batchedStorageSetJson`、`doUpdateLastAssistantMessage`）并恢复原有直接 `localStorage.setItem` 与同步渲染逻辑。
+  - 建议在生产环境将主聊天 API Key 与联网检索代理移至后端以提升安全性及避免直接在客户端计费。
