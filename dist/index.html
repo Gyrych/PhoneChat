@@ -988,7 +988,13 @@
                 if (sendBtn) sendBtn.disabled = true;
                 const messageText = messageInput.value.trim();
                 console.log('messageText length:', messageText.length);
-                if (!messageText) return;
+                if (!messageText) {
+                    // 若为空则立即恢复发送按钮状态并返回
+                    if (sendBtn) sendBtn.disabled = false;
+                    return;
+                }
+                // 增加发送中样式提示（图标旋转）
+                if (sendBtn) sendBtn.classList.add('sending');
 
                 const apiKey = OPENROUTER_API_KEY;
                 console.log('using built-in OPENROUTER_API_KEY present:', !!apiKey);
@@ -1063,7 +1069,8 @@
                 } catch (_) { /* 忽略日志异常 */ }
 
                 await fetchDeepSeekResponseStream(apiKey, messageText, aiMsgObj, _chatEvtId);
-
+                // 清理发送中样式与 UI
+                if (sendBtn) sendBtn.classList.remove('sending');
                 stopBtn.style.display = 'none';
                 if (sendBtn) sendBtn.style.display = 'flex';
                 hideStatus();
@@ -1076,8 +1083,11 @@
                 showStatus('发送失败：' + (error && error.message ? error.message : '请重试'));
                 setTimeout(hideStatus, 5000);
                 stopBtn.style.display = 'none';
-                if (sendBtn) sendBtn.style.display = 'flex';
-                if (sendBtn) sendBtn.disabled = false;
+                if (sendBtn) {
+                    sendBtn.style.display = 'flex';
+                    sendBtn.classList.remove('sending');
+                    sendBtn.disabled = false;
+                }
                 // 记录错误
                 try { window.Logger && window.Logger.error({ endpoint: window.DEEPSEEK_API_URL, model: window.MODEL_NAME }, error); } catch (_) {}
             }
@@ -1093,7 +1103,10 @@
             console.log("生成已中止");
             showStatus('已中止生成');
             stopBtn.style.display = 'none';
-            if (sendBtn) sendBtn.style.display = 'flex';
+            if (sendBtn) {
+                sendBtn.style.display = 'flex';
+                sendBtn.classList.remove('sending');
+            }
         }
 
         /**

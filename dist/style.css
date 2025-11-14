@@ -7,8 +7,9 @@
     --bg: #f6f7fb; /* 页面背景（浅冷白） */
     --fg: #1d1f23; /* 主文本颜色 */
     --muted: #5b6577; /* 次要文本颜色 */
-    --brand: #2f6fe4; /* 品牌主色 */
-    --brand-2: #5b8cff; /* 品牌渐变副色 */
+    --brand: #4f46e5; /* 品牌主色（更新） */
+    --brand-2: #06b6d4; /* 品牌渐变副色（更新） */
+    --gloss: rgba(255,255,255,0.18); /* 光泽高光，用于按钮光效 */
     --surface: rgba(255,255,255,0.65); /* 玻璃表面 */
     --surface-strong: rgba(255,255,255,0.85); /* 玻璃降级表面 */
     --border: rgba(20,40,80,0.12); /* 细边 */
@@ -131,6 +132,30 @@ body {
     border-radius: 6px;
 }
 
+/* 使会话标题栏支持换行，模型徽章单独占一行并右对齐 */
+.session-title {
+  display: flex; /* 保持现有布局 */
+  flex-wrap: wrap; /* 允许换行，将模型徽章推到下一行 */
+  align-items: center;
+  box-sizing: border-box;
+  overflow: hidden; /* 防止溢出 */
+}
+.session-title > div { /* 会话名/分组容器可缩小避免挤压 */
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.session-title .model-badge,
+#currentModelBadge {
+  flex-basis: 100%; /* 单独一行 */
+  width: 100%;
+  text-align: right; /* 右对齐（用户要求） */
+  white-space: normal; /* 允许换行 */
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  box-sizing: border-box;
+  margin-top: 6px; /* 与标题保持间距 */
+}
+
 .settings-btn, .back-btn, .conversations-btn, .new-chat-btn {
     background: rgba(255,255,255,0.55);
     border: 1px solid var(--border);
@@ -157,30 +182,6 @@ body {
 /* 左上角悬浮的会话按钮（取代整条头部容器） */
 .conversations-fab {
     position: fixed;
-
-/* 使会话标题栏支持换行，模型徽章单独占一行并右对齐 */
-.session-title {
-  display: flex; /* 保持现有布局 */
-  flex-wrap: wrap; /* 允许换行，将模型徽章推到下一行 */
-  align-items: center;
-  box-sizing: border-box;
-  overflow: hidden; /* 防止溢出 */
-}
-.session-title > div { /* 会话名/分组容器可缩小避免挤压 */
-  min-width: 0;
-  flex: 1 1 auto;
-}
-.session-title .model-badge,
-#currentModelBadge {
-  flex-basis: 100%; /* 单独一行 */
-  width: 100%;
-  text-align: right; /* 右对齐（用户要求） */
-  white-space: normal; /* 允许换行 */
-  overflow-wrap: anywhere;
-  word-break: break-word;
-  box-sizing: border-box;
-  margin-top: 6px; /* 与标题保持间距 */
-}
     left: 12px;
     top: 12px;
     z-index: 10000;
@@ -264,7 +265,7 @@ body.drawer-open .conversations-fab {
     line-height: 1.5; /* 适度行高，兼顾可读性与美观 */
     font-size: var(--fs-body);
     position: relative;
-    animation: fadeIn 0.28s ease;
+    animation: fadeIn 0.18s cubic-bezier(.22,.9,.35,1);
 }
 
 /* Markdown 渲染内容样式：限制宽度并确保换行、图片与表格自适应、代码块滚动 */
@@ -344,7 +345,7 @@ body.drawer-open .conversations-fab {
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
+    from { opacity: 0; transform: translateY(6px); }
     to { opacity: 1; transform: translateY(0); }
 }
 
@@ -504,6 +505,13 @@ body.drawer-open .conversations-fab {
 
 .send-btn {
     background: linear-gradient(135deg, var(--brand), var(--brand-2));
+    position: relative;
+    transition: transform 0.12s cubic-bezier(.2,.9,.3,1), box-shadow 0.18s ease, filter 0.12s ease;
+    will-change: transform, box-shadow;
+}
+
+.send-btn:active {
+    transform: scale(0.96);
 }
 
 .stop-btn {
@@ -519,6 +527,49 @@ body.drawer-open .conversations-fab {
     background-color: #cccccc;
     cursor: not-allowed;
 }
+
+/* 发送中状态：旋转图标以提示加载（轻量、可被 reduced-motion 关闭） */
+.send-btn.sending i {
+    animation: spin 1s linear infinite;
+    display: inline-block;
+}
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+/* 发送按钮光泽高光与更细腻阴影 */
+.send-btn {
+    /* 保证已有背景渐变不被覆盖 */
+    overflow: hidden;
+}
+.send-btn::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(180deg, rgba(255,255,255,0.14), rgba(255,255,255,0.02));
+    mix-blend-mode: overlay;
+    opacity: 0.9;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+}
+.send-btn:hover::after { opacity: 1; transform: translateY(-2px); }
+.send-btn:hover { box-shadow: 0 12px 30px rgba(79,70,229,0.12); transform: translateY(-1px); }
+
+/* 可访问性的键盘焦点样式 */
+.send-btn:focus-visible, .action-btn:focus-visible, .circle-btn:focus-visible, .attach-btn:focus-visible {
+    outline: 2px solid rgba(79,70,229,0.18);
+    outline-offset: 3px;
+}
+
+/* 消息轻微悬浮效果（鼠标/触控反馈） */
+.message:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 30px rgba(16,38,84,0.06);
+}
+
+/* 消息操作按钮微交互 */
+.action-btn {
+    transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+}
+.action-btn:hover { transform: translateY(-2px) scale(1.03); box-shadow: 0 6px 14px rgba(6,34,84,0.06); }
 
 /* 内联胶囊开关（通用） */
 .pill-toggle, .web-inline-toggle {
