@@ -155,6 +155,27 @@
                 }
             } catch (_) { /* 忽略异常 */ }
         },
+        /** 获取日志（程序化接口，支持 scope 与 conversationId） */
+        getLogs(opts) {
+            try {
+                const scope = (opts && opts.scope) || 'all';
+                const allLogs = readLogsArray();
+                if (scope === 'all') return allLogs;
+                if (scope === 'current') {
+                    const cid = (localStorage.getItem('deepseekConversationId') || null);
+                    return cid ? allLogs.filter(x => x && x.conversationId === cid) : [];
+                }
+                if (scope === 'byConversationId') {
+                    const cid = opts && opts.conversationId;
+                    return cid ? allLogs.filter(x => x && x.conversationId === cid) : [];
+                }
+                return allLogs;
+            } catch (_) { return []; }
+        },
+        /** 获取当前配置（只读） */
+        getConfig() {
+            return { maxEntries: state.maxEntries, enable: state.enable };
+        },
 
         /** 开始一个事件，返回 eventId */
         start(eventLike) {

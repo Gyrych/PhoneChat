@@ -7,8 +7,30 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="prompts.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/dompurify@2.4.0/dist/purify.min.js"></script>
+    <script>
+        // 按需加载 Markdown 渲染与消毒库（非阻塞，用于减少首屏加载体积）
+        window._markdownLibsLoaded = false;
+        function ensureMarkdownLibs() {
+            if (window._markdownLibsLoaded) return Promise.resolve();
+            return new Promise((resolve, reject) => {
+                try {
+                    const m = document.createElement('script');
+                    m.src = 'https://cdn.jsdelivr.net/npm/marked/marked.min.js';
+                    m.async = true;
+                    m.onload = () => {
+                        const d = document.createElement('script');
+                        d.src = 'https://cdn.jsdelivr.net/npm/dompurify@2.4.0/dist/purify.min.js';
+                        d.async = true;
+                        d.onload = () => { window._markdownLibsLoaded = true; resolve(); };
+                        d.onerror = reject;
+                        document.head.appendChild(d);
+                    };
+                    m.onerror = reject;
+                    document.head.appendChild(m);
+                } catch (e) { reject(e); }
+            });
+        }
+    </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
     <script src="logger.js"></script>
 </head>
@@ -35,7 +57,7 @@
             <div id="currentModelBadge" class="model-badge" title="当前模型">未选择模型</div>
         </div>
         <div id="messageContainer" class="message-container"></div>
-        <div id="statusIndicator" class="status-indicator"></div>
+        <div id="statusIndicator" class="status-indicator" aria-live="polite"></div>
     </main>
 
     <!-- 覆盖式会话抽屉与遮罩 -->
@@ -132,6 +154,9 @@
         const attachBtn = document.getElementById('attachBtn');
         const fileInput = document.getElementById('fileInput');
         const statusIndicator = document.getElementById('statusIndicator');
+        // 当前请求控制器与发送锁，用于支持真正中止和防止并发发送
+        window._currentRequestController = null;
+        window._sendingInProgress = false;
         // 抽屉相关元素
         const drawerEl = document.getElementById('drawer');
         const drawerOverlayEl = document.getElementById('drawerOverlay');
@@ -170,6 +195,8 @@
             window._appInitialized = true;
 
             console.log('initApp: attaching handlers');
+            // 异步加载 Marked/DOMPurify，非阻塞首屏
+            try { ensureMarkdownLibs().catch(() => {}); } catch (_) {}
             try { updateCurrentModelBadge(); } catch (e) { /* 忽略徽标更新异常 */ }
             // 在跨窗口/标签页更新 localStorage.chatModel 时刷新徽标（便于从配置页修改后自动反映）
             try {
@@ -595,6 +622,32 @@
 
                 const result = [];
 
+                // 辅助：判断是否为低信号或纯寒暄文本
+                const isLowSignalOrGreeting = (str) => {
+                    try {
+                        if (!str) return true;
+                        const s = String(str || '').trim();
+                        if (s.length < 20) return true;
+                        const lowSignals = ['无', 'none', 'no', 'n/a'];
+                        if (lowSignals.includes(s)) return true;
+                        // 常见寒暄词或感谢语
+                        const greetingRe = /^(你好|您好|hi\b|hello\b|thanks|thank you|谢谢|感谢)/i;
+                        if (greetingRe.test(s)) return true;
+                        return false;
+                    } catch (_) { return false; }
+                };
+
+                // 辅助：确保记忆条目带有记忆级别前缀（默认 background）
+                const ensureMemoryPrefix = (txt) => {
+                    try {
+                        const t = String(txt || '').trim();
+                        if (!t) return '';
+                        const tl = t.trim();
+                        if (tl.startsWith('【记忆级别:') || tl.startsWith('【背景资料') || tl.toLowerCase().startsWith('[memory-level:')) return t;
+                        return `【记忆级别: background】\n${t}`;
+                    } catch (_) { return txt; }
+                };
+
                 // 分组记忆：逐条生成 system
                 try {
                     const groups = JSON.parse(localStorage.getItem('conversationGroups') || '[]');
@@ -602,10 +655,13 @@
                     const targetGroups = injectAllGroups ? groups : groups.filter(g => g.id === currentGroupId);
                     for (const g of targetGroups) {
                         if (!g || !g.memorySummary) continue;
+                        // 过滤低信号或寒暄
+                        if (isLowSignalOrGreeting(g.memorySummary)) continue;
                         let text = `[Group Memory] ${g.name || g.id}\n${g.memorySummary}`;
                         if (text.length > maxCharsPerItem) {
                             text = text.slice(0, maxCharsPerItem) + `\n...（分组记忆超出 ${maxCharsPerItem} 字符，已截断）`;
                         }
+                        text = ensureMemoryPrefix(text);
                         result.push({ role: 'system', content: text });
                     }
                 } catch (_) { /* 忽略分组解析异常 */ }
@@ -632,11 +688,15 @@
 
                         const limited = deduped.slice(0, Math.max(1, maxSessionsPerRequest));
                         for (const c of limited) {
+                            if (!c || !c.summary) continue;
+                            // 低信号过滤：避免把“无”或寒暄存入记忆
+                            if (isLowSignalOrGreeting(c.summary)) continue;
                             const name = (c && c.name) ? c.name : (c && c.id) ? c.id : '会话';
                             let text = `[Session Memory] ${name}\n${c.summary}`;
                             if (text.length > maxCharsPerItem) {
                                 text = text.slice(0, maxCharsPerItem) + `\n...（会话记忆超出 ${maxCharsPerItem} 字符，已截断）`;
                             }
+                            text = ensureMemoryPrefix(text);
                             result.push({ role: 'system', content: text });
                         }
                     } catch (_) { /* 忽略会话解析异常 */ }
@@ -716,11 +776,11 @@
                 const url = (window.DEEPSEEK_API_URL || 'https://openrouter.ai/api/v1/chat/completions');
 
                 // 简化：不写日志，失败静默
-                const resp = await fetch(url, {
+                const resp = await fetchWithRetry(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
                     body: JSON.stringify({ model: modelToUse, messages: [ { role: 'system', content: systemPrompt }, { role: 'user', content: userContent } ], temperature: 0.2 })
-                });
+                }, { retries: 2, backoff: 500, timeout: 20000 });
                 if (!resp.ok) return;
                 const data = await resp.json();
                 const summaryText = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content ? data.choices[0].message.content : null;
@@ -756,7 +816,33 @@
          * 返回值：无
          */
         function saveConversation() {
-            localStorage.setItem('deepseekConversation', JSON.stringify(currentConversation));
+            // 批量写入 deepseekConversation：避免高频流式更新导致 localStorage 同步 I/O 卡顿
+            batchedStorageSetJson('deepseekConversation', currentConversation);
+        }
+
+        // 简单的 per-key 批量写入器：在短时间内合并多次写入为一次实际 setItem
+        const _batchedWrites = Object.create(null);
+        function batchedStorageSetJson(key, value, delay = 400) {
+            try {
+                if (_batchedWrites[key] && _batchedWrites[key].timer) {
+                    clearTimeout(_batchedWrites[key].timer);
+                }
+                _batchedWrites[key] = _batchedWrites[key] || {};
+                _batchedWrites[key].value = value;
+                _batchedWrites[key].timer = setTimeout(() => {
+                    try {
+                        localStorage.setItem(key, JSON.stringify(_batchedWrites[key].value));
+                    } catch (e) {
+                        console.error('batchedStorageSetJson 写入失败：', key, e);
+                    } finally {
+                        try { clearTimeout(_batchedWrites[key].timer); } catch(_) {}
+                        delete _batchedWrites[key];
+                    }
+                }, delay);
+            } catch (e) {
+                // 若批量写入逻辑本身异常，则回退到直接写入，避免丢数据
+                try { localStorage.setItem(key, JSON.stringify(value)); } catch (_) {}
+            }
         }
 
         /**
@@ -983,6 +1069,12 @@
          */
         async function sendMessage() {
             console.log('sendMessage invoked');
+            // 并发保护：若已有发送在进行中则直接提示并返回
+            if (window._sendingInProgress) {
+                try { showStatus('正在发送中，请稍候'); setTimeout(hideStatus, 1200); } catch (_) {}
+                return;
+            }
+            window._sendingInProgress = true;
             try {
                 // 在发送期间禁用发送按钮，防止用户重复触发并发发送
                 if (sendBtn) sendBtn.disabled = true;
@@ -991,6 +1083,7 @@
                 if (!messageText) {
                     // 若为空则立即恢复发送按钮状态并返回
                     if (sendBtn) sendBtn.disabled = false;
+                    window._sendingInProgress = false;
                     return;
                 }
                 // 增加发送中样式提示（图标旋转）
@@ -1069,14 +1162,17 @@
                 } catch (_) { /* 忽略日志异常 */ }
 
                 await fetchDeepSeekResponseStream(apiKey, messageText, aiMsgObj, _chatEvtId);
-                // 清理发送中样式与 UI
-                if (sendBtn) sendBtn.classList.remove('sending');
-                stopBtn.style.display = 'none';
-                if (sendBtn) sendBtn.style.display = 'flex';
-                hideStatus();
-                saveConversation();
-                renderMessages();
-                renderWelcomeIfEmpty();
+                // 注意：fetchDeepSeekResponseStream 内负责在流结束后保存与渲染
+                // 清理发送中样式与 UI（通常在流结束后执行）
+                try {
+                    if (sendBtn) sendBtn.classList.remove('sending');
+                    stopBtn.style.display = 'none';
+                    if (sendBtn) sendBtn.style.display = 'flex';
+                    hideStatus();
+                    saveConversation();
+                    renderMessages();
+                    renderWelcomeIfEmpty();
+                } catch (_) {}
                 if (sendBtn) sendBtn.disabled = false;
             } catch (error) {
                 console.error('发送消息失败:', error);
@@ -1091,6 +1187,13 @@
                 }
                 // 记录错误
                 try { window.Logger && window.Logger.error({ endpoint: window.DEEPSEEK_API_URL, model: window.MODEL_NAME }, error); } catch (_) {}
+            } finally {
+                // 无论成功或失败，解除发送锁（若还有未完成请求，fetchDeepSeekResponseStream 会在结束时清理 controller）
+                window._sendingInProgress = false;
+                // 确保 current controller 在已中止或完成后被清理
+                if (window._currentRequestController && window._currentRequestController.signal && window._currentRequestController.signal.aborted) {
+                    window._currentRequestController = null;
+                }
             }
         }
 
@@ -1102,11 +1205,20 @@
          */
         function stopGeneration() {
             console.log("生成已中止");
+            // 真正中止正在进行的请求（若存在）
+            try {
+                if (window._currentRequestController && typeof window._currentRequestController.abort === 'function') {
+                    window._currentRequestController.abort();
+                }
+            } catch (e) { console.debug('中止请求时出错：', e); }
+            window._currentRequestController = null;
+            window._sendingInProgress = false;
             showStatus('已中止生成');
             stopBtn.style.display = 'none';
             if (sendBtn) {
                 sendBtn.style.display = 'flex';
                 sendBtn.classList.remove('sending');
+                sendBtn.disabled = false;
             }
         }
 
@@ -1124,28 +1236,62 @@
             // 可选：在发送前尝试预摘要当前会话，确保首轮也可注入会话摘要
             try { await preSummarizeCurrentConversationMaybe(); } catch (_) { /* 忽略预摘要异常 */ }
 
-            // 构造记忆注入：分组记忆（逐条）+ 当前分组会话记忆（逐条）
+            // 构造记忆注入：支持可配置注入顺序（localStorage.freechat.memory.injection.order）
+            // 可选字段：'web','groups','sessions','messages'（messages 表示历史消息）
             let systemPrompts = [];
             try { systemPrompts = await buildMemorySystemPrompts(); } catch (_) { systemPrompts = []; }
-
-            // 若启用联网搜索，则在最前追加“结果综合与引用规范”系统提示（置首）
-            const webEnabledFlag = (localStorage.getItem('freechat.web.enable') || 'false') === 'true';
+            let webEnabledFlag = (localStorage.getItem('freechat.web.enable') || 'false') === 'true';
+            // 限速与计费提示：防止频繁触发联网检索带来高额费用
+            try {
+                if (webEnabledFlag) {
+                    const cooldownMs = Number(localStorage.getItem('freechat.web.cooldownMs')) || 5000;
+                    const lastTs = Number(localStorage.getItem('freechat.web.lastTriggeredTs') || 0);
+                    const nowTs = Date.now();
+                    if (lastTs && (nowTs - lastTs) < cooldownMs) {
+                        // 本次请求临时禁用 Web 插件以节流
+                        webEnabledFlag = false;
+                        try { showStatus('联网搜索短时间内已使用，已临时关闭以节省费用'); setTimeout(hideStatus, 1800); } catch (_) {}
+                    } else {
+                        localStorage.setItem('freechat.web.lastTriggeredTs', String(nowTs));
+                        // 显示估算费用（基于 freechat.web.maxResults 与 $4/1000 计价假设）
+                        const maxResultsRaw = Number(localStorage.getItem('freechat.web.maxResults')) || 5;
+                        const costPerResult = 4.0 / 1000.0; // 约 $0.004/result
+                        const est = (Number.isFinite(maxResultsRaw) ? maxResultsRaw : 5) * costPerResult;
+                        try { showStatus(`联网搜索将额外消耗约 $${est.toFixed(3)} 美元，请留意`); setTimeout(hideStatus, 2200); } catch (_) {}
+                    }
+                }
+            } catch (_) {}
+            const injectionOrderRaw = (localStorage.getItem('freechat.memory.injection.order') || '').trim();
+            const injectionOrder = injectionOrderRaw ? injectionOrderRaw.split(',').map(s => s.trim()).filter(Boolean) : ['web','groups','sessions','messages'];
             const injectedMsgs = [];
-            if (webEnabledFlag) {
+
+            const pushWeb = () => {
+                if (!webEnabledFlag) return;
                 try {
                     const webSynthPrompt = buildWebSynthesisPrompt();
                     if (webSynthPrompt) injectedMsgs.push({ role: 'system', content: webSynthPrompt });
                 } catch (_) { /* 忽略 */ }
-            }
-            if (Array.isArray(systemPrompts) && systemPrompts.length) {
-                // 对于每条记忆项，先注入统一的注入说明（若存在），再注入该记忆项本身
-                for (const sm of systemPrompts) {
-                    try {
-                        if (window.PROMPTS && window.PROMPTS.MEMORY_INJECTION) {
-                            injectedMsgs.push({ role: 'system', content: window.PROMPTS.MEMORY_INJECTION });
-                        }
-                    } catch (_) { /* 忽略 */ }
-                    if (sm && sm.role === 'system' && sm.content) injectedMsgs.push(sm);
+            };
+            const pushGroupsAndSessions = () => {
+                if (Array.isArray(systemPrompts) && systemPrompts.length) {
+                    for (const sm of systemPrompts) {
+                        try {
+                            if (window.PROMPTS && window.PROMPTS.MEMORY_INJECTION) {
+                                injectedMsgs.push({ role: 'system', content: window.PROMPTS.MEMORY_INJECTION });
+                            }
+                        } catch (_) { /* 忽略 */ }
+                        if (sm && sm.role === 'system' && sm.content) injectedMsgs.push(sm);
+                    }
+                }
+            };
+            // 按配置顺序注入
+            for (const key of injectionOrder) {
+                if (key === 'web') pushWeb();
+                else if (key === 'groups' || key === 'sessions') {
+                    // groups/sessions 均由 buildMemorySystemPrompts 返回的 systemPrompts 顺序承载（它内部已区分）
+                    pushGroupsAndSessions();
+                } else if (key === 'messages') {
+                    // messages 表示保留历史消息（在后面合并到请求体）
                 }
             }
             // 根据供应商能力决定是否需要将多条 system 合并为单条
@@ -1205,11 +1351,28 @@
                 });
             } catch (_) {}
 
-            const response = await fetch(DEEPSEEK_API_URL, {
-                method: 'POST',
-                headers,
-                body: JSON.stringify(requestBody)
-            });
+            // 创建可中止控制器，以支持停止按钮真正中止请求/流
+            const controller = new AbortController();
+            window._currentRequestController = controller;
+            let response;
+            try {
+                response = await fetch(DEEPSEEK_API_URL, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify(requestBody),
+                    signal: controller.signal
+                });
+            } catch (err) {
+                // 若为中止错误，安静退出（用户已触发 stop）并记录日志；否则抛出以供上层处理
+                if (err && err.name === 'AbortError') {
+                    try { window.Logger && chatEvtId && window.Logger.end(chatEvtId, { error: { message: '请求被用户中止' } }); } catch (_) {}
+                    console.log('请求已被中止（AbortError）');
+                    // 清理 controller 状态与 UI（stopGeneration 也会处理 UI）
+                    window._currentRequestController = null;
+                    return;
+                }
+                throw err;
+            }
 
             if (!response.ok) {
                 let errText = '';
@@ -1302,7 +1465,15 @@
                                 const finalMsg = json.choices && json.choices[0] && json.choices[0].message;
                                 const ann = finalMsg && Array.isArray(finalMsg.annotations) ? finalMsg.annotations : null;
                                 if (ann && ann.length) {
-                                    aiMsgObj.citations = (aiMsgObj.citations || []).concat(ann);
+                                    aiMsgObj.citations = Array.isArray(aiMsgObj.citations) ? aiMsgObj.citations : [];
+                                    for (const a of ann) {
+                                        try {
+                                            const url = a && a.url_citation && a.url_citation.url;
+                                            if (!url) continue;
+                                            const exists = aiMsgObj.citations.some(x => x && x.type === 'url_citation' && x.url_citation && x.url_citation.url === url);
+                                            if (!exists) aiMsgObj.citations.push(a);
+                                        } catch (_) { /* 忽略单条解析异常 */ }
+                                    }
                                     updateLastAssistantMessage(aiMsgObj.content);
                                 }
                             } catch (_) { /* 忽略解析异常 */ }
@@ -1318,6 +1489,8 @@
             // 流结束后自动尝试生成会话记忆（具备去重判断）
             try { await autoSummarizeIfNeeded(); } catch (e) { console.error('自动会话记忆失败：', e); }
 
+            // 清理 current controller（请求/流已完成）
+            try { window._currentRequestController = null; } catch (_) {}
             // 结束日志事件
             try { window.Logger && chatEvtId && window.Logger.end(chatEvtId, { type: 'chat_done' }); } catch (_) {}
         }
@@ -1361,7 +1534,7 @@
                 })) || null;
             } catch (_) {}
 
-            const resp = await fetch(url, {
+            const resp = await fetchWithRetry(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
                 body: JSON.stringify({
@@ -1369,7 +1542,7 @@
                     messages: [ { role: 'system', content: systemPrompt }, { role: 'user', content: userContent } ],
                     temperature: 0.2
                 })
-            });
+            }, { retries: 2, backoff: 500, timeout: 20000 });
             try { window.Logger && _sumEvtId && window.Logger.append(_sumEvtId, { res: { status: resp.status } }); } catch (_) {}
             if (!resp.ok) { try { window.Logger && _sumEvtId && window.Logger.end(_sumEvtId, { error: { message: '摘要请求失败' } }); } catch (_) {} return; }
             const data = await resp.json();
@@ -1422,7 +1595,7 @@
                     })) || null;
                 } catch (_) {}
 
-                const resp = await fetch(url, {
+                const resp = await fetchWithRetry(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
                     body: JSON.stringify({
@@ -1430,7 +1603,7 @@
                         messages: [ { role: 'system', content: systemPrompt }, { role: 'user', content: groupSummaries.join('\n\n') } ],
                         temperature: 0.2
                     })
-                });
+                }, { retries: 2, backoff: 500, timeout: 20000 });
                 try { window.Logger && _gmEvtId && window.Logger.append(_gmEvtId, { res: { status: resp.status } }); } catch (_) {}
                 if (!resp.ok) { try { window.Logger && _gmEvtId && window.Logger.end(_gmEvtId, { error: { message: '分组记忆请求失败' } }); } catch (_) {} return; }
                 const data = await resp.json();
@@ -1456,7 +1629,10 @@
          * 参数：content - 要更新的消息内容
          * 返回值：无
          */
-        function updateLastAssistantMessage(content) {
+        // 将对最后一条助手消息的更新合并到下一帧，减少流式高频 DOM 操作
+        window._pendingAssistantUpdate = null;
+        window._pendingAssistantUpdateScheduled = false;
+        function doUpdateLastAssistantMessage(content) {
             const nodes = messageContainer.querySelectorAll('.message.ai-message');
             const last = nodes && nodes.length ? nodes[nodes.length - 1] : null;
             if (!last) {
@@ -1604,6 +1780,20 @@
             scrollToBottom();
         }
 
+        function updateLastAssistantMessage(content) {
+            // 合并到下一帧执行，防止流式高频更新触发多次重绘
+            window._pendingAssistantUpdate = String(content || '');
+            if (window._pendingAssistantUpdateScheduled) return;
+            window._pendingAssistantUpdateScheduled = true;
+            requestAnimationFrame(() => {
+                try {
+                    doUpdateLastAssistantMessage(window._pendingAssistantUpdate || '');
+                } catch (e) { console.error('更新最后一条助手消息失败：', e); }
+                window._pendingAssistantUpdateScheduled = false;
+                window._pendingAssistantUpdate = null;
+            });
+        }
+
         /**
          * 提取 URL 的域名
          * 功能：用于将引用以域名作为链接文本
@@ -1615,6 +1805,45 @@
             } catch (_) {
                 const m = String(url || '').match(/^https?:\/\/([^\/]+)/i);
                 return m ? m[1] : '';
+            }
+        }
+
+        /**
+         * 网络请求：带超时与重试的 fetch 封装（不适用于流式 SSE，适用于短请求/摘要/聚合）
+         * opts: { retries, backoff, timeout }
+         */
+        async function fetchWithRetry(url, options = {}, opts = {}) {
+            const retries = Number.isFinite(Number(opts.retries)) ? Number(opts.retries) : 2;
+            const backoff = Number.isFinite(Number(opts.backoff)) ? Number(opts.backoff) : 400;
+            const timeout = Number.isFinite(Number(opts.timeout)) ? Number(opts.timeout) : 15000;
+            let attempt = 0;
+            while (true) {
+                attempt++;
+                const controller = new AbortController();
+                const timer = setTimeout(() => controller.abort(), timeout);
+                try {
+                    const merged = Object.assign({}, options, { signal: controller.signal });
+                    const resp = await fetch(url, merged);
+                    clearTimeout(timer);
+                    if (!resp.ok) {
+                        const txt = await resp.text().catch(() => '');
+                        const err = new Error(`HTTP ${resp.status} ${resp.statusText} ${txt}`);
+                        if (attempt > retries) throw err;
+                        await new Promise(r => setTimeout(r, backoff * attempt));
+                        continue;
+                    }
+                    return resp;
+                } catch (err) {
+                    clearTimeout(timer);
+                    if (err && err.name === 'AbortError') {
+                        // 超时或手动中止
+                        if (attempt > retries) throw err;
+                        await new Promise(r => setTimeout(r, backoff * attempt));
+                        continue;
+                    }
+                    if (attempt > retries) throw err;
+                    await new Promise(r => setTimeout(r, backoff * attempt));
+                }
             }
         }
 
