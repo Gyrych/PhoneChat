@@ -9,6 +9,7 @@
     <script src="prompts.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
     <script src="logger.js"></script>
+    <script src="script.js"></script>
 </head>
 <body>
     <header class="header">
@@ -549,12 +550,14 @@
             });
 
             conversationsList.querySelectorAll('.delete-conv-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const conversationId = e.currentTarget.getAttribute('data-id');
-                    if (confirm('确定要删除这个会话吗？')) {
+                btn.addEventListener('click', async (e) => {
+                    try {
+                        const conversationId = e.currentTarget.getAttribute('data-id');
+                        const confirmed = await showConfirmModal('确定要删除这个会话吗？');
+                        if (!confirmed) return;
                         deleteConversation(conversationId);
                         renderConversationsList();
-                    }
+                    } catch (err) { console.error('删除会话异常：', err); }
                 });
             });
 

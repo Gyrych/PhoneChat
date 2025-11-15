@@ -33,6 +33,7 @@
     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
     <script src="logger.js"></script>
+    <script src="script.js"></script>
 </head>
 <body>
 
@@ -402,6 +403,7 @@
                 if (drawerOverlayEl) drawerOverlayEl.setAttribute('aria-hidden', 'false');
                 try { document.body.classList.add('drawer-open'); } catch (_) {}
             } catch (_) {}
+            try { adjustSessionTitleHeight(); } catch (_) {}
         }
         function closeDrawer() {
             try {
@@ -584,9 +586,10 @@
                     delBtn.className = 'action-btn';
                     delBtn.title = '删除';
                     delBtn.innerHTML = '<i class="fas fa-trash"></i>';
-                    delBtn.addEventListener('click', () => {
-                        if (!confirm('确定要删除这个会话吗？')) return;
+                    delBtn.addEventListener('click', async () => {
                         try {
+                            const confirmed = await showConfirmModal('确定要删除这个会话吗？');
+                            if (!confirmed) return;
                             let arr = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
                             arr = arr.filter(x => x && x.id !== c.id);
                             localStorage.setItem('savedDeepseekConversations', JSON.stringify(arr));
@@ -1060,9 +1063,15 @@
                             const citeBlock = buildCitationsElement(anns);
                             if (citeBlock) {
                                 try {
-                                    // 若已有引用容器则跳过追加，避免重复显示
-                                    if (!messageElement.querySelector('.citations')) {
-                                        messageElement.appendChild(citeBlock);
+                                    // 若内容中已包含“参考来源”文本（模型已在正文中列出来源），则跳过结构化追加，避免重复
+                                    const contentText = (messageElement && messageElement.innerText) ? messageElement.innerText : '';
+                                    if (/参考来源/.test(contentText)) {
+                                        // 跳过追加，模型正文已经包含参考来源
+                                    } else {
+                                        // 若已有引用容器则跳过追加，避免重复显示
+                                        if (!messageElement.querySelector('.citations')) {
+                                            messageElement.appendChild(citeBlock);
+                                        }
                                     }
                                 } catch (_) {
                                     try { messageElement.appendChild(citeBlock); } catch(_) {}
@@ -1818,8 +1827,13 @@
                         const citeBlock = buildCitationsElement(anns);
                         if (citeBlock) {
                             try {
-                                if (!last.querySelector('.citations')) {
-                                    last.appendChild(citeBlock);
+                                const contentText = (last && last.innerText) ? last.innerText : '';
+                                if (/参考来源/.test(contentText)) {
+                                    // 如果模型正文已经包含参考来源，跳过追加结构化引用
+                                } else {
+                                    if (!last.querySelector('.citations')) {
+                                        last.appendChild(citeBlock);
+                                    }
                                 }
                             } catch (_) {
                                 try { last.appendChild(citeBlock); } catch (_) {}

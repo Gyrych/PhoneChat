@@ -398,6 +398,15 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
   - 修改项：
     1. index：在 `updateLastAssistantMessage` 中将思考块插入到助手正文之前；默认展开；保留用户折叠状态 `window._reasoningCollapsed`；在 `sendMessage` 开始时重置为展开；
     2. index：流式增量到达时同步刷新思考块内容，并将增量写入 `aiMsgObj.reasoning`；
+ - 2025-11-15（修复：侧边栏滚动、删除改用项目模态、移动端模型徽章与去重引用显示）
+   - 目的：改善移动端与抽屉交互体验，统一删除确认 UI，修复联网搜索时重复显示参考来源的问题。
+   - 修改项：
+     1. `style.css` / `dist/style.css`：在 `.drawer .conversation-summary-content` / `.drawer .group-memory` 中添加 `max-height: calc(50vh); overflow-y: auto; -webkit-overflow-scrolling: touch;`，使展开的记忆窗格在抽屉内可滚动，避免抽屉整体失去滚动能力。
+     2. `script.js`：新增 `showConfirmModal(message)` 函数，使用现有 `.modal-overlay` / `.modal` 样式动态创建项目内确认模态并返回 Promise，用于替换同步的 `confirm()` 调用以统一 UI 风格并支持异步流程。
+     3. `index.html` / `dist/index.html`：引入 `script.js`，将抽屉内删除按钮的 `confirm()` 同步流程替换为 `await showConfirmModal(...)` 异步模态；在 `updateCurrentModelBadge()` 中调用 `adjustSessionTitleHeight()` 以确保移动端标题栏高度随徽章内容变化重新计算。
+     4. `conversations.html` / `dist/conversations.html`：引入 `script.js` 并将会话管理页内的删除确认改为使用 `showConfirmModal()`，保持行为一致性。
+     5. `index.html` / `dist/index.html`：在渲染引用（参考来源）时增加防重逻辑——若模型正文已包含“参考来源”字样，则跳过追加结构化引用列表，避免模型正文与注解渲染同时显示导致重复。
+   - 备注：已同时更新 `dist/` 中对应产物以保持离线打包一致性；如需回退，可删除以上新增的 CSS/JS 修改并恢复 `confirm()` 使用。
     3. index：`renderMessages` 在助手消息渲染时优先渲染推理块（若存在）再渲染正文，解决完成后重新渲染导致推理块消失的问题；
     3. 文档：更新 README（中/英）与 CURSOR.md 主体说明。
  - 2025-11-05（头部品牌布局优化：标题与模型徽标上下排列）
