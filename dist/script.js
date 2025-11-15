@@ -67,24 +67,44 @@ function showConfirmModal(message) {
                         </div>
                     </div>
                 `;
-                document.body.appendChild(overlay);
+                // 有些环境下 document.body 可能尚未存在，回退到 document.documentElement
+                const host = document.body || document.documentElement;
+                host.appendChild(overlay);
             }
+
+            // 填充消息并显示
             const msgEl = document.getElementById('__globalConfirmMsg');
             if (msgEl) msgEl.textContent = message || '';
             overlay.style.display = 'flex';
-            // 事件处理
+            try { overlay.style.zIndex = String(2147483647); } catch (_) {}
+
+            // 处理按键（ESC 取消）
+            const onKeyDown = (ev) => {
+                if (ev && ev.key === 'Escape') {
+                    ev.preventDefault();
+                    cleanup(false);
+                }
+            };
+
+            // 事件处理：查询按钮并绑定
             const okBtn = document.getElementById('__globalConfirmOk');
             const cancelBtn = document.getElementById('__globalConfirmCancel');
             const cleanup = (result) => {
                 try { overlay.style.display = 'none'; } catch (_) {}
-                if (okBtn) okBtn.removeEventListener('click', onOk);
-                if (cancelBtn) cancelBtn.removeEventListener('click', onCancel);
+                try { document.removeEventListener('keydown', onKeyDown); } catch (_) {}
+                try { if (okBtn) okBtn.removeEventListener('click', onOk); } catch (_) {}
+                try { if (cancelBtn) cancelBtn.removeEventListener('click', onCancel); } catch (_) {}
                 resolve(result);
             };
             const onOk = () => cleanup(true);
             const onCancel = () => cleanup(false);
+
             if (okBtn) okBtn.addEventListener('click', onOk);
             if (cancelBtn) cancelBtn.addEventListener('click', onCancel);
+            document.addEventListener('keydown', onKeyDown);
+
+            // 尝试将焦点移到确认按钮，改善可访问性与键盘操作
+            try { if (okBtn && typeof okBtn.focus === 'function') okBtn.focus(); } catch (_) {}
         } catch (e) {
             console.error('showConfirmModal 异常：', e);
             // 回退到浏览器原生 confirm，保证兼容性

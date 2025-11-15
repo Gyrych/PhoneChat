@@ -1813,35 +1813,7 @@
                     last.insertBefore(reasoningBlock, last.firstChild);
                 }
             } catch (_) { /* 忽略思考过程渲染异常 */ }
-            // 渲染引用来源（若有）
-            try {
-                // 取出会话中最后一个 assistant 对象的 citations
-                let lastAssistantIndex = -1;
-                for (let i = currentConversation.length - 1; i >= 0; i--) {
-                    if (currentConversation[i] && currentConversation[i].role === 'assistant') { lastAssistantIndex = i; break; }
-                }
-                if (lastAssistantIndex !== -1) {
-                    const msg = currentConversation[lastAssistantIndex];
-                    const anns = (msg.citations || []).filter(x => x && x.type === 'url_citation' && x.url_citation && x.url_citation.url);
-                    try {
-                        const citeBlock = buildCitationsElement(anns);
-                        if (citeBlock) {
-                            try {
-                                const contentText = (last && last.innerText) ? last.innerText : '';
-                                if (/参考来源/.test(contentText)) {
-                                    // 如果模型正文已经包含参考来源，跳过追加结构化引用
-                                } else {
-                                    if (!last.querySelector('.citations')) {
-                                        last.appendChild(citeBlock);
-                                    }
-                                }
-                            } catch (_) {
-                                try { last.appendChild(citeBlock); } catch (_) {}
-                            }
-                        }
-                    } catch(_) {}
-                }
-            } catch (_) { /* 忽略引用渲染异常 */ }
+            // 已移除页面底部的独立“参考来源”结构化追加，改为仅在消息内渲染或由模型正文提供，避免重复展示和滚动冲突。
             scrollToBottom();
         }
 
@@ -1959,7 +1931,7 @@
             } catch (_) { /* 忽略思考过程渲染异常 */ }
             // 渲染引用来源（若有）
             try {
-                // 取出会话中最后一个 assistant 对象的 citations
+                // 取出会话中最后一个 assistant 对象的 citations（仅在消息内部追加，且避免模型正文包含“参考来源”时重复）
                 let lastAssistantIndex = -1;
                 for (let i = currentConversation.length - 1; i >= 0; i--) {
                     if (currentConversation[i] && currentConversation[i].role === 'assistant') { lastAssistantIndex = i; break; }
@@ -1967,31 +1939,23 @@
                 if (lastAssistantIndex !== -1) {
                     const msg = currentConversation[lastAssistantIndex];
                     const anns = (msg.citations || []).filter(x => x && x.type === 'url_citation' && x.url_citation && x.url_citation.url);
-                    if (anns.length) {
-                        const citeBlock = document.createElement('div');
-                        citeBlock.className = 'citations';
-                        const title = document.createElement('div');
-                        title.className = 'citations-title';
-                        title.textContent = '参考来源';
-                        const list = document.createElement('ol');
-                        list.style.paddingLeft = '18px';
-                        for (let idx = 0; idx < anns.length; idx++) {
-                            const a = anns[idx];
-                            const url = a.url_citation.url;
-                            const displayTitle = (a.url_citation.title && a.url_citation.title.trim()) ? a.url_citation.title.trim() : (extractDomain(url) || url);
-                            const li = document.createElement('li');
-                            const link = document.createElement('a');
-                            link.href = url;
-                            link.target = '_blank';
-                            link.rel = 'noopener noreferrer';
-                            link.textContent = `${displayTitle} — ${url}`;
-                            li.appendChild(link);
-                            list.appendChild(li);
+                    try {
+                        const citeBlock = buildCitationsElement(anns);
+                        if (citeBlock) {
+                            try {
+                                const contentText = (last && last.innerText) ? last.innerText : '';
+                                if (/参考来源/.test(contentText)) {
+                                    // 如果模型正文已经包含参考来源，跳过追加结构化引用
+                                } else {
+                                    if (!last.querySelector('.citations')) {
+                                        last.appendChild(citeBlock);
+                                    }
+                                }
+                            } catch (_) {
+                                try { last.appendChild(citeBlock); } catch (_) {}
+                            }
                         }
-                        citeBlock.appendChild(title);
-                        citeBlock.appendChild(list);
-                        last.appendChild(citeBlock);
-                    }
+                    } catch(_) {}
                 }
             } catch (_) { /* 忽略引用渲染异常 */ }
             scrollToBottom();
@@ -2047,12 +2011,23 @@
                 }
                 if (!uniq.length) return null;
                 const citeBlock = document.createElement('div');
-                citeBlock.className = 'citations';
-                const title = document.createElement('div');
-                title.className = 'citations-title';
-                title.textContent = '参考来源';
+                citeBlock.className = 'citations citations-collapsed';
+
+                // header with toggle button (默认折叠)
+                const header = document.createElement('div');
+                header.className = 'citations-header';
+                const toggleBtn = document.createElement('button');
+                toggleBtn.type = 'button';
+                toggleBtn.className = 'citations-toggle';
+                toggleBtn.setAttribute('aria-expanded', 'false');
+                toggleBtn.textContent = `参考来源 (${uniq.length})`;
+                header.appendChild(toggleBtn);
+
                 const list = document.createElement('ol');
+                list.className = 'citations-list';
                 list.style.paddingLeft = '18px';
+                list.style.display = 'none'; // 默认折叠
+
                 for (let idx = 0; idx < uniq.length; idx++) {
                     const a = uniq[idx];
                     const url = a.url_citation.url;
@@ -2066,7 +2041,18 @@
                     li.appendChild(link);
                     list.appendChild(li);
                 }
-                citeBlock.appendChild(title);
+
+                // toggle behavior
+                try {
+                    toggleBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const isCollapsed = list.style.display === 'none';
+                        list.style.display = isCollapsed ? 'block' : 'none';
+                        toggleBtn.setAttribute('aria-expanded', isCollapsed ? 'true' : 'false');
+                    });
+                } catch (_) {}
+
+                citeBlock.appendChild(header);
                 citeBlock.appendChild(list);
                 return citeBlock;
             } catch (e) {
@@ -2236,7 +2222,28 @@
          * 返回值：无
          */
         function scrollToBottom() {
-            messageContainer.scrollTop = messageContainer.scrollHeight;
+            try {
+                if (!messageContainer) return;
+                // 优先滚动到最后一个消息元素，scrollIntoView 更稳健（处理 margin/padding/布局）
+                const lastMsg = messageContainer.querySelector('.message:last-child, .ai-message:last-child, .user-message:last-child');
+                if (lastMsg && typeof lastMsg.scrollIntoView === 'function') {
+                    // 在下一帧执行以确保 DOM 已经更新并已布局
+                    requestAnimationFrame(() => {
+                        try {
+                            lastMsg.scrollIntoView({ behavior: 'auto', block: 'end' });
+                        } catch (_) {
+                            try { messageContainer.scrollTop = messageContainer.scrollHeight; } catch (_) {}
+                        }
+                    });
+                } else {
+                    // 回退：直接设置 scrollTop
+                    requestAnimationFrame(() => {
+                        try { messageContainer.scrollTop = messageContainer.scrollHeight; } catch (_) {}
+                    });
+                }
+            } catch (e) {
+                console.error('scrollToBottom 异常：', e);
+            }
         }
 
         // 欢迎区建议卡一键填充

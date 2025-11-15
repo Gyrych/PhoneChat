@@ -144,19 +144,25 @@
 
             // 新建会话按钮：直接弹出分组选择（不再强制保存当前会话）
             document.getElementById('newChatBtn').addEventListener('click', async () => {
-                if (confirm('确定要开始新会话吗？')) {
-                    openNewChatGroupModal();
-                }
+                try {
+                    const confirmed = await showConfirmModal('确定要开始新会话吗？');
+                    if (confirmed) {
+                        openNewChatGroupModal();
+                    }
+                } catch (e) { console.error('newChatBtn 异常：', e); }
             });
 
             // 日志导出与清空按钮
             try {
                 const clearBtn = document.getElementById('clearLogsBtn');
                 if (clearBtn) {
-                    clearBtn.addEventListener('click', () => {
-                        if (confirm('确定要清空所有日志吗？该操作不可恢复。')) {
-                            try { window.Logger && window.Logger.clear(); } catch (_) {}
-                        }
+                    clearBtn.addEventListener('click', async () => {
+                        try {
+                            const confirmed = await showConfirmModal('确定要清空所有日志吗？该操作不可恢复。');
+                            if (confirmed) {
+                                try { window.Logger && window.Logger.clear(); } catch (_) {}
+                            }
+                        } catch (e) { console.error('clearLogsBtn 异常：', e); }
                     });
                 }
             } catch (_) { /* 忽略异常 */ }
@@ -375,17 +381,20 @@
                 delBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
                 delBtn.title = '删除分组';
                 delBtn.style.marginLeft = '8px';
-                delBtn.addEventListener('click', (e) => {
+                delBtn.addEventListener('click', async (e) => {
                     e.stopPropagation();
-                    if (!confirm('删除分组将把该分组下的会话移动到未分组，确定删除？')) return;
-                    let groups = JSON.parse(localStorage.getItem('conversationGroups') || '[]');
-                    groups = groups.filter(g => g.id !== group.id);
-                    localStorage.setItem('conversationGroups', JSON.stringify(groups));
-                    // 将该组内会话移动到未分组
-                    let saved = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
-                    saved = saved.map(c => c.groupId === group.id ? Object.assign({}, c, { groupId: null, updatedAt: new Date().toISOString() }) : c);
-                    localStorage.setItem('savedDeepseekConversations', JSON.stringify(saved));
-                    renderConversationsList();
+                    try {
+                        const confirmed = await showConfirmModal('删除分组将把该分组下的会话移动到未分组，确定删除？');
+                        if (!confirmed) return;
+                        let groups = JSON.parse(localStorage.getItem('conversationGroups') || '[]');
+                        groups = groups.filter(g => g.id !== group.id);
+                        localStorage.setItem('conversationGroups', JSON.stringify(groups));
+                        // 将该组内会话移动到未分组
+                        let saved = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
+                        saved = saved.map(c => c.groupId === group.id ? Object.assign({}, c, { groupId: null, updatedAt: new Date().toISOString() }) : c);
+                        localStorage.setItem('savedDeepseekConversations', JSON.stringify(saved));
+                        renderConversationsList();
+                    } catch (err) { console.error('删除分组异常：', err); }
                 });
 
                 // 分组记忆显示区（默认隐藏），提供查看分组记忆功能
@@ -422,8 +431,9 @@
                 regenGroupBtn.style.marginLeft = '8px';
                 regenGroupBtn.addEventListener('click', async (e) => {
                     e.stopPropagation();
-                    if (!confirm('确定要为该分组重新生成分组记忆吗？可能产生API调用费用。')) return;
                     try {
+                        const confirmed = await showConfirmModal('确定要为该分组重新生成分组记忆吗？可能产生API调用费用。');
+                        if (!confirmed) return;
                         await updateGroupMemory(group.id);
                         // updateGroupMemory 内会保存 memorySummary
                         renderConversationsList();
@@ -608,9 +618,10 @@
             conversationsList.querySelectorAll('.regenerate-summary-btn').forEach(btn => {
                 btn.addEventListener('click', async (e) => {
                     e.stopPropagation();
-                    const conversationId = e.currentTarget.getAttribute('data-id');
-                    if (!confirm('确定要为该会话重新生成会话记忆吗？可能产生API调用费用。')) return;
                     try {
+                        const conversationId = e.currentTarget.getAttribute('data-id');
+                        const confirmed = await showConfirmModal('确定要为该会话重新生成会话记忆吗？可能产生API调用费用。');
+                        if (!confirmed) return;
                         const saved = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
                         const conv = saved.find(c => c.id === conversationId);
                         if (!conv) return alert('未找到该会话');

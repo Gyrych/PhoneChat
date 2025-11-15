@@ -684,3 +684,31 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
   3. `scripts/build.js`：继续将 `icon` 目录复制到 `dist/`；若检测到 `android/` 原生工程，尝试将 `icon/logo.png` 复制到若干 `mipmap-*` 原生资源目录下的 `ic_launcher.png` 作为快速替换方案（建议在 Android Studio 中使用适当工具生成各密度的 launcher 图标以达到最佳效果）。
 - 影响与回退：
   - 本次改动为前端兼容与 UX 修复，均可通过还原对应文件改动回退。关于原生图标替换：脚本已尝试复制 `logo.png` 到原生资源目录，但建议使用 Android Studio 或 icon generation 工具生成适当尺寸的 mipmap 资源以获得最佳视觉效果与适配性。
+
+2025-11-15（修复：统一项目模态与流式滚动问题）
+- 目的：修复用户反馈的两项 UX 问题：会话删除时未弹出统一确认模态，以及流式生成过程中页面未随增量输出滚动到最新消息。
+- 修改项：
+  1. `script.js`：增强 `showConfirmModal(message)` 的健壮性：
+     - 在创建 overlay 时回退到 `document.documentElement`（以兼容 script 在 head 中引入但 body 尚未就绪的场景）。
+     - 明确设置 overlay 的 z-index（脚本层面防护）并在显示时聚焦确认按钮以提升可访问性。
+     - 支持按 `Escape` 键取消，并在 cleanup 中正确移除键盘事件与按钮事件监听，增加异常降级回退到 `window.confirm`。
+  2. `style.css`：为 `.modal` 添加更高优先级的 `z-index: 2147483648`，确保模态位于其它浮层（如抽屉、标题栏）之上，避免被遮挡导致“无弹窗”错觉。
+  3. `index.html`：改进 `scrollToBottom()` 实现：
+     - 优先使用最后消息元素的 `scrollIntoView({block: 'end'})`，并通过 `requestAnimationFrame` 在下一帧执行以确保 DOM 布局完成后滚动。
+     - 保留 `scrollTop = scrollHeight` 作为回退方案，增加异常捕获以避免因渲染时序导致的 JS 抛错。
+- 验收：会话管理页与抽屉中的删除操作现在应弹出统一的项目模态（支持键盘 ESC 取消）；在流式生成回复时，消息容器会在增量更新后滚动到最新消息，提升连续输出的可见性。
+- 回退：恢复 `script.js` / `style.css` / `index.html` 中对应变更即可回退本次改动。
+
+2025-11-15（修改：移除页面底部独立的参考来源结构化展示）
+- 目的：避免在模型回复中同时出现模型正文自带的“参考来源”与页面底部单独追加的结构化引用导致重复显示和滚动定位问题。
+- 修改项：
+  1. `index.html`：移除在流式/更新流程中针对会话最后一条助手消息的额外 `buildCitationsElement`（其会在消息外侧或底部单独追加“参考来源”），改为依赖消息内部渲染逻辑（`renderMessages`）及模型正文自身的引用描述。
+  2. 文档：在变更记录中说明变更目的与回退方法。
+- 验收：当模型正文包含“参考来源”时不会在页面底部或消息外重复出现结构化引用；流式回复时消息容器滚动到最新消息不再被底部固定引用块影响。
+
+2025-11-15（更新：默认折叠参考来源显示）
+- 目的：改进引用的可读性与界面占用，默认将引用列表折叠以减少视觉干扰，用户可展开查看。
+- 修改项：
+  1. `index.html` / `dist/index.html`：`buildCitationsElement(anns)` 现在生成一个带折叠行为的引用块，包含一个可点击的标题按钮 `参考来源 (N)`，引用列表默认 `display:none`，点击按钮展开/收起。保留了去重逻辑与回退异常处理。
+  2. `CURSOR.md`：追加本条变更记录并说明回退方法（恢复旧版 `buildCitationsElement` 即可）。
+- 验收：加载含有 `message.annotations` 或 `message.citations` 的回复时，界面显示 `参考来源 (N)` 按钮，列表默认折叠，点击后展开显示所有来源链接。
