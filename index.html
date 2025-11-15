@@ -253,9 +253,12 @@
 
             console.log('initApp: attaching handlers');
             // 后台预加载 Markdown 库以降低首次渲染延迟（非阻塞）
-            try { ensureMarkdownLibs().catch(()=>{}); } catch (_) {}
-            // 异步加载 Marked/DOMPurify，非阻塞首屏
-            try { ensureMarkdownLibs().catch(() => {}); } catch (_) {}
+            try {
+                // 非阻塞加载；为保证历史消息能正确渲染 Markdown，加载完成后再尝试重渲染一次历史消息
+                ensureMarkdownLibs()
+                    .then(() => { try { renderMessages(); } catch(_) {} })
+                    .catch(() => {});
+            } catch (_) {}
             try { updateCurrentModelBadge(); } catch (e) { /* 忽略徽标更新异常 */ }
             // 在跨窗口/标签页更新 localStorage.chatModel 时刷新徽标（便于从配置页修改后自动反映）
             try {
@@ -962,6 +965,8 @@
             } catch (e) {
                 console.error('renderSessionTitle 失败：', e);
             }
+            // 调整标题栏占位高度，防止移动端固定标题遮挡首条消息
+            try { adjustSessionTitleHeight(); } catch (_) {}
         }
 
         /**
@@ -1052,27 +1057,16 @@
                         messageElement.appendChild(contentHolder);
                         try {
                             const anns = (message.citations || []).filter(x => x && x.type === 'url_citation' && x.url_citation && x.url_citation.url);
-                            if (anns.length) {
-                                const citeBlock = document.createElement('div');
-                                citeBlock.className = 'citations';
-                                const title = document.createElement('div');
-                                title.className = 'citations-title';
-                                title.textContent = '参考来源';
-                                const list = document.createElement('ul');
-                                for (const a of anns) {
-                                    const url = a.url_citation.url;
-                                    const li = document.createElement('li');
-                                    const link = document.createElement('a');
-                                    link.href = url;
-                                    link.target = '_blank';
-                                    link.rel = 'noopener noreferrer';
-                                    link.textContent = extractDomain(url) || url;
-                                    li.appendChild(link);
-                                    list.appendChild(li);
+                            const citeBlock = buildCitationsElement(anns);
+                            if (citeBlock) {
+                                try {
+                                    // 若已有引用容器则跳过追加，避免重复显示
+                                    if (!messageElement.querySelector('.citations')) {
+                                        messageElement.appendChild(citeBlock);
+                                    }
+                                } catch (_) {
+                                    try { messageElement.appendChild(citeBlock); } catch(_) {}
                                 }
-                                citeBlock.appendChild(title);
-                                citeBlock.appendChild(list);
-                                messageElement.appendChild(citeBlock);
                             }
                         } catch (_) { /* 忽略引用渲染异常 */ }
                     } catch (e) {
@@ -1707,8 +1701,8 @@
                 return;
             }
             try {
-                const rawHtml = marked.parse(content || '');
-                last.innerHTML = DOMPurify.sanitize(rawHtml);
+                const rawHtml = (window.marked ? marked.parse(content || '') : (content || ''));
+                last.innerHTML = (window.DOMPurify ? DOMPurify.sanitize(rawHtml) : rawHtml);
             } catch (e) {
                 last.textContent = content;
             }
@@ -1789,8 +1783,8 @@
                     const contentDiv = document.createElement('div');
                     contentDiv.className = 'reasoning-content';
                     try {
-                        const rHtml = marked.parse(rText);
-                        contentDiv.innerHTML = DOMPurify.sanitize(rHtml);
+                        const rHtml = (window.marked ? marked.parse(rText) : rText);
+                        contentDiv.innerHTML = (window.DOMPurify ? DOMPurify.sanitize(rHtml) : rHtml);
                     } catch (_) {
                         contentDiv.textContent = rText;
                     }
@@ -1820,28 +1814,18 @@
                 if (lastAssistantIndex !== -1) {
                     const msg = currentConversation[lastAssistantIndex];
                     const anns = (msg.citations || []).filter(x => x && x.type === 'url_citation' && x.url_citation && x.url_citation.url);
-                    if (anns.length) {
-                        const citeBlock = document.createElement('div');
-                        citeBlock.className = 'citations';
-                        const title = document.createElement('div');
-                        title.className = 'citations-title';
-                        title.textContent = '参考来源';
-                        const list = document.createElement('ul');
-                        for (const a of anns) {
-                            const url = a.url_citation.url;
-                            const li = document.createElement('li');
-                            const link = document.createElement('a');
-                            link.href = url;
-                            link.target = '_blank';
-                            link.rel = 'noopener noreferrer';
-                            link.textContent = extractDomain(url) || url;
-                            li.appendChild(link);
-                            list.appendChild(li);
+                    try {
+                        const citeBlock = buildCitationsElement(anns);
+                        if (citeBlock) {
+                            try {
+                                if (!last.querySelector('.citations')) {
+                                    last.appendChild(citeBlock);
+                                }
+                            } catch (_) {
+                                try { last.appendChild(citeBlock); } catch (_) {}
+                            }
                         }
-                        citeBlock.appendChild(title);
-                        citeBlock.appendChild(list);
-                        last.appendChild(citeBlock);
-                    }
+                    } catch(_) {}
                 }
             } catch (_) { /* 忽略引用渲染异常 */ }
             scrollToBottom();
@@ -1856,8 +1840,8 @@
                 return;
             }
             try {
-                const rawHtml = marked.parse(content || '');
-                last.innerHTML = DOMPurify.sanitize(rawHtml);
+                const rawHtml = (window.marked ? marked.parse(content || '') : (content || ''));
+                last.innerHTML = (window.DOMPurify ? DOMPurify.sanitize(rawHtml) : rawHtml);
             } catch (e) {
                 last.textContent = content;
             }
@@ -1938,8 +1922,8 @@
                     const contentDiv = document.createElement('div');
                     contentDiv.className = 'reasoning-content';
                     try {
-                        const rHtml = marked.parse(rText);
-                        contentDiv.innerHTML = DOMPurify.sanitize(rHtml);
+                        const rHtml = (window.marked ? marked.parse(rText) : rText);
+                        contentDiv.innerHTML = (window.DOMPurify ? DOMPurify.sanitize(rHtml) : rHtml);
                     } catch (_) {
                         contentDiv.textContent = rText;
                     }
@@ -1975,15 +1959,18 @@
                         const title = document.createElement('div');
                         title.className = 'citations-title';
                         title.textContent = '参考来源';
-                        const list = document.createElement('ul');
-                        for (const a of anns) {
+                        const list = document.createElement('ol');
+                        list.style.paddingLeft = '18px';
+                        for (let idx = 0; idx < anns.length; idx++) {
+                            const a = anns[idx];
                             const url = a.url_citation.url;
+                            const displayTitle = (a.url_citation.title && a.url_citation.title.trim()) ? a.url_citation.title.trim() : (extractDomain(url) || url);
                             const li = document.createElement('li');
                             const link = document.createElement('a');
                             link.href = url;
                             link.target = '_blank';
                             link.rel = 'noopener noreferrer';
-                            link.textContent = extractDomain(url) || url;
+                            link.textContent = `${displayTitle} — ${url}`;
                             li.appendChild(link);
                             list.appendChild(li);
                         }
@@ -2022,6 +2009,73 @@
                 const m = String(url || '').match(/^https?:\/\/([^\/]+)/i);
                 return m ? m[1] : '';
             }
+        }
+
+        /**
+         * 根据消息对象构建引用 DOM（去重并返回元素）
+         * 参数：anns - 引用数组（包含 url_citation）
+         * 返回：DOM element 或 null
+         */
+        function buildCitationsElement(anns) {
+            try {
+                if (!Array.isArray(anns) || anns.length === 0) return null;
+                // 按 url 去重
+                const seen = new Set();
+                const uniq = [];
+                for (const a of anns) {
+                    try {
+                        const url = a && a.url_citation && a.url_citation.url;
+                        if (!url) continue;
+                        if (seen.has(url)) continue;
+                        seen.add(url);
+                        uniq.push(a);
+                    } catch (_) {}
+                }
+                if (!uniq.length) return null;
+                const citeBlock = document.createElement('div');
+                citeBlock.className = 'citations';
+                const title = document.createElement('div');
+                title.className = 'citations-title';
+                title.textContent = '参考来源';
+                const list = document.createElement('ol');
+                list.style.paddingLeft = '18px';
+                for (let idx = 0; idx < uniq.length; idx++) {
+                    const a = uniq[idx];
+                    const url = a.url_citation.url;
+                    const displayTitle = (a.url_citation.title && a.url_citation.title.trim()) ? a.url_citation.title.trim() : (extractDomain(url) || url);
+                    const li = document.createElement('li');
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.target = '_blank';
+                    link.rel = 'noopener noreferrer';
+                    link.textContent = `${displayTitle} — ${url}`;
+                    li.appendChild(link);
+                    list.appendChild(li);
+                }
+                citeBlock.appendChild(title);
+                citeBlock.appendChild(list);
+                return citeBlock;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        /**
+         * 调整 CSS 变量 --session-title-height 为当前标题栏高度，确保聊天容器预留正确高度
+         */
+        function adjustSessionTitleHeight() {
+            try {
+                const el = document.getElementById('sessionTitleBar');
+                if (!el) return;
+                // 读取实际高度（包括 margin? 使用 offsetHeight）
+                const h = el.offsetHeight || 0;
+                document.documentElement.style.setProperty('--session-title-height', `${h}px`);
+                // 触发 chat-container padding-top 重新计算（样式已基于变量）
+                try {
+                    const chat = document.querySelector('.chat-container');
+                    if (chat) chat.style.paddingTop = `${h}px`;
+                } catch (_) {}
+            } catch (_) {}
         }
 
         /**
@@ -2228,7 +2282,25 @@
                         else localStorage.removeItem('deepseekNewConversationName');
                         // 清空当前临时会话，准备开始新会话
                         localStorage.setItem('deepseekConversation', JSON.stringify([]));
-                        localStorage.removeItem('deepseekConversationId');
+                        // 创建并持久化一个空的持久会话条目，使其立即出现在抽屉中
+                        try {
+                            const saved = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
+                            const newId = Date.now().toString();
+                            const entryName = convName || (document.getElementById('newChatNameInput') && document.getElementById('newChatNameInput').placeholder) || '新会话';
+                            const newEntry = {
+                                id: newId,
+                                name: entryName,
+                                messages: [],
+                                summary: null,
+                                groupId: target.id,
+                                model: window.MODEL_NAME || null,
+                                updatedAt: new Date().toISOString(),
+                                lastSummarizedMessageCount: 0
+                            };
+                            saved.push(newEntry);
+                            localStorage.setItem('savedDeepseekConversations', JSON.stringify(saved));
+                            localStorage.setItem('deepseekConversationId', newId);
+                        } catch (_) {}
                         // 刷新界面与抽屉列表
                         loadConversation(); renderMessages(); renderWelcomeIfEmpty();
                         try { renderSessionTitle(); } catch (_) {}

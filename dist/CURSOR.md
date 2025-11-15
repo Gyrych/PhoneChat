@@ -628,6 +628,26 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
   2. 文档：在 `CURSOR.md` 变更记录中追加本条目（即当前条目），说明变更目的与影响。
  - 回退：若需回退，恢复 `style.css` / `dist/style.css` 中被修改的规则；该改动为纯 CSS，不影响消息渲染逻辑或数据持久化。
 
+2025-11-14（实现：前端性能与流式解析优化 - 实施记录）
+- 目的：解决用户反馈的对话卡顿与移动端 APP 因渲染/解析/存储压力导致的卡顿或闪退，通过低侵入、可回退的方式在前端侧减轻主线程负载与 I/O 压力。
+- 修改项（代码变更，均已实现并打包至 `dist/`）：
+  1. `index.html`：
+     - 新增 `batchedStorageSetJson`，将高频写入（如 `deepseekConversation`）合并延迟写入，默认 400ms 合并，降低 `localStorage` 同步 I/O 压力。
+     - 为流式响应引入 `AbortController`（`window._currentRequestController`），并在“停止生成”动作中真正中止网络请求与流读取。
+     - 将流式增量渲染合并到下一帧（`requestAnimationFrame` 调度），实现 `doUpdateLastAssistantMessage` + `updateLastAssistantMessage` 的合并更新，减少重绘频率。
+     - 实现对 Markdown 渲染库的懒加载 `ensureMarkdownLibs()`，并在后台预加载以降低首屏阻塞。
+     - 对记忆注入增加运行时强制上限（默认最多注入 3 条会话记忆、每条最多 1000 字符，可通过 localStorage 覆盖），防止请求体膨胀导致远端处理延迟。
+     - 内联实现流式解析 Web Worker（通过 Blob Worker 动态创建），将 JSON.parse 与解析工作移出主线程，主线程仅做小量 DOM 更新。
+     - 渲染策略调整：实现简单的消息虚拟化（仅渲染最新 N 条消息，默认 200，可配置），明显减少移动端 DOM 节点数量。
+     - 新增性能采样工具 `startPerfSampler/stopPerfSampler` 用于在无法实时调试时收集时间与 JS Heap 快照样本。
+  2. `logger.js`：
+     - 新增 `Logger.summarize()` 接口，便于程序化获取日志统计（平均/最大耗时、错误计数、热点 endpoint 列表、平均流片段数），便于离线排查。
+  3. 构建/打包：
+     - 已运行 `npm run build` 并执行 `npm run build:apk`（在当前环境成功生成 `dist/apk/FreeChat-debug.apk`）。
+
+- 验证与回退：
+  - 已在本地构建并将修改复制到 `dist/`；打包 APK 成功（路径见 `dist/apk/FreeChat-debug.apk`）。如需回退，可在 `index.html` 中删除/恢复新增函数并还原 `renderMessages`/`updateLastAssistantMessage` 的旧实现，同时移除 worker 与批量写入逻辑。
+
 2025-11-14（实现：前端性能与网络鲁棒性改进）
 - 目的：提升用户交互体验、降低前端 I/O 与渲染压力、并增强网络请求的健壮性与可控性。
 - 修改项：
@@ -646,3 +666,12 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
 - 风险与回退：
   - 所有改动均为前端兼容增强；若需回退，可逐项取消新增函数（例如 `ensureMarkdownLibs`、`fetchWithRetry`、`batchedStorageSetJson`、`doUpdateLastAssistantMessage`）并恢复原有直接 `localStorage.setItem` 与同步渲染逻辑。
   - 建议在生产环境将主聊天 API Key 与联网检索代理移至后端以提升安全性及避免直接在客户端计费。
+
+2025-11-14（修复：主页面与抽屉渲染、Markdown 恢复、引用显示与图标构建）
+- 目的：修复用户反馈的多个显示/构建问题，提升移动端/桌面端一致性与可用性。
+- 修改项：
+  1. `index.html`：确保在初始化时异步加载 Markdown 渲染/消毒库 (`marked` + `DOMPurify`)，并在加载完成后重渲染历史消息以保证从 `localStorage` 恢复的消息正确渲染 Markdown；在 `renderMessages`、`doUpdateLastAssistantMessage`、`updateLastAssistantMessage` 中增加对 `marked`/`DOMPurify` 的存在性判断以支持懒加载回退；在新建会话模态确认逻辑中创建并持久化一个空会话条目，确保抽屉中可立即看到新会话；增强引用（citation）渲染，显示来源标题与完整 URL，并按编号列出以便一一对应。
+  2. `style.css`：为抽屉滚动加入 `-webkit-overflow-scrolling: touch`、`touch-action: auto` 与 `overscroll-behavior: contain`，改善在 iOS/移动端的滚动体验并修复抽屉无法滚动的问题；确认并保留会话标题栏在移动端的固定定位与消息容器预留 `padding-top` 以防遮挡。
+  3. `scripts/build.js`：继续将 `icon` 目录复制到 `dist/`；若检测到 `android/` 原生工程，尝试将 `icon/logo.png` 复制到若干 `mipmap-*` 原生资源目录下的 `ic_launcher.png` 作为快速替换方案（建议在 Android Studio 中使用适当工具生成各密度的 launcher 图标以达到最佳效果）。
+- 影响与回退：
+  - 本次改动为前端兼容与 UX 修复，均可通过还原对应文件改动回退。关于原生图标替换：脚本已尝试复制 `logo.png` 到原生资源目录，但建议使用 Android Studio 或 icon generation 工具生成适当尺寸的 mipmap 资源以获得最佳视觉效果与适配性。

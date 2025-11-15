@@ -666,3 +666,12 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
 - 风险与回退：
   - 所有改动均为前端兼容增强；若需回退，可逐项取消新增函数（例如 `ensureMarkdownLibs`、`fetchWithRetry`、`batchedStorageSetJson`、`doUpdateLastAssistantMessage`）并恢复原有直接 `localStorage.setItem` 与同步渲染逻辑。
   - 建议在生产环境将主聊天 API Key 与联网检索代理移至后端以提升安全性及避免直接在客户端计费。
+
+2025-11-14（修复：主页面与抽屉渲染、Markdown 恢复、引用显示与图标构建）
+- 目的：修复用户反馈的多个显示/构建问题，提升移动端/桌面端一致性与可用性。
+- 修改项：
+  1. `index.html`：确保在初始化时异步加载 Markdown 渲染/消毒库 (`marked` + `DOMPurify`)，并在加载完成后重渲染历史消息以保证从 `localStorage` 恢复的消息正确渲染 Markdown；在 `renderMessages`、`doUpdateLastAssistantMessage`、`updateLastAssistantMessage` 中增加对 `marked`/`DOMPurify` 的存在性判断以支持懒加载回退；在新建会话模态确认逻辑中创建并持久化一个空会话条目，确保抽屉中可立即看到新会话；增强引用（citation）渲染，显示来源标题与完整 URL，并按编号列出以便一一对应。
+  2. `style.css`：为抽屉滚动加入 `-webkit-overflow-scrolling: touch`、`touch-action: auto` 与 `overscroll-behavior: contain`，改善在 iOS/移动端的滚动体验并修复抽屉无法滚动的问题；确认并保留会话标题栏在移动端的固定定位与消息容器预留 `padding-top` 以防遮挡。
+  3. `scripts/build.js`：继续将 `icon` 目录复制到 `dist/`；若检测到 `android/` 原生工程，尝试将 `icon/logo.png` 复制到若干 `mipmap-*` 原生资源目录下的 `ic_launcher.png` 作为快速替换方案（建议在 Android Studio 中使用适当工具生成各密度的 launcher 图标以达到最佳效果）。
+- 影响与回退：
+  - 本次改动为前端兼容与 UX 修复，均可通过还原对应文件改动回退。关于原生图标替换：脚本已尝试复制 `logo.png` 到原生资源目录，但建议使用 Android Studio 或 icon generation 工具生成适当尺寸的 mipmap 资源以获得最佳视觉效果与适配性。

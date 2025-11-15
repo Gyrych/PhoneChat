@@ -138,7 +138,6 @@ body {
   flex-wrap: wrap; /* 允许换行，将模型徽章推到下一行 */
   align-items: center;
   box-sizing: border-box;
-  overflow: hidden; /* 防止溢出 */
 }
 .session-title > div { /* 会话名/分组容器可缩小避免挤压 */
   min-width: 0;
@@ -1204,12 +1203,13 @@ body.drawer-open .conversations-fab {
     /* 保持玻璃视觉但更实色，避免内容透出造成阅读遮挡感 */
     background: rgba(255,255,255,0.96);
     box-shadow: 0 6px 20px rgba(16,38,84,0.08);
-    /* 明确标题栏高度并居中内容，便于计算占位空间 */
-    height: var(--session-title-height, 64px);
+    /* 允许高度自适应以展示模型徽章多行内容，同时保留最小高度供视觉一致性 */
+    min-height: var(--session-title-height, 64px);
+    height: auto;
     box-sizing: border-box;
     display: flex;
     align-items: center;
-    padding: 0 12px;
+    padding: 8px 12px;
   }
 
   /* 为聊天容器预留与标题栏等高的空间，避免被遮挡 */
@@ -1398,6 +1398,12 @@ body.drawer-open .conversations-fab {
 }
 .drawer.open { transform: translateX(0); }
 
+/* 允许抽屉内滚动在移动端平滑滚动（iOS momentum）并限制溢出行为 */
+.drawer {
+    touch-action: auto;
+    overscroll-behavior: contain;
+}
+
 .drawer-header {
     padding: 12px;
     display: flex;
@@ -1432,6 +1438,10 @@ body.drawer-open .conversations-fab {
     display: flex;
     flex-direction: column;
     gap: 8px;
+}
+/* 平滑滚动支持 */
+.drawer-list {
+    -webkit-overflow-scrolling: touch;
 }
 .drawer .conversation-summary-content,
 .drawer .group-memory {
