@@ -205,14 +205,177 @@
             }
         }
 
-        // 页面加载时获取保存的模型名称与联网搜索设置
-        document.addEventListener('DOMContentLoaded', () => {
-            const savedModel = localStorage.getItem('chatModel');
-            if (savedModel) {
-                document.getElementById('modelSelect').value = savedModel;
+        /**
+         * 尝试从 OpenRouter 实时更新模型列表，带本地缓存与简单回退策略
+         * 返回值：若成功更新返回 true，失败返回 false（不抛异常）
+         */
+    async function updateModelListFromOpenRouter() {
+        const apiUrl = 'https://openrouter.ai/api/v1/models';
+        const cacheKey = 'openrouter.models.cache';
+        const ttlKey = 'openrouter.models.ttlMs';
+        const defaultTtl = 24 * 60 * 60 * 1000; // 24 小时
+        try {
+            // 若用户未配置代理，自动为本次测试写入一个常见的免费 CORS 代理示例（可手动删除或修改）
+            if (!localStorage.getItem('openrouter.models.proxy')) {
+                try {
+                    localStorage.setItem('openrouter.models.proxy', 'https://api.allorigins.win/raw?url=');
+                    console.info('已为调试自动写入默认代理键 openrouter.models.proxy = https://api.allorigins.win/raw?url=');
+                } catch (e) {
+                    console.info('无法写入 localStorage.openrouter.models.proxy：', e);
+                }
             }
+
+            const ttl = Number(localStorage.getItem(ttlKey)) || defaultTtl;
+            const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
+            if (cached && (Date.now() - cached.ts) < ttl && Array.isArray(cached.models) && cached.models.length) {
+                populateSelect(cached.models);
+                return true;
+            }
+
+            // 尝试直接调用 OpenRouter 的 JSON API（更稳健）
+            let res;
+            try {
+                res = await fetch(apiUrl, { credentials: 'omit' });
+            } catch (directErr) {
+                // 直接拉取失败（可能是网络或 CORS），如果用户配置了代理则尝试通过代理拉取
+                const proxy = (localStorage.getItem('openrouter.models.proxy') || '').trim();
+                if (proxy) {
+                    try {
+                        const proxyUrl = proxy + encodeURIComponent(apiUrl);
+                        res = await fetch(proxyUrl, { credentials: 'omit' });
+                    } catch (proxyErr) {
+                        console.warn('通过代理拉取 OpenRouter 模型 API 也失败：', proxyErr);
+                        console.info('若遇 CORS 问题，可在 localStorage 中设置键 `openrouter.models.proxy` 指向可用的 CORS 代理（例如 https://api.allorigins.win/raw?url=）');
+                        return false;
+                    }
+                } else {
+                    console.info('直接请求 OpenRouter API 失败；可在 localStorage.openrouter.models.proxy 设置代理 URL（例如 https://api.allorigins.win/raw?url=）');
+                    return false;
+                }
+            }
+
+            if (!res || !res.ok) {
+                console.warn('OpenRouter API 返回非 2xx：', res && res.status);
+                return false;
+            }
+
+            const json = await res.json();
+            const list = Array.isArray(json?.data) ? json.data : [];
+            const models = list.map(m => {
+                const id = m.id || m.model || (m.name ? m.name : '');
+                const label = m.name || id;
+                const tags = Array.isArray(m.tags) ? m.tags : (m.tag ? [m.tag] : []);
+                return id ? { value: id, label, tags } : null;
+            }).filter(Boolean);
+
+            // 仅保留带 "free" 标签或 id 包含 ":free" 的模型
+            const freeModels = models.filter(item => {
+                if (!item) return false;
+                if (item.value && item.value.includes(':free')) return true;
+                if (Array.isArray(item.tags) && item.tags.includes('free')) return true;
+                return false;
+            });
+
+            if (!freeModels.length && !models.length) {
+                console.warn('API 返回但未解析到有效模型项，回退为尝试解析 HTML 列表');
+                // 作为回退，尝试解析 HTML 页面（老方法）
+                try {
+                    const pageUrl = 'https://openrouter.ai/models?fmt=cards&input_modalities=text&max_price=0&output_modalities=text';
+                    let pageRes;
+                    try {
+                        pageRes = await fetch(pageUrl, { credentials: 'omit' });
+                    } catch (pErr) {
+                        const proxy = (localStorage.getItem('openrouter.models.proxy') || '').trim();
+                        if (proxy) pageRes = await fetch(proxy + encodeURIComponent(pageUrl), { credentials: 'omit' });
+                    }
+                    if (pageRes && pageRes.ok) {
+                        const text = await pageRes.text();
+                        const found = Array.from(new Set((text.match(/[\w\-.]+\/[\w\-.]+(?::[\w\-.]+)?/g) || [])));
+                        // 只取带 :free 的模型
+                        const foundFree = found.filter(s => s.includes(':free'));
+                        const fallbackModels = foundFree.sort().map(m => ({ value: m, label: m }));
+                        if (fallbackModels.length) {
+                            localStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), models: fallbackModels }));
+                            populateSelect(fallbackModels);
+                            return true;
+                        }
+                    }
+                } catch (fallbackErr) {
+                    console.warn('HTML 回退解析也失败：', fallbackErr);
+                }
+                return false;
+            }
+            // 若解析到带 free 标签的模型则使用之，优先级：freeModels > models（仅当 freeModels 为空时考虑全量，但默认只要 freeModels 非空就用）
+            const toUse = freeModels.length ? freeModels : [];
+            if (!toUse.length) {
+                console.warn('未找到带 free 标签的模型，已放弃使用非 free 模型以满足筛选要求');
+                return false;
+            }
+            // 缓存并填充（models 为对象数组 {value,label}）
+            localStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), models: toUse }));
+            populateSelect(toUse);
+            return true;
+        } catch (err) {
+            console.warn('更新 OpenRouter 模型列表失败：', err);
+            return false;
+        }
+    }
+
+    // 将模型数组填充到隐藏的原生 select 中（支持字符串数组或对象数组 {value,label}）
+    function populateSelect(models) {
+        const select = document.getElementById('modelSelect');
+        if (!select) return;
+        const placeholder = '<option value="">请选择模型</option>';
+        const optionsHtml = (models || []).map(item => {
+            if (!item) return '';
+            if (typeof item === 'string') {
+                const v = item;
+                return `<option value="${v}">${v}</option>`;
+            } else if (typeof item === 'object') {
+                const v = item.value || '';
+                const l = item.label || v;
+                return `<option value="${v}">${l}</option>`;
+            } else {
+                return '';
+            }
+        }).join('');
+        select.innerHTML = placeholder + optionsHtml;
+    }
+
+        // 页面加载时获取保存的模型名称与联网搜索设置
+        document.addEventListener('DOMContentLoaded', async () => {
+            // 先读取已保存的模型名，延后应用到 select（避免被异步填充覆盖）
+            const savedModel = localStorage.getItem('chatModel');
+
+            // 尝试从 OpenRouter 拉取并更新模型列表（成功时会填充隐藏 select）
+            const updated = await updateModelListFromOpenRouter();
+
+            // 若有已保存模型，尝试应用（若该模型在列表中则会被选中）
+            if (savedModel) {
+                const sel = document.getElementById('modelSelect');
+                if (sel) sel.value = savedModel;
+            }
+
             // 构建自定义下拉（从隐藏的原生 select 读取数据并渲染）
             buildCustomModelSelect(document.getElementById('modelSelect'));
+
+            // 若更新失败，短暂提示用户（不阻塞核心流程）
+            if (!updated) {
+                try {
+                    const saveMessage = document.getElementById('saveMessage');
+                    if (saveMessage) {
+                        const prev = saveMessage.textContent;
+                        saveMessage.textContent = '模型列表更新失败，使用本地列表';
+                        saveMessage.classList.add('error');
+                        setTimeout(() => {
+                            saveMessage.textContent = prev || '';
+                            saveMessage.classList.remove('error');
+                        }, 3000);
+                    }
+                } catch (e) {
+                    // 忽略提示失败，避免影响主流程
+                }
+            }
 
             // 读取并初始化：联网搜索设置（保持与主页面相同键名与默认值）
             try {
