@@ -96,6 +96,13 @@ function main() {
 				const targetDir = path.join(androidResDir, m);
 				try {
 					if (!fs.existsSync(targetDir)) fs.mkdirSync(targetDir, { recursive: true });
+					// 跳过 mipmap-anydpi-v26 的直接复制，以避免与 adaptive icon 的 ic_launcher.xml 冲突（重复资源）
+					if (m === 'mipmap-anydpi-v26') {
+						// 如果此前有遗留的 ic_launcher.png，先尝试删除它，避免重复资源导致构建失败
+						const legacyTarget = path.join(targetDir, 'ic_launcher.png');
+						try { if (fs.existsSync(legacyTarget)) fs.unlinkSync(legacyTarget); } catch (_) { /* 忽略删除失败 */ }
+						continue;
+					}
 					const targetFile = path.join(targetDir, 'ic_launcher.png');
 					fs.copyFileSync(srcIcon, targetFile);
 				} catch (e) { /* 忽略单个复制失败 */ }
