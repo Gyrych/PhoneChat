@@ -733,3 +733,15 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
   1. `index.html` / `dist/index.html`：`buildCitationsElement(anns)` 现在生成一个带折叠行为的引用块，包含一个可点击的标题按钮 `参考来源 (N)`，引用列表默认 `display:none`，点击按钮展开/收起。保留了去重逻辑与回退异常处理。
   2. `CURSOR.md`：追加本条变更记录并说明回退方法（恢复旧版 `buildCitationsElement` 即可）。
 - 验收：加载含有 `message.annotations` 或 `message.citations` 的回复时，界面显示 `参考来源 (N)` 按钮，列表默认折叠，点击后展开显示所有来源链接。
+
+2025-11-17（修复：会话加载竞态与历史会话加载不响应问题）
+- 目的：修复在抽屉/会话管理中加载会话时可能被延迟写回的旧会话快照覆盖、以及加载后界面无响应或新会话内容被清空的竞态问题。
+- 修改项：
+  1. `index.html`：
+     - 新增 `batchedStorageCancelKey(key)` 与 `batchedStorageFlushAll()`，用于取消/强制写回 `batchedStorageSetJson` 的待写入项，避免延迟写入覆盖新加载的数据；在页面 `beforeunload` 时调用 `batchedStorageFlushAll()` 以保证写回一致性。
+     - 在抽屉加载会话与新建会话时，**先中止当前流式请求并取消待写入**（调用 `window._currentRequestController.abort()` 并 `batchedStorageCancelKey('deepseekConversation')`），避免旧快照在延迟后覆盖刚加载的会话。
+     - 优化 `upsertSavedConversationNow()`：在写回 `savedDeepseekConversations` 前再次读取最新存储值并进行基于最新值的合并更新（乐观合并），降低并发写回覆盖的风险。
+  2. 内联 Blob Worker（记忆生成）写回逻辑已保持原有的竞态防护（基于 `lastSummarizedMessageCount` 的校验），不受此次修改影响。
+- 风险与注意事项：
+  - 这些改动主要是前端同步/并发写入的健壮性修复，已尽量采用向后兼容的方式（新增辅助函数并在关键路径处调用），回退时可逐项移除新增函数与调用点。
+  - 若您希望我同时同步更新 `dist/` 下的打包产物或 README（中/英），请确认，我将继续同步修改并提交。

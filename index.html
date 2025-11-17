@@ -535,11 +535,23 @@
                     loadBtn.addEventListener('click', () => {
                         try {
                             const payload = c.messages || c.content || [];
+                            // 在加载持久化会话前，先中止任何正在进行的生成请求，避免流式写回覆盖新加载的数据
+                            try {
+                                if (window._currentRequestController && typeof window._currentRequestController.abort === 'function') {
+                                    try { window._currentRequestController.abort(); } catch(_) {}
+                                }
+                                // 清理发送锁，确保能正常交互
+                                try { window._sendingInProgress = false; } catch(_) {}
+                            } catch (_) {}
+                            // 取消任何待写入的 batchedStorage 写入，避免旧快照在延迟后覆盖新会话
+                            try { if (typeof batchedStorageCancelKey === 'function') batchedStorageCancelKey('deepseekConversation'); } catch(_) {}
+
                             localStorage.setItem('deepseekConversation', JSON.stringify(payload));
                             if (c.groupId) localStorage.setItem('deepseekConversationGroupId', c.groupId);
                             else localStorage.removeItem('deepseekConversationGroupId');
                             localStorage.setItem('deepseekConversationId', c.id);
                             if (c.model) localStorage.setItem('chatModel', c.model);
+                            // 将 deepseekConversation 写入内存并更新 UI
                             loadConversation(); renderMessages(); renderWelcomeIfEmpty();
                             try { renderSessionTitle(); } catch (_) {}
                             closeDrawer();
@@ -915,6 +927,46 @@
         }
 
         /**
+         * 取消指定 key 的待写入 batchedStorage（不执行写回）
+         * 用途：在加载持久化会话前调用，避免旧快照在延迟写入后覆盖新加载的数据
+         */
+        function batchedStorageCancelKey(key) {
+            try {
+                if (_batchedWrites && _batchedWrites[key]) {
+                    try { clearTimeout(_batchedWrites[key].timer); } catch (_) {}
+                    delete _batchedWrites[key];
+                }
+            } catch (e) {
+                console.error('batchedStorageCancelKey 异常：', e);
+            }
+        }
+
+        /**
+         * 立即将所有待写入项写回 localStorage（可用于页面卸载或切换时保证写回）
+         */
+        function batchedStorageFlushAll() {
+            try {
+                if (!_batchedWrites) return;
+                for (const k of Object.keys(_batchedWrites)) {
+                    try {
+                        if (_batchedWrites[k] && typeof _batchedWrites[k].value !== 'undefined') {
+                            try { clearTimeout(_batchedWrites[k].timer); } catch(_) {}
+                            localStorage.setItem(k, JSON.stringify(_batchedWrites[k].value));
+                        }
+                    } catch (e) { console.error('batchedStorageFlushAll 写回失败：', k, e); }
+                    try { delete _batchedWrites[k]; } catch(_) {}
+                }
+            } catch (e) { console.error('batchedStorageFlushAll 异常：', e); }
+        }
+
+        // 页面卸载前尝试立即写回所有待写入项，减少因导航/刷新导致的数据遗失或覆盖竞态
+        try {
+            window.addEventListener && window.addEventListener('beforeunload', () => {
+                try { batchedStorageFlushAll(); } catch (_) {}
+            });
+        } catch (_) {}
+
+        /**
          * 更新当前模型徽标
          * 功能：将 window.MODEL_NAME 或 localStorage.chatModel 显示在页面头部徽标处
          * 参数：无
@@ -1029,17 +1081,21 @@
             const conversationId = localStorage.getItem('deepseekConversationId');
             if (!conversationId) return;
             try {
-                let saved = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
-                const idx = saved.findIndex(c => c.id === conversationId);
-                if (idx === -1) return;
-                saved[idx].messages = currentConversation.slice();
-                saved[idx].updatedAt = new Date().toISOString();
-                // 同步保存当前使用的模型，保证会话记录模型可被恢复
-                saved[idx].model = window.MODEL_NAME;
-                // 保持分组ID与当前内存一致
-                saved[idx].groupId = currentConversationGroupId || null;
-                // 使用批量写入以减少同步 I/O（与 saveConversation 保持一致的写入策略）
-                try { batchedStorageSetJson('savedDeepseekConversations', saved); } catch (e) { console.error('upsertSavedConversationNow 写入失败：', e); }
+                // 为减少并发写回覆盖，先读取最新的存储值并基于最新值进行合并/更新（乐观合并）
+                try {
+                    let latestSaved = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
+                    const idxLatest = latestSaved.findIndex(c => c && c.id === conversationId);
+                    if (idxLatest === -1) return;
+                    latestSaved[idxLatest].messages = currentConversation.slice();
+                    latestSaved[idxLatest].updatedAt = new Date().toISOString();
+                    // 同步保存当前使用的模型，保证会话记录模型可被恢复
+                    latestSaved[idxLatest].model = window.MODEL_NAME;
+                    // 保持分组ID与当前内存一致
+                    latestSaved[idxLatest].groupId = currentConversationGroupId || null;
+                    try { batchedStorageSetJson('savedDeepseekConversations', latestSaved); } catch (e) { console.error('upsertSavedConversationNow 写入失败：', e); }
+                } catch (e) {
+                    console.error('upsertSavedConversationNow 合并写入失败：', e);
+                }
             } catch (e) {
                 console.error('upsertSavedConversationNow 失败：', e);
             }
@@ -2518,6 +2574,14 @@
                         if (convName) localStorage.setItem('deepseekNewConversationName', convName);
                         else localStorage.removeItem('deepseekNewConversationName');
                         // 清空当前临时会话，准备开始新会话
+                        // 在开始新会话前，先中止任何正在进行的生成请求并取消待写入，避免旧数据延迟写入覆盖新会话
+                        try {
+                            if (window._currentRequestController && typeof window._currentRequestController.abort === 'function') {
+                                try { window._currentRequestController.abort(); } catch(_) {}
+                            }
+                            try { window._sendingInProgress = false; } catch(_) {}
+                        } catch(_) {}
+                        try { if (typeof batchedStorageCancelKey === 'function') batchedStorageCancelKey('deepseekConversation'); } catch(_) {}
                         localStorage.setItem('deepseekConversation', JSON.stringify([]));
                         // 创建并持久化一个空的持久会话条目，使其立即出现在抽屉中
                         try {

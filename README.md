@@ -299,3 +299,9 @@ Contributions are welcome. Suggested workflow:
 ## License
 
 This project is provided under the MIT License.
+
+### 2025-11-17 Fix notes
+- Fix: Address race conditions when loading conversations from the drawer/manager that could lead to delayed batched writes overwriting newly loaded conversations or the UI appearing unresponsive after load. Key points:
+  - Abort any in-flight generation request and cancel pending batched writes before loading a saved conversation.
+  - Add helper APIs to cancel or flush batched writes and attempt a flush on page unload.
+  - Merge against the latest saved conversations snapshot when persisting to reduce the chance of overwriting newer changes from concurrent tabs or background tasks.
