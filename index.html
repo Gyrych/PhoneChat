@@ -55,6 +55,7 @@
                 <div class="session-name" id="sessionName">未命名会话</div>
                 <div class="session-group" id="sessionGroup">未分组</div>
             </div>
+            <div id="memoryStatusBadge" class="memory-badge" title="记忆状态"></div>
             <div id="currentModelBadge" class="model-badge" title="当前模型">未选择模型</div>
         </div>
         <div id="messageContainer" class="message-container"></div>
@@ -965,6 +966,50 @@
 
                 sessionNameEl.textContent = name;
                 sessionGroupEl.textContent = groupName;
+                try {
+                    const memBadge = document.getElementById('memoryStatusBadge');
+                    if (memBadge) {
+                        const currentId = localStorage.getItem('deepseekConversationId');
+                        const jobsAll = (typeof getMemoryJobs === 'function') ? getMemoryJobs() : [];
+                        const jobs = jobsAll.filter(j => j && j.conversationId === currentId);
+                        if (!jobs || jobs.length === 0) {
+                            memBadge.textContent = '';
+                            memBadge.style.display = 'none';
+                        } else {
+                            const total = jobs.length;
+                            const pendingCount = jobs.filter(j => j.status === 'pending').length;
+                            const inProgressCount = jobs.filter(j => j.status === 'in-progress').length;
+                            const failedCount = jobs.filter(j => j.status === 'failed').length;
+                            const doneCount = jobs.filter(j => j.status === 'done').length;
+                            // 找到当前正在处理或排队的位置（用于显示 1/N）
+                            let activeIndex = jobs.findIndex(j => j.status === 'in-progress');
+                            if (activeIndex === -1) activeIndex = jobs.findIndex(j => j.status === 'pending');
+                            const position = (activeIndex === -1) ? null : (activeIndex + 1);
+
+                            let txt = '';
+                            if (inProgressCount > 0) {
+                                txt = `记忆生成中 ${position || 1}/${total}`;
+                            } else if (pendingCount > 0) {
+                                txt = `记忆待生成 ${pendingCount}/${total}`;
+                            } else if (failedCount > 0 && doneCount === 0) {
+                                txt = `记忆生成失败 ${failedCount}`;
+                            } else if (doneCount > 0) {
+                                txt = `记忆已生成 ${doneCount}/${total}`;
+                            } else {
+                                txt = `记忆任务 ${total}`;
+                            }
+
+                            // 若有正在进行的任务，展示旋转图标
+                            if (inProgressCount > 0) {
+                                memBadge.innerHTML = '<span class="memory-spinner" aria-hidden="true"></span> ' + txt;
+                            } else {
+                                memBadge.textContent = txt;
+                            }
+                            memBadge.style.display = '';
+                            memBadge.title = `总:${total} 待:${pendingCount} 中:${inProgressCount} 成:${doneCount} 失:${failedCount}`;
+                        }
+                    }
+                } catch (_) {}
             } catch (e) {
                 console.error('renderSessionTitle 失败：', e);
             }
@@ -1005,6 +1050,150 @@
                 upsertTimer = null;
                 upsertSavedConversationNow();
             }, UPSERT_INTERVAL_MS);
+        }
+
+        /**
+         * 记忆任务队列（异步后台执行）
+         * - 使用 localStorage 键 `memoryJobs` 持久化任务队列，避免刷新丢失
+         * - 使用内联 Blob Worker 执行网络请求，主线程负责入队、状态更新与写回
+         */
+        function getMemoryJobs() {
+            try { return JSON.parse(localStorage.getItem('memoryJobs') || '[]'); } catch (_) { return []; }
+        }
+        function saveMemoryJobs(jobs) {
+            try { localStorage.setItem('memoryJobs', JSON.stringify(jobs || [])); } catch (e) { console.error('saveMemoryJobs 写入失败：', e); }
+            try { if (typeof updateMemoryBadge === 'function') updateMemoryBadge(); } catch (_) {}
+        }
+        function _genJobId() { return 'mj_' + Date.now() + '_' + Math.floor(Math.random() * 90000 + 10000); }
+
+        // 将当前会话快照与必要元信息入队，后台 Worker 会使用 job.payload 中的内容发起摘要请求
+        function enqueueMemoryJob(conversationId, type = 'session', payload = {}) {
+            try {
+                // 强制写回会话，确保 worker 使用到最新内容
+                try { upsertSavedConversationNow(); } catch (_) {}
+
+                const jobs = getMemoryJobs();
+                const job = {
+                    id: _genJobId(),
+                    conversationId: conversationId || localStorage.getItem('deepseekConversationId') || null,
+                    type: type,
+                    status: 'pending',
+                    attempts: 0,
+                    createdAt: new Date().toISOString(),
+                    payload: payload // 包含 systemPrompt / userContent / modelToUse / msgCount / groupId 等
+                };
+                jobs.push(job);
+                saveMemoryJobs(jobs);
+                // 触发 Worker 开始处理（若未启动则启动）
+                startMemoryWorkerIfNeeded();
+                return job.id;
+            } catch (e) {
+                console.error('enqueueMemoryJob 失败：', e);
+                return null;
+            }
+        }
+
+        function startMemoryWorkerIfNeeded() {
+            try {
+                if (window._memoryWorkerStarted) return;
+                // 创建内联 Blob Worker
+                const workerCode = `
+                    self.onmessage = async function(e) {
+                        const job = e.data && e.data.job;
+                        if (!job) return;
+                        const apiKey = job.payload.apiKey || null;
+                        const url = job.payload.url || (self.DEEPSEEK_API_URL || 'https://openrouter.ai/api/v1/chat/completions');
+                        const body = job.payload.requestBody || null;
+                        const maxAttempts = job.payload.maxAttempts || 1;
+                        let lastErr = null;
+                        for (let attempt=0; attempt<maxAttempts; attempt++) {
+                            try {
+                                const resp = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': apiKey ? ('Bearer ' + apiKey) : '' }, body: JSON.stringify(body) });
+                                const data = await resp.json().catch(()=>null);
+                                if (!resp.ok) {
+                                    lastErr = { status: resp.status, body: data };
+                                    continue;
+                                }
+                                const memoryText = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content ? data.choices[0].message.content : null;
+                                self.postMessage({ ok: true, jobId: job.id, result: memoryText, final: data });
+                                return;
+                            } catch (err) {
+                                lastErr = String(err || 'fetch_error');
+                            }
+                        }
+                        self.postMessage({ ok: false, jobId: job.id, error: lastErr });
+                    };
+                `;
+                const blob = new Blob([workerCode], { type: 'application/javascript' });
+                const w = new Worker(URL.createObjectURL(blob));
+                w.addEventListener('message', (ev) => {
+                    try {
+                        const d = ev.data || {};
+                        const jobId = d.jobId;
+                        const jobs = getMemoryJobs();
+                        const ji = jobs.findIndex(x => x && x.id === jobId);
+                        if (d.ok) {
+                            if (ji !== -1) {
+                                jobs[ji].status = 'done';
+                                jobs[ji].attempts = (jobs[ji].attempts || 0) + 1;
+                                jobs[ji].finishedAt = new Date().toISOString();
+                                saveMemoryJobs(jobs);
+                                // 写回会话摘要（主线程执行 localStorage 修改）
+                                try {
+                                    const payload = jobs[ji].payload || {};
+                                    const conversationId = jobs[ji].conversationId;
+                                    let saved = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
+                                    const idx = saved.findIndex(c => c && c.id === conversationId);
+                                    if (idx !== -1) {
+                                        const msgCountAtJob = payload.msgCount || 0;
+                                        const lastCount = saved[idx].lastSummarizedMessageCount || 0;
+                                        // 仅在未被更晚摘要覆盖时写回，避免竞态覆盖
+                                        if (!saved[idx].summary || msgCountAtJob > lastCount) {
+                                            saved[idx].summary = d.result || '';
+                                            saved[idx].lastSummarizedMessageCount = msgCountAtJob;
+                                            saved[idx].updatedAt = new Date().toISOString();
+                                            localStorage.setItem('savedDeepseekConversations', JSON.stringify(saved));
+                                            // 若属于分组，则触发分组记忆刷新（异步但不阻塞）
+                                            if (saved[idx].groupId) {
+                                                try { if (typeof updateGroupMemory === 'function') updateGroupMemory(saved[idx].groupId).catch(()=>{}); } catch(_) {}
+                                            }
+                                        }
+                                    }
+                                } catch (e) { console.error('memoryWorker result apply failed:', e); }
+                            }
+                        } else {
+                            if (ji !== -1) {
+                                jobs[ji].status = 'failed';
+                                jobs[ji].error = d.error || 'unknown';
+                                jobs[ji].attempts = (jobs[ji].attempts || 0) + 1;
+                                jobs[ji].finishedAt = new Date().toISOString();
+                                saveMemoryJobs(jobs);
+                            }
+                        }
+                    } catch (err) { console.error('memoryWorker message handler 失败：', err); }
+                });
+                window._memoryWorker = w;
+                window._memoryWorkerStarted = true;
+                // 恢复并分发当前 pending 任务
+                try {
+                    const pending = getMemoryJobs().filter(j => j && j.status === 'pending');
+                    for (const p of pending) {
+                        // 标记为 in-progress 并发送
+                        const jobs = getMemoryJobs();
+                        const i = jobs.findIndex(x => x && x.id === p.id);
+                        if (i !== -1) {
+                            jobs[i].status = 'in-progress';
+                            jobs[i].startedAt = new Date().toISOString();
+                            saveMemoryJobs(jobs);
+                            // 更新 UI 徽章
+                            try { if (typeof updateMemoryBadge === 'function') updateMemoryBadge(); } catch(_) {}
+                            window._memoryWorker.postMessage({ job: jobs[i] });
+                        }
+                    }
+                } catch (_) {}
+            } catch (e) {
+                console.error('startMemoryWorkerIfNeeded 失败：', e);
+            }
         }
 
         /**
@@ -1556,8 +1745,8 @@
             }
             // 流结束后进行一次最终的持久写回，避免丢失最后片段
             try { upsertSavedConversationNow(); } catch (e) { /* 忽略上报 */ }
-            // 流结束后自动尝试生成会话记忆（具备去重判断）
-            try { await autoSummarizeIfNeeded(); } catch (e) { console.error('自动会话记忆失败：', e); }
+            // 流结束后自动尝试生成会话记忆（改为入队异步执行，避免阻塞主流程）
+            try { enqueueAutoSummarizeIfNeeded(); } catch (e) { console.error('自动会话记忆入队失败：', e); }
 
             // 清理 current controller（请求/流已完成）
             try { window._currentRequestController = null; } catch (_) {}
@@ -1571,6 +1760,33 @@
          * 参数：无
          * 返回值：Promise
          */
+        // 将自动摘要改为可入队的轻量判断函数（实际摘要由后台 memoryWorker 执行）
+        function enqueueAutoSummarizeIfNeeded() {
+            try {
+                const conversationId = localStorage.getItem('deepseekConversationId');
+                if (!conversationId) return;
+                let saved = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
+                const idx = saved.findIndex(c => c.id === conversationId);
+                if (idx === -1) return;
+                const entry = saved[idx];
+                const msgCount = currentConversation.length;
+                const lastCount = entry.lastSummarizedMessageCount || 0;
+                if (entry.summary && msgCount <= lastCount) return;
+                const apiKey = (window.OPENROUTER_API_KEY || localStorage.getItem('deepseekApiKey'));
+                if (!apiKey) return;
+                if (!window.PROMPTS || !window.PROMPTS.SESSION_SUMMARY) return;
+                const systemPrompt = window.PROMPTS.SESSION_SUMMARY;
+                const userContent = currentConversation.map(m => `${(m.role||'').toUpperCase()}: ${m.content||''}`).join('\\n');
+                const modelToUse = (entry && entry.model) ? entry.model : (window.MODEL_NAME || 'minimax/minimax-m2:free');
+                const url = (window.DEEPSEEK_API_URL || 'https://openrouter.ai/api/v1/chat/completions');
+                const requestBody = { model: modelToUse, messages: [ { role: 'system', content: systemPrompt }, { role: 'user', content: userContent } ], temperature: 0.2 };
+                const payload = { apiKey: apiKey, url: url, requestBody: requestBody, msgCount: msgCount, groupId: entry.groupId || null, maxAttempts: 2 };
+                enqueueMemoryJob(conversationId, 'session', payload);
+            } catch (e) {
+                console.error('enqueueAutoSummarizeIfNeeded 失败：', e);
+            }
+        }
+
         async function autoSummarizeIfNeeded() {
             const conversationId = localStorage.getItem('deepseekConversationId');
             if (!conversationId) return;

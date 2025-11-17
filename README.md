@@ -155,6 +155,13 @@ Output format and limits:
 
 Note: `prompts.js` now exposes a helper constant `PROMPTS.MEMORY_INJECTION`. This string should be prepended as a system/assistant wrapper when injecting generated memories into the model. The convention is that generated memories are labeled with a memory-level tag (background | foreground) and default to `background`. Memories labeled `background` MUST be treated as deep background material — not as the conversation's running context — and should only be used/retrieved when the user explicitly references or queries them.
 
+## Memory generation (async background)
+
+To avoid blocking the main UI when producing session/group memories, memory generation is performed asynchronously in the background:
+- Summary jobs are enqueued into a persistent `memoryJobs` queue (stored in `localStorage`) and executed by a background Blob Worker.
+- The UI shows a per-session memory status badge in the chat header when a job is pending or in-progress.
+- Manual "regenerate summary" and automatic post-response summaries both enqueue jobs (they no longer block the response flow).
+
 ## Usage
 
 ### Basic Chat

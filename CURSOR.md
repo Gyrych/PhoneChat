@@ -51,6 +51,17 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
 6. 收到 AI 响应后将回复流式追加与渲染，并实时保存会话；同时以 1.5s 节流策略将内容回写到持久会话条目（避免高频写入）。
 6. 每轮流式结束后自动触发会话记忆：当消息条数超过上次已记忆计数或此前未有会话记忆时调用模型生成记忆，保存到 `savedDeepseekConversations[].summary` 并更新 `lastSummarizedMessageCount`；若会话属于某分组，则随后自动聚合并刷新该分组的 `memorySummary`。
 
+7. 记忆生成的异步化与后台队列（新增）
+
+- 为避免在生成记忆时阻塞主线程与影响交互，记忆生成流程已改为“入队异步执行”：
+  - 在流结束或手动触发生成时，会将摘要任务封装为 `memoryJobs` 队列项写入 `localStorage`（键名：`memoryJobs`），立即返回并不阻塞当前请求/渲染流程。
+  - 浏览器端通过内联 Blob Worker（`memoryWorker`）在后台拉取并执行 `memoryJobs`，Worker 完成后主线程负责将 `summary` 写回对应的 `savedDeepseekConversations` 条目，并在需要时触发 `updateGroupMemory()` 进行分组记忆刷新。
+  - 每个 job 包含 `payload`（例如 `systemPrompt`、`userContent`、`modelToUse`、`msgCount`）以保证 Worker 在独立线程中也能完成请求。
+  - 为避免竞态写回，主线程在将 Worker 返回结果写入 `savedDeepseekConversations` 前会核验 `lastSummarizedMessageCount`，仅在生成时 snapshot 的 `msgCount` 比当前记录更大时才写回，防止覆盖更新的摘要。
+  - UI 顶部会话标题栏增加记忆状态徽章（`#memoryStatusBadge`），展示当前会话是否存在 pending/in-progress/done/failed 的记忆任务，用户可据此重试或忽略。
+  - 相关实现文件：`index.html`（`enqueueMemoryJob`、`startMemoryWorkerIfNeeded`、`memoryJobs` 持久化、UI 徽章）、`conversations.html`（手动生成改为入队）。
+
+
 ### 记忆生成规则（更新，收紧降噪）
 
 必须保留（满足其一才记）：
@@ -238,6 +249,16 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
   - 修改项：
     1. index.html：移除页眉"导出日志/清空日志/设置"按钮与模型徽章；日志导出改为控制台调用 `Logger.export(...)`。
     2. CURSOR.md/README（中/英）：同步更新页眉与日志导出使用说明。
+ - 2025-11-17（记忆生成异步化：引入 memoryJobs 队列与后台 Worker）
+  - 目的：将会话/分组记忆的生成改为后台异步任务，避免阻塞主线程与用户交互，并在 UI 中单独展示记忆生成状态，修复会话结束后记忆可能丢失的问题。
+  - 修改项：
+    1. `index.html`：新增 `memoryJobs` 入队/持久化逻辑（`enqueueMemoryJob`、`startMemoryWorkerIfNeeded`）、内联 Blob Worker 调度、会话标题栏记忆状态徽章（`#memoryStatusBadge`）、在流结束时改为入队而非直接 await `autoSummarizeIfNeeded()`。
+    2. `conversations.html`：将手动生成会话记忆的网络请求改为入队异步生成（不再直接 fetch 并写回）。
+    3. `CURSOR.md`：在主体中记录异步记忆队列的架构与本次修改说明，并追加本变更记录。
+  - 注意事项：
+    - 新增 localStorage 键：`memoryJobs`（任务队列）；每个任务包含 id、conversationId、status、payload 等字段。
+    - 写回摘要前进行 msgCount 校验以避免竞态覆盖。
+    - 若需要回退：恢复原有在流结束处直接 await `autoSummarizeIfNeeded()` 的行为并移除 `memoryJobs` 相关代码。
 - 2025-11-09（页眉再简化：移除 Logo 与标题，仅保留抽屉按钮）
   - 目的：完全对齐"仅左侧抽屉开关"的极简顶部布局。
   - 修改项：

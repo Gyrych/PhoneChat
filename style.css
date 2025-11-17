@@ -1052,6 +1052,39 @@ body.drawer-open .conversations-fab {
     backdrop-filter: blur(var(--blur)) saturate(140%);
 }
 
+/* 记忆状态徽章（右上） */
+.memory-badge {
+    display: inline-block;
+    font-size: 12px;
+    color: #08327a;
+    background: rgba(255,255,255,0.6);
+    border: 1px solid var(--border);
+    padding: 4px 10px;
+    border-radius: 999px;
+    margin-left: 8px;
+    -webkit-backdrop-filter: blur(var(--blur)) saturate(140%);
+    backdrop-filter: blur(var(--blur)) saturate(140%);
+    display: none; /* 无任务时隐藏 */
+    align-items: center;
+}
+
+.memory-spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(0,0,0,0.12);
+    border-top-color: #007aff;
+    border-radius: 50%;
+    margin-right: 8px;
+    vertical-align: middle;
+    animation: memory-spin 1s linear infinite;
+}
+
+@keyframes memory-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
 .conversation-time {
     font-size: 0.8rem;
     color: #666;
