@@ -84,6 +84,7 @@ npm run build:apk
 1. Open `config.html` and select a model, then click “Save”. The model is stored in `localStorage` under the key `chatModel`.
 2. Configure Web Search parameters on the same page under “Web Search Settings”: engine, max results, context size, and optional search prompt. They persist to the keys listed below.
 3. Each saved conversation stores its model in `savedDeepseekConversations[].model`. When you load a conversation from `conversations.html`, if `model` exists it will restore `localStorage.chatModel` automatically.
+4. Fixed: The sending flow now reads `localStorage.chatModel` at runtime (via `getCurrentModel()`), ensuring a model selected when creating/loading a conversation in the drawer is used immediately instead of being overridden by a script-initialized cached value.
 4. Demo uses a built-in encrypted OpenRouter API key inside `index.html` (for demonstration only; do not rely on it for production).
 5. To use your own key for main chat, replace the encrypted string in `index.html`. Optionally set `localStorage.setItem('deepseekApiKey', 'YOUR_KEY')` for session/group memory generation calls; main chat does not read this key.
 

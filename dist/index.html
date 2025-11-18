@@ -126,6 +126,15 @@
         const MODEL_NAME = localStorage.getItem('chatModel') || 'minimax/minimax-m2:free';
         window.MODEL_NAME = MODEL_NAME;
 
+        // 运行时读取当前模型的辅助方法（避免在脚本初始化时缓存导致不同步）
+        function getCurrentModel() {
+            try {
+                return localStorage.getItem('chatModel') || (window.MODEL_NAME || 'minimax/minimax-m2:free');
+            } catch (_) {
+                return (window.MODEL_NAME || 'minimax/minimax-m2:free');
+            }
+        }
+
         const LOCAL_PASSPHRASE = 'local_obfuscation_passphrase_2025';
         const ENCRYPTED_OPENROUTER_KEY = 'U2FsdGVkX18PSVwBhdx/XQSmTwr5UimvbPYKhcmoMNXytQwT4HgYIMh2Hl/BxCv/0zYPUjEzfprco76j74BEMQIjYwM5iIkP7VMSS1vKYLqbhNjbCqP369SdZlcmikUg';
 
@@ -1194,7 +1203,7 @@
                 // 重置本轮思考过程缓存
                 window._currentAssistantReasoning = '';
                 window._reasoningCollapsed = false; // 默认展开
-                const aiMsgObj = { role: 'assistant', content: '', reasoning: '', model: (window.MODEL_NAME || 'minimax/minimax-m2:free') };
+                const aiMsgObj = { role: 'assistant', content: '', reasoning: '', model: getCurrentModel() };
                 currentConversation.push(aiMsgObj);
                 saveConversation();
                 scheduleUpsertSavedConversation();
@@ -1206,7 +1215,7 @@
                     _chatEvtId = (window.Logger && window.Logger.start({
                         type: 'chat_request',
                         endpoint: window.DEEPSEEK_API_URL,
-                        model: window.MODEL_NAME,
+                        model: getCurrentModel(),
                         req: { headersMasked: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ***masked***' } }
                     })) || null;
                 } catch (_) { /* 忽略日志异常 */ }
@@ -1236,7 +1245,7 @@
                     sendBtn.disabled = false;
                 }
                 // 记录错误
-                try { window.Logger && window.Logger.error({ endpoint: window.DEEPSEEK_API_URL, model: window.MODEL_NAME }, error); } catch (_) {}
+                try { window.Logger && window.Logger.error({ endpoint: window.DEEPSEEK_API_URL, model: getCurrentModel() }, error); } catch (_) {}
             } finally {
                 // 无论成功或失败，解除发送锁（若还有未完成请求，fetchDeepSeekResponseStream 会在结束时清理 controller）
                 window._sendingInProgress = false;
@@ -1346,11 +1355,11 @@
             }
             // 根据供应商能力决定是否需要将多条 system 合并为单条
             const allMessages = injectedMsgs.length ? injectedMsgs.concat(messagesPayload) : messagesPayload;
-            const provider = inferProviderFromModel(MODEL_NAME);
+            const provider = inferProviderFromModel(getCurrentModel());
             const systemCount = injectedMsgs.filter(m => m && m.role === 'system').length;
             let messagesForRequest = allMessages;
             let _sysMerged = false;
-            if (!supportsMultiSystem(MODEL_NAME) && systemCount > 0) {
+            if (!supportsMultiSystem(getCurrentModel()) && systemCount > 0) {
                 const systems = injectedMsgs.filter(m => m && m.role === 'system');
                 const others = allMessages.filter(m => m && m.role !== 'system');
                 const merged = mergeSystemMessages(systems);
@@ -1359,7 +1368,7 @@
             }
 
             const requestBody = {
-                model: MODEL_NAME,
+                model: getCurrentModel(),
                 messages: messagesForRequest,
                 temperature: 0.7,
                 max_tokens: 40000,
@@ -2269,8 +2278,14 @@
         function openNewChatGroupModal() {
             const modal = document.getElementById('newChatGroupModal');
             const groupInput = document.getElementById('newGroupNameInput');
+            const existingSelect = document.getElementById('existingGroupSelect');
             const nameInput = document.getElementById('newChatNameInput');
             if (!modal || !groupInput || !nameInput) return;
+            try { populateExistingGroupSelect(); } catch (_) {}
+            if (existingSelect) {
+                existingSelect.value = '';
+                groupInput.style.display = 'block';
+            }
             groupInput.value = '';
             nameInput.value = '';
             modal.style.display = 'flex';
@@ -2280,23 +2295,62 @@
             if (modal) modal.style.display = 'none';
         }
         (function bindNewChatModal(){
+            // 填充分组选择下拉（若无分组则保持显示新建输入框）
+            function populateExistingGroupSelect() {
+                try {
+                    const sel = document.getElementById('existingGroupSelect');
+                    const groupInput = document.getElementById('newGroupNameInput');
+                    if (!sel) return;
+                    sel.innerHTML = '';
+                    const placeholder = document.createElement('option');
+                    placeholder.value = '';
+                    placeholder.textContent = '（创建新分组）';
+                    sel.appendChild(placeholder);
+                    const groups = JSON.parse(localStorage.getItem('conversationGroups') || '[]');
+                    if (Array.isArray(groups) && groups.length) {
+                        for (const g of groups) {
+                            const opt = document.createElement('option');
+                            opt.value = g.id;
+                            opt.textContent = g.name;
+                            sel.appendChild(opt);
+                        }
+                    }
+                    sel.addEventListener('change', () => {
+                        try {
+                            if (!groupInput) return;
+                            if (sel.value && sel.value !== '') groupInput.style.display = 'none';
+                            else groupInput.style.display = 'block';
+                        } catch (_) {}
+                    });
+                } catch (e) { console.warn('populateExistingGroupSelect failed', e); }
+                try { window.populateExistingGroupSelect = populateExistingGroupSelect; } catch (_) {}
+            }
+
             document.addEventListener('DOMContentLoaded', () => {
                 try {
+                    populateExistingGroupSelect();
+                    try { if (typeof populateExistingGroupSelect === 'function') populateExistingGroupSelect(); } catch (_) {}
                     const confirmBtn = document.getElementById('groupModalConfirmBtn');
                     const cancelBtn = document.getElementById('groupModalCancelBtn');
                     if (confirmBtn) confirmBtn.addEventListener('click', () => {
+                        const sel = document.getElementById('existingGroupSelect');
                         const gInput = document.getElementById('newGroupNameInput');
                         const nInput = document.getElementById('newChatNameInput');
-                        const groupName = gInput && gInput.value ? gInput.value.trim() : '';
-                        if (!groupName) { alert('请输入分组名称'); return; }
                         const convName = nInput && nInput.value ? nInput.value.trim() : '';
-                        // 查找或创建分组
+                        let target = null;
+                        // 若选择了已有分组，使用其 id；否则根据输入创建或查找同名分组
                         let groups = JSON.parse(localStorage.getItem('conversationGroups') || '[]');
-                        let target = groups.find(g => g && g.name === groupName);
-                        if (!target) {
-                            target = { id: Date.now().toString(), name: groupName, memorySummary: null, updatedAt: new Date().toISOString() };
-                            groups.push(target);
-                            localStorage.setItem('conversationGroups', JSON.stringify(groups));
+                        if (sel && sel.value) {
+                            target = groups.find(g => g && g.id === sel.value);
+                        } else {
+                            const groupName = gInput && gInput.value ? gInput.value.trim() : '';
+                            if (!groupName) { alert('请输入分组名称或选择已有分组'); return; }
+                            target = groups.find(g => g && g.name === groupName);
+                            if (!target) {
+                                target = { id: Date.now().toString(), name: groupName, memorySummary: null, updatedAt: new Date().toISOString() };
+                                groups.push(target);
+                                localStorage.setItem('conversationGroups', JSON.stringify(groups));
+                            }
                         }
                         localStorage.setItem('deepseekConversationGroupId', target.id);
                         if (convName) localStorage.setItem('deepseekNewConversationName', convName);
@@ -2351,6 +2405,7 @@
         <div class="modal">
             <h3 class="modal-title">新建会话</h3>
             <p class="modal-desc">请输入分组名称（必填）与会话名称（可选）。如分组不存在将自动创建。</p>
+            <select id="existingGroupSelect" class="modal-input" style="width:100%; margin-bottom:6px;"></select>
             <input id="newGroupNameInput" class="modal-input" placeholder="输入分组名称（必填）" maxlength="50" />
             <input id="newChatNameInput" class="modal-input" placeholder="输入会话名称（可选）" maxlength="50" />
             <div class="modal-actions">
