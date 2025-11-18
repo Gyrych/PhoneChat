@@ -191,6 +191,8 @@ To avoid blocking the main UI when producing session/group memories, memory gene
 6. The conversation list shows a model badge next to the name; loading a conversation restores its model.
 7. Settings entry is a gear icon button at the bottom of the drawer (icon-only with `title`/`aria-label`).
 
+Note: The drawer's "New Chat" modal now includes an optional model selector. If you choose a model there it will be saved into the new conversation's `model` field (otherwise the global `chatModel` / `window.MODEL_NAME` is used). A temporary key `deepseekNewConversationModel` may be used internally and is cleaned up after creation.
+
 ## Project Structure
 
 The core files are:

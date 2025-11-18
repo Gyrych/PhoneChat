@@ -745,3 +745,19 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
 - 风险与注意事项：
   - 这些改动主要是前端同步/并发写入的健壮性修复，已尽量采用向后兼容的方式（新增辅助函数并在关键路径处调用），回退时可逐项移除新增函数与调用点。
   - 若您希望我同时同步更新 `dist/` 下的打包产物或 README（中/英），请确认，我将继续同步修改并提交。
+2025-11-17（新增：抽屉侧边栏 - 新建会话模型选择、模型展示与搜索扩展）
+- 目的：在主页面抽屉（侧边栏）新建会话时允许选择会话使用的模型，并在抽屉历史会话列表中展示会话对应的模型名称；同时扩展抽屉搜索以匹配模型名称，提升会话可回溯性与搜索效率。
+- 修改项：
+  1. `index.html`：
+     - 在“新建会话”模态中新增模型选择下拉（`#newChatModelSelect`），下拉优先使用 `config.html` 缓存的模型列表（localStorage 键：`openrouter.models.cache`），若无缓存则仅展示当前全局模型作为占位。
+     - 在新建会话（模态确认与首次发送自动创建）时保存 `savedDeepseekConversations[].model` 字段，优先使用模态选择的模型，回退到 `localStorage.chatModel`、`window.MODEL_NAME`，再回退到默认 `minimax/minimax-m2:free`。
+     - 在抽屉会话列表项中展示会话的模型徽章（`.model-badge`），并在创建后清理临时键 `deepseekNewConversationModel`（若用于其它逻辑）。
+     - 扩展 `renderDrawerConversationsList()` 的过滤逻辑，使抽屉搜索同时匹配会话名、分组名与模型名。
+  2. `style.css`：
+     - 新增 `.model-badge` 与 `.modal-label` 的样式，保证模型徽章在窄屏下的截断与外观一致。
+- 新增本地存储/短期临时键：
+  - `deepseekNewConversationModel`（可选，已实现创建后清理；主要用于某些创建路径的临时存储，非持久配置键）。
+- 验收：
+  - 打开抽屉 → 点击“新建会话” → 在弹窗中可选择模型并确认 → 新会话出现在抽屉列表且其 `model` 字段被保存；抽屉会话项显示模型徽章；使用抽屉搜索能按模型名检索到会话。
+- 回退：
+  - 若需回退该功能，移除 `index.html` 中关于 `#newChatModelSelect` 的 DOM 与 JS 填充逻辑、还原 `renderDrawerConversationsList()` 的原始过滤逻辑，并删除新增的 `.model-badge` 样式即可回退前端行为（数据仍保存在 localStorage，需手动清理）。

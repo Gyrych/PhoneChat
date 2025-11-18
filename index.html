@@ -51,12 +51,14 @@
             <button id="conversationsBtn" class="conversations-btn" aria-label="打开会话抽屉">
                 <i class="fas fa-history"></i>
             </button>
-            <div style="display:flex;flex-direction:column;">
-                <div class="session-name" id="sessionName">未命名会话</div>
+            <div class="session-info">
+                <div class="session-name-row">
+                    <div class="session-name" id="sessionName">未命名会话</div>
+                    <div id="memoryStatusBadge" class="memory-badge" title="记忆状态"></div>
+                </div>
                 <div class="session-group" id="sessionGroup">未分组</div>
             </div>
-            <div id="memoryStatusBadge" class="memory-badge" title="记忆状态"></div>
-            <div id="currentModelBadge" class="model-badge" title="当前模型">未选择模型</div>
+            <div id="currentModelBadge" class="session-model model-badge" title="当前模型">未选择模型</div>
         </div>
         <div id="messageContainer" class="message-container"></div>
         <div id="statusIndicator" class="status-indicator" aria-live="polite"></div>
@@ -507,8 +509,17 @@
                     const time = document.createElement('div');
                     time.className = 'time';
                     time.textContent = fmtTime(c.updatedAt || c.timestamp);
-                    left.appendChild(name);
+                    // 会话名（单行） — 模型将作为独立一行放在最后
+                    const nameRow = document.createElement('div');
+                    nameRow.appendChild(name);
+                    left.appendChild(nameRow);
                     left.appendChild(time);
+                    // 单独新行显示模型名称（若存在）
+                    const modelRow = document.createElement('div');
+                    modelRow.className = 'conversation-model';
+                    modelRow.textContent = (c.model || '').toString();
+                    if (!modelRow.textContent) modelRow.style.display = 'none';
+                    left.appendChild(modelRow);
                     // 会话记忆折叠区（显示 saved.summary）
                     const summaryToggle = document.createElement('button');
                     summaryToggle.className = 'toggle-summary-btn';
@@ -622,13 +633,25 @@
             for (const g of groups) {
                 const list = saved
                     .filter(c => c.groupId === g.id)
-                    .filter(c => !q || (g.name || '').toLowerCase().includes(q) || (c.name || '').toLowerCase().includes(q))
+                    .filter(c => {
+                        if (!q) return true;
+                        const inGroup = (g.name || '').toLowerCase().includes(q);
+                        const inName = (c.name || '').toLowerCase().includes(q);
+                        const inModel = (c.model || '').toLowerCase().includes(q);
+                        return inGroup || inName || inModel;
+                    })
                     .sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
                 if (list.length || (g && g.memorySummary)) renderGroupSection(g, list);
             }
             const ungroup = saved
                 .filter(c => !c.groupId)
-                .filter(c => !q || (c.name || '').toLowerCase().includes(q) || '未分组'.includes(q))
+                .filter(c => {
+                    if (!q) return true;
+                    const inName = (c.name || '').toLowerCase().includes(q);
+                    const inModel = (c.model || '').toLowerCase().includes(q);
+                    const inUngroupLabel = '未分组'.includes(q);
+                    return inName || inModel || inUngroupLabel;
+                })
                 .sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
             if (ungroup.length) renderGroupSection(null, ungroup);
         }
@@ -1025,39 +1048,28 @@
                         const jobsAll = (typeof getMemoryJobs === 'function') ? getMemoryJobs() : [];
                         const jobs = jobsAll.filter(j => j && j.conversationId === currentId);
                         if (!jobs || jobs.length === 0) {
-                            memBadge.textContent = '';
+                            memBadge.innerHTML = '';
                             memBadge.style.display = 'none';
                         } else {
-                            const total = jobs.length;
-                            const pendingCount = jobs.filter(j => j.status === 'pending').length;
                             const inProgressCount = jobs.filter(j => j.status === 'in-progress').length;
-                            const failedCount = jobs.filter(j => j.status === 'failed').length;
+                            const pendingCount = jobs.filter(j => j.status === 'pending').length;
                             const doneCount = jobs.filter(j => j.status === 'done').length;
-                            // 找到当前正在处理或排队的位置（用于显示 1/N）
-                            let activeIndex = jobs.findIndex(j => j.status === 'in-progress');
-                            if (activeIndex === -1) activeIndex = jobs.findIndex(j => j.status === 'pending');
-                            const position = (activeIndex === -1) ? null : (activeIndex + 1);
-
-                            let txt = '';
+                            const failedCount = jobs.filter(j => j.status === 'failed').length;
+                            const total = jobs.length;
+                            // 根据状态显示：进行中显示旋转半圆环，完成后显示静态整圆环
                             if (inProgressCount > 0) {
-                                txt = `记忆生成中 ${position || 1}/${total}`;
-                            } else if (pendingCount > 0) {
-                                txt = `记忆待生成 ${pendingCount}/${total}`;
-                            } else if (failedCount > 0 && doneCount === 0) {
-                                txt = `记忆生成失败 ${failedCount}`;
-                            } else if (doneCount > 0) {
-                                txt = `记忆已生成 ${doneCount}/${total}`;
+                                // 使用 SVG stroke 动画的通用圆环加载器
+                                memBadge.innerHTML = '<svg class=\"memory-spinner-svg\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><circle class=\"path\" cx=\"12\" cy=\"12\" r=\"10\" fill=\"none\" stroke-width=\"2\"/></svg>';
+                                memBadge.style.display = '';
+                            } else if (total > 0) {
+                                // 完成态：填充蓝色圆圈并添加白色勾
+                                memBadge.innerHTML = '<svg class=\"memory-done\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"10\" fill=\"#007aff\"/><path d=\"M8 12.5l2.2 2.2L16 9\" stroke=\"#fff\" stroke-width=\"2\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>';
+                                memBadge.style.display = '';
                             } else {
-                                txt = `记忆任务 ${total}`;
+                                memBadge.innerHTML = '';
+                                memBadge.style.display = 'none';
                             }
-
-                            // 若有正在进行的任务，展示旋转图标
-                            if (inProgressCount > 0) {
-                                memBadge.innerHTML = '<span class="memory-spinner" aria-hidden="true"></span> ' + txt;
-                            } else {
-                                memBadge.textContent = txt;
-                            }
-                            memBadge.style.display = '';
+                            // 同步 title 便于悬停查看统计（仅 title，不作为可见文字）
                             memBadge.title = `总:${total} 待:${pendingCount} 中:${inProgressCount} 成:${doneCount} 失:${failedCount}`;
                         }
                     }
@@ -1404,13 +1416,14 @@
                         // 优先使用会话管理页预先输入的名称；否则回退为首条消息前缀
                         const presetNameRaw = (localStorage.getItem('deepseekNewConversationName') || '').trim();
                         const namePrefix = presetNameRaw || (messageText.slice(0, 20) || '新会话');
+                        const selectedModelForAutoCreate = localStorage.getItem('deepseekNewConversationModel') || localStorage.getItem('chatModel') || window.MODEL_NAME || 'minimax/minimax-m2:free';
                         const newEntry = {
                             id: newId,
                             name: namePrefix,
                             messages: JSON.parse(localStorage.getItem('deepseekConversation') || '[]'),
                             summary: null,
                             groupId: currentConversationGroupId || null,
-                            model: window.MODEL_NAME,
+                            model: selectedModelForAutoCreate || window.MODEL_NAME,
                             updatedAt: new Date().toISOString(),
                             lastSummarizedMessageCount: 0
                         };
@@ -1418,8 +1431,18 @@
                         localStorage.setItem('savedDeepseekConversations', JSON.stringify(saved));
                         localStorage.setItem('deepseekConversationId', newId);
                         try { renderSessionTitle(); } catch (_) {}
+                        // 将自动创建时选中的模型同步为全局模型（即时生效）
+                        try {
+                            if (selectedModelForAutoCreate) {
+                                try { localStorage.setItem('chatModel', selectedModelForAutoCreate); } catch(_) {}
+                                try { window.MODEL_NAME = selectedModelForAutoCreate; } catch(_) {}
+                                try { updateCurrentModelBadge(); } catch(_) {}
+                            }
+                        } catch (_) {}
                         // 清理临时名称键，避免影响下一次新建
                         try { localStorage.removeItem('deepseekNewConversationName'); } catch (_) {}
+                        // 创建后清理临时模型选择（若存在）
+                        try { localStorage.removeItem('deepseekNewConversationModel'); } catch (_) {}
                     }
                 } catch (e) {
                     console.error('自动创建持久会话失败：', e);
@@ -2552,13 +2575,56 @@
             if (modal) modal.style.display = 'none';
         }
         (function bindNewChatModal(){
+            // 填充模态中的模型下拉（使用 config 页面缓存的模型列表或回退值）
+            function populateNewChatModelSelect() {
+                try {
+                    const sel = document.getElementById('newChatModelSelect');
+                    if (!sel) return;
+                    sel.innerHTML = '';
+                    // 先尝试从 config 页面缓存读取模型列表
+                    const cached = JSON.parse(localStorage.getItem('openrouter.models.cache') || 'null');
+                    const models = Array.isArray(cached && cached.models) ? cached.models : [];
+                    if (models.length) {
+                        // models 可能为字符串或对象 {value,label}
+                        const placeholder = document.createElement('option');
+                        placeholder.value = '';
+                        placeholder.textContent = '（使用全局模型）';
+                        sel.appendChild(placeholder);
+                        for (const m of models) {
+                            const opt = document.createElement('option');
+                            if (typeof m === 'string') {
+                                opt.value = m; opt.textContent = m;
+                            } else if (m && typeof m === 'object') {
+                                opt.value = m.value || ''; opt.textContent = m.label || m.value || '';
+                            }
+                            sel.appendChild(opt);
+                        }
+                    } else {
+                        // 无缓存时仅展示当前全局模型作为占位
+                        const gm = localStorage.getItem('chatModel') || window.MODEL_NAME || 'minimax/minimax-m2:free';
+                        const opt = document.createElement('option');
+                        opt.value = ''; opt.textContent = `使用全局模型（${gm}）`;
+                        sel.appendChild(opt);
+                    }
+                    // 尝试默认选中 localStorage.chatModel
+                    const savedModel = localStorage.getItem('chatModel') || window.MODEL_NAME || '';
+                    if (savedModel) {
+                        try { sel.value = savedModel; } catch (_) {}
+                    }
+                } catch (e) { console.warn('populateNewChatModelSelect failed', e); }
+            }
+
             document.addEventListener('DOMContentLoaded', () => {
                 try {
+                    // 页面就绪时填充模型下拉
+                    populateNewChatModelSelect();
+
                     const confirmBtn = document.getElementById('groupModalConfirmBtn');
                     const cancelBtn = document.getElementById('groupModalCancelBtn');
                     if (confirmBtn) confirmBtn.addEventListener('click', () => {
                         const gInput = document.getElementById('newGroupNameInput');
                         const nInput = document.getElementById('newChatNameInput');
+                        const modelSel = document.getElementById('newChatModelSelect');
                         const groupName = gInput && gInput.value ? gInput.value.trim() : '';
                         if (!groupName) { alert('请输入分组名称'); return; }
                         const convName = nInput && nInput.value ? nInput.value.trim() : '';
@@ -2573,6 +2639,10 @@
                         localStorage.setItem('deepseekConversationGroupId', target.id);
                         if (convName) localStorage.setItem('deepseekNewConversationName', convName);
                         else localStorage.removeItem('deepseekNewConversationName');
+
+                        // 选择的模型优先级：模态选择 -> 全局 chatModel -> window.MODEL_NAME -> 回退值
+                        const selValue = modelSel ? (modelSel.value || '') : '';
+                        const selectedModel = selValue || localStorage.getItem('chatModel') || window.MODEL_NAME || 'minimax/minimax-m2:free';
                         // 清空当前临时会话，准备开始新会话
                         // 在开始新会话前，先中止任何正在进行的生成请求并取消待写入，避免旧数据延迟写入覆盖新会话
                         try {
@@ -2594,13 +2664,21 @@
                                 messages: [],
                                 summary: null,
                                 groupId: target.id,
-                                model: window.MODEL_NAME || null,
+                                model: selectedModel || (window.MODEL_NAME || null),
                                 updatedAt: new Date().toISOString(),
                                 lastSummarizedMessageCount: 0
                             };
                             saved.push(newEntry);
                             localStorage.setItem('savedDeepseekConversations', JSON.stringify(saved));
                             localStorage.setItem('deepseekConversationId', newId);
+                            // 将新建时选择的模型同步为全局模型（使标题栏与配置页即时反映）
+                            try {
+                                if (selectedModel) {
+                                    try { localStorage.setItem('chatModel', selectedModel); } catch(_) {}
+                                    try { window.MODEL_NAME = selectedModel; } catch(_) {}
+                                    try { updateCurrentModelBadge(); } catch(_) {}
+                                }
+                            } catch (_) {}
                         } catch (_) {}
                         // 刷新界面与抽屉列表
                         loadConversation(); renderMessages(); renderWelcomeIfEmpty();
@@ -2633,6 +2711,9 @@
             <p class="modal-desc">请输入分组名称（必填）与会话名称（可选）。如分组不存在将自动创建。</p>
             <input id="newGroupNameInput" class="modal-input" placeholder="输入分组名称（必填）" maxlength="50" />
             <input id="newChatNameInput" class="modal-input" placeholder="输入会话名称（可选）" maxlength="50" />
+            <!-- 新增：选择模型（可选，若不选择则使用全局模型） -->
+            <label for="newChatModelSelect" class="modal-label" style="margin-top:6px;">选择模型（可选）：</label>
+            <select id="newChatModelSelect" class="modal-input" style="width:100%;"></select>
             <div class="modal-actions">
                 <button id="groupModalConfirmBtn">确认</button>
                 <button id="groupModalCancelBtn">取消</button>
