@@ -51,11 +51,14 @@
             <button id="conversationsBtn" class="conversations-btn" aria-label="打开会话抽屉">
                 <i class="fas fa-history"></i>
             </button>
-            <div style="display:flex;flex-direction:column;">
-                <div class="session-name" id="sessionName">未命名会话</div>
+            <div class="session-info">
+                <div class="session-name-row">
+                    <div class="session-name" id="sessionName">未命名会话</div>
+                    <div id="memoryStatusBadge" class="memory-badge" title="记忆状态"></div>
+                </div>
                 <div class="session-group" id="sessionGroup">未分组</div>
             </div>
-            <div id="currentModelBadge" class="model-badge" title="当前模型">未选择模型</div>
+            <div id="currentModelBadge" class="session-model model-badge" title="当前模型">未选择模型</div>
         </div>
         <div id="messageContainer" class="message-container"></div>
         <div id="statusIndicator" class="status-indicator" aria-live="polite"></div>
@@ -133,6 +136,48 @@
             } catch (_) {
                 return (window.MODEL_NAME || 'minimax/minimax-m2:free');
             }
+        }
+        /**
+         * 获取全局模型参数（从 localStorage.freechat.modelParams）
+         * 返回默认值对象（保证字段存在）
+         */
+        function getGlobalModelParams() {
+            try {
+                const raw = localStorage.getItem('freechat.modelParams');
+                if (!raw) return { temperature: 0.7, top_p: 0.9, max_tokens: 1024, stream: true };
+                const parsed = JSON.parse(raw || 'null') || {};
+                return {
+                    temperature: typeof parsed.temperature !== 'undefined' ? parsed.temperature : 0.7,
+                    top_p: typeof parsed.top_p !== 'undefined' ? parsed.top_p : 0.9,
+                    max_tokens: typeof parsed.max_tokens !== 'undefined' ? parsed.max_tokens : 1024,
+                    stream: typeof parsed.stream !== 'undefined' ? !!parsed.stream : true
+                };
+            } catch (e) {
+                console.error('读取全局模型参数失败：', e);
+                return { temperature: 0.7, top_p: 0.9, max_tokens: 1024, stream: true };
+            }
+        }
+
+        function getConversationModelParams(conv) {
+            try {
+                if (!conv) return null;
+                if (conv.modelParams && typeof conv.modelParams === 'object') return conv.modelParams;
+                return null;
+            } catch (_) { return null; }
+        }
+
+        function getEffectiveModelParams(conv) {
+            const globalParams = getGlobalModelParams() || {};
+            const convParams = getConversationModelParams(conv) || {};
+            return Object.assign({}, globalParams, convParams);
+        }
+
+        function getEffectiveSystemPrompt(conv) {
+            try {
+                if (conv && conv.systemPrompt && String(conv.systemPrompt).trim()) return String(conv.systemPrompt).trim();
+                const g = localStorage.getItem('freechat.systemPrompt');
+                return g ? String(g).trim() : '';
+            } catch (e) { return ''; }
         }
 
         const LOCAL_PASSPHRASE = 'local_obfuscation_passphrase_2025';
@@ -515,8 +560,17 @@
                     const time = document.createElement('div');
                     time.className = 'time';
                     time.textContent = fmtTime(c.updatedAt || c.timestamp);
-                    left.appendChild(name);
+                    // 会话名（单行） — 模型将作为独立一行放在最后
+                    const nameRow = document.createElement('div');
+                    nameRow.appendChild(name);
+                    left.appendChild(nameRow);
                     left.appendChild(time);
+                    // 单独新行显示模型名称（若存在）
+                    const modelRow = document.createElement('div');
+                    modelRow.className = 'conversation-model';
+                    modelRow.textContent = (c.model || '').toString();
+                    if (!modelRow.textContent) modelRow.style.display = 'none';
+                    left.appendChild(modelRow);
                     // 会话记忆折叠区（显示 saved.summary）
                     const summaryToggle = document.createElement('button');
                     summaryToggle.className = 'toggle-summary-btn';
@@ -543,11 +597,23 @@
                     loadBtn.addEventListener('click', () => {
                         try {
                             const payload = c.messages || c.content || [];
+                            // 在加载持久化会话前，先中止任何正在进行的生成请求，避免流式写回覆盖新加载的数据
+                            try {
+                                if (window._currentRequestController && typeof window._currentRequestController.abort === 'function') {
+                                    try { window._currentRequestController.abort(); } catch(_) {}
+                                }
+                                // 清理发送锁，确保能正常交互
+                                try { window._sendingInProgress = false; } catch(_) {}
+                            } catch (_) {}
+                            // 取消任何待写入的 batchedStorage 写入，避免旧快照在延迟后覆盖新会话
+                            try { if (typeof batchedStorageCancelKey === 'function') batchedStorageCancelKey('deepseekConversation'); } catch(_) {}
+
                             localStorage.setItem('deepseekConversation', JSON.stringify(payload));
                             if (c.groupId) localStorage.setItem('deepseekConversationGroupId', c.groupId);
                             else localStorage.removeItem('deepseekConversationGroupId');
                             localStorage.setItem('deepseekConversationId', c.id);
                             if (c.model) localStorage.setItem('chatModel', c.model);
+                            // 将 deepseekConversation 写入内存并更新 UI
                             loadConversation(); renderMessages(); renderWelcomeIfEmpty();
                             try { renderSessionTitle(); } catch (_) {}
                             closeDrawer();
@@ -618,13 +684,25 @@
             for (const g of groups) {
                 const list = saved
                     .filter(c => c.groupId === g.id)
-                    .filter(c => !q || (g.name || '').toLowerCase().includes(q) || (c.name || '').toLowerCase().includes(q))
+                    .filter(c => {
+                        if (!q) return true;
+                        const inGroup = (g.name || '').toLowerCase().includes(q);
+                        const inName = (c.name || '').toLowerCase().includes(q);
+                        const inModel = (c.model || '').toLowerCase().includes(q);
+                        return inGroup || inName || inModel;
+                    })
                     .sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
                 if (list.length || (g && g.memorySummary)) renderGroupSection(g, list);
             }
             const ungroup = saved
                 .filter(c => !c.groupId)
-                .filter(c => !q || (c.name || '').toLowerCase().includes(q) || '未分组'.includes(q))
+                .filter(c => {
+                    if (!q) return true;
+                    const inName = (c.name || '').toLowerCase().includes(q);
+                    const inModel = (c.model || '').toLowerCase().includes(q);
+                    const inUngroupLabel = '未分组'.includes(q);
+                    return inName || inModel || inUngroupLabel;
+                })
                 .sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
             if (ungroup.length) renderGroupSection(null, ungroup);
         }
@@ -923,6 +1001,46 @@
         }
 
         /**
+         * 取消指定 key 的待写入 batchedStorage（不执行写回）
+         * 用途：在加载持久化会话前调用，避免旧快照在延迟写入后覆盖新加载的数据
+         */
+        function batchedStorageCancelKey(key) {
+            try {
+                if (_batchedWrites && _batchedWrites[key]) {
+                    try { clearTimeout(_batchedWrites[key].timer); } catch (_) {}
+                    delete _batchedWrites[key];
+                }
+            } catch (e) {
+                console.error('batchedStorageCancelKey 异常：', e);
+            }
+        }
+
+        /**
+         * 立即将所有待写入项写回 localStorage（可用于页面卸载或切换时保证写回）
+         */
+        function batchedStorageFlushAll() {
+            try {
+                if (!_batchedWrites) return;
+                for (const k of Object.keys(_batchedWrites)) {
+                    try {
+                        if (_batchedWrites[k] && typeof _batchedWrites[k].value !== 'undefined') {
+                            try { clearTimeout(_batchedWrites[k].timer); } catch(_) {}
+                            localStorage.setItem(k, JSON.stringify(_batchedWrites[k].value));
+                        }
+                    } catch (e) { console.error('batchedStorageFlushAll 写回失败：', k, e); }
+                    try { delete _batchedWrites[k]; } catch(_) {}
+                }
+            } catch (e) { console.error('batchedStorageFlushAll 异常：', e); }
+        }
+
+        // 页面卸载前尝试立即写回所有待写入项，减少因导航/刷新导致的数据遗失或覆盖竞态
+        try {
+            window.addEventListener && window.addEventListener('beforeunload', () => {
+                try { batchedStorageFlushAll(); } catch (_) {}
+            });
+        } catch (_) {}
+
+        /**
          * 更新当前模型徽标
          * 功能：将 window.MODEL_NAME 或 localStorage.chatModel 显示在页面头部徽标处
          * 参数：无
@@ -974,6 +1092,39 @@
 
                 sessionNameEl.textContent = name;
                 sessionGroupEl.textContent = groupName;
+                try {
+                    const memBadge = document.getElementById('memoryStatusBadge');
+                    if (memBadge) {
+                        const currentId = localStorage.getItem('deepseekConversationId');
+                        const jobsAll = (typeof getMemoryJobs === 'function') ? getMemoryJobs() : [];
+                        const jobs = jobsAll.filter(j => j && j.conversationId === currentId);
+                        if (!jobs || jobs.length === 0) {
+                            memBadge.innerHTML = '';
+                            memBadge.style.display = 'none';
+                        } else {
+                            const inProgressCount = jobs.filter(j => j.status === 'in-progress').length;
+                            const pendingCount = jobs.filter(j => j.status === 'pending').length;
+                            const doneCount = jobs.filter(j => j.status === 'done').length;
+                            const failedCount = jobs.filter(j => j.status === 'failed').length;
+                            const total = jobs.length;
+                            // 根据状态显示：进行中显示旋转半圆环，完成后显示静态整圆环
+                            if (inProgressCount > 0) {
+                                // 使用 SVG stroke 动画的通用圆环加载器
+                                memBadge.innerHTML = '<svg class=\"memory-spinner-svg\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><circle class=\"path\" cx=\"12\" cy=\"12\" r=\"10\" fill=\"none\" stroke-width=\"2\"/></svg>';
+                                memBadge.style.display = '';
+                            } else if (total > 0) {
+                                // 完成态：填充蓝色圆圈并添加白色勾
+                                memBadge.innerHTML = '<svg class=\"memory-done\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"10\" fill=\"#007aff\"/><path d=\"M8 12.5l2.2 2.2L16 9\" stroke=\"#fff\" stroke-width=\"2\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>';
+                                memBadge.style.display = '';
+                            } else {
+                                memBadge.innerHTML = '';
+                                memBadge.style.display = 'none';
+                            }
+                            // 同步 title 便于悬停查看统计（仅 title，不作为可见文字）
+                            memBadge.title = `总:${total} 待:${pendingCount} 中:${inProgressCount} 成:${doneCount} 失:${failedCount}`;
+                        }
+                    }
+                } catch (_) {}
             } catch (e) {
                 console.error('renderSessionTitle 失败：', e);
             }
@@ -993,17 +1144,28 @@
             const conversationId = localStorage.getItem('deepseekConversationId');
             if (!conversationId) return;
             try {
-                let saved = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
-                const idx = saved.findIndex(c => c.id === conversationId);
-                if (idx === -1) return;
-                saved[idx].messages = currentConversation.slice();
-                saved[idx].updatedAt = new Date().toISOString();
-                // 同步保存当前使用的模型，保证会话记录模型可被恢复
-                saved[idx].model = window.MODEL_NAME;
-                // 保持分组ID与当前内存一致
-                saved[idx].groupId = currentConversationGroupId || null;
-                // 使用批量写入以减少同步 I/O（与 saveConversation 保持一致的写入策略）
-                try { batchedStorageSetJson('savedDeepseekConversations', saved); } catch (e) { console.error('upsertSavedConversationNow 写入失败：', e); }
+                // 为减少并发写回覆盖，先读取最新的存储值并基于最新值进行合并/更新（乐观合并）
+                try {
+                    let latestSaved = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
+                    const idxLatest = latestSaved.findIndex(c => c && c.id === conversationId);
+                    if (idxLatest === -1) return;
+                    latestSaved[idxLatest].messages = currentConversation.slice();
+                    latestSaved[idxLatest].updatedAt = new Date().toISOString();
+                    // 同步保存当前使用的模型，保证会话记录模型可被恢复
+                    latestSaved[idxLatest].model = window.MODEL_NAME;
+                    // 同步保存当前有效的模型参数与（可选）会话级 systemPrompt，便于回溯
+                    try {
+                        latestSaved[idxLatest].modelParams = getEffectiveModelParams(latestSaved[idxLatest]) || getGlobalModelParams();
+                    } catch (_) { latestSaved[idxLatest].modelParams = getGlobalModelParams(); }
+                    try {
+                        latestSaved[idxLatest].systemPrompt = getEffectiveSystemPrompt(latestSaved[idxLatest]) || '';
+                    } catch (_) { latestSaved[idxLatest].systemPrompt = (localStorage.getItem('freechat.systemPrompt')||''); }
+                    // 保持分组ID与当前内存一致
+                    latestSaved[idxLatest].groupId = currentConversationGroupId || null;
+                    try { batchedStorageSetJson('savedDeepseekConversations', latestSaved); } catch (e) { console.error('upsertSavedConversationNow 写入失败：', e); }
+                } catch (e) {
+                    console.error('upsertSavedConversationNow 合并写入失败：', e);
+                }
             } catch (e) {
                 console.error('upsertSavedConversationNow 失败：', e);
             }
@@ -1014,6 +1176,150 @@
                 upsertTimer = null;
                 upsertSavedConversationNow();
             }, UPSERT_INTERVAL_MS);
+        }
+
+        /**
+         * 记忆任务队列（异步后台执行）
+         * - 使用 localStorage 键 `memoryJobs` 持久化任务队列，避免刷新丢失
+         * - 使用内联 Blob Worker 执行网络请求，主线程负责入队、状态更新与写回
+         */
+        function getMemoryJobs() {
+            try { return JSON.parse(localStorage.getItem('memoryJobs') || '[]'); } catch (_) { return []; }
+        }
+        function saveMemoryJobs(jobs) {
+            try { localStorage.setItem('memoryJobs', JSON.stringify(jobs || [])); } catch (e) { console.error('saveMemoryJobs 写入失败：', e); }
+            try { if (typeof updateMemoryBadge === 'function') updateMemoryBadge(); } catch (_) {}
+        }
+        function _genJobId() { return 'mj_' + Date.now() + '_' + Math.floor(Math.random() * 90000 + 10000); }
+
+        // 将当前会话快照与必要元信息入队，后台 Worker 会使用 job.payload 中的内容发起摘要请求
+        function enqueueMemoryJob(conversationId, type = 'session', payload = {}) {
+            try {
+                // 强制写回会话，确保 worker 使用到最新内容
+                try { upsertSavedConversationNow(); } catch (_) {}
+
+                const jobs = getMemoryJobs();
+                const job = {
+                    id: _genJobId(),
+                    conversationId: conversationId || localStorage.getItem('deepseekConversationId') || null,
+                    type: type,
+                    status: 'pending',
+                    attempts: 0,
+                    createdAt: new Date().toISOString(),
+                    payload: payload // 包含 systemPrompt / userContent / modelToUse / msgCount / groupId 等
+                };
+                jobs.push(job);
+                saveMemoryJobs(jobs);
+                // 触发 Worker 开始处理（若未启动则启动）
+                startMemoryWorkerIfNeeded();
+                return job.id;
+            } catch (e) {
+                console.error('enqueueMemoryJob 失败：', e);
+                return null;
+            }
+        }
+
+        function startMemoryWorkerIfNeeded() {
+            try {
+                if (window._memoryWorkerStarted) return;
+                // 创建内联 Blob Worker
+                const workerCode = `
+                    self.onmessage = async function(e) {
+                        const job = e.data && e.data.job;
+                        if (!job) return;
+                        const apiKey = job.payload.apiKey || null;
+                        const url = job.payload.url || (self.DEEPSEEK_API_URL || 'https://openrouter.ai/api/v1/chat/completions');
+                        const body = job.payload.requestBody || null;
+                        const maxAttempts = job.payload.maxAttempts || 1;
+                        let lastErr = null;
+                        for (let attempt=0; attempt<maxAttempts; attempt++) {
+                            try {
+                                const resp = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': apiKey ? ('Bearer ' + apiKey) : '' }, body: JSON.stringify(body) });
+                                const data = await resp.json().catch(()=>null);
+                                if (!resp.ok) {
+                                    lastErr = { status: resp.status, body: data };
+                                    continue;
+                                }
+                                const memoryText = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content ? data.choices[0].message.content : null;
+                                self.postMessage({ ok: true, jobId: job.id, result: memoryText, final: data });
+                                return;
+                            } catch (err) {
+                                lastErr = String(err || 'fetch_error');
+                            }
+                        }
+                        self.postMessage({ ok: false, jobId: job.id, error: lastErr });
+                    };
+                `;
+                const blob = new Blob([workerCode], { type: 'application/javascript' });
+                const w = new Worker(URL.createObjectURL(blob));
+                w.addEventListener('message', (ev) => {
+                    try {
+                        const d = ev.data || {};
+                        const jobId = d.jobId;
+                        const jobs = getMemoryJobs();
+                        const ji = jobs.findIndex(x => x && x.id === jobId);
+                        if (d.ok) {
+                            if (ji !== -1) {
+                                jobs[ji].status = 'done';
+                                jobs[ji].attempts = (jobs[ji].attempts || 0) + 1;
+                                jobs[ji].finishedAt = new Date().toISOString();
+                                saveMemoryJobs(jobs);
+                                // 写回会话摘要（主线程执行 localStorage 修改）
+                                try {
+                                    const payload = jobs[ji].payload || {};
+                                    const conversationId = jobs[ji].conversationId;
+                                    let saved = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
+                                    const idx = saved.findIndex(c => c && c.id === conversationId);
+                                    if (idx !== -1) {
+                                        const msgCountAtJob = payload.msgCount || 0;
+                                        const lastCount = saved[idx].lastSummarizedMessageCount || 0;
+                                        // 仅在未被更晚摘要覆盖时写回，避免竞态覆盖
+                                        if (!saved[idx].summary || msgCountAtJob > lastCount) {
+                                            saved[idx].summary = d.result || '';
+                                            saved[idx].lastSummarizedMessageCount = msgCountAtJob;
+                                            saved[idx].updatedAt = new Date().toISOString();
+                                            localStorage.setItem('savedDeepseekConversations', JSON.stringify(saved));
+                                            // 若属于分组，则触发分组记忆刷新（异步但不阻塞）
+                                            if (saved[idx].groupId) {
+                                                try { if (typeof updateGroupMemory === 'function') updateGroupMemory(saved[idx].groupId).catch(()=>{}); } catch(_) {}
+                                            }
+                                        }
+                                    }
+                                } catch (e) { console.error('memoryWorker result apply failed:', e); }
+                            }
+                        } else {
+                            if (ji !== -1) {
+                                jobs[ji].status = 'failed';
+                                jobs[ji].error = d.error || 'unknown';
+                                jobs[ji].attempts = (jobs[ji].attempts || 0) + 1;
+                                jobs[ji].finishedAt = new Date().toISOString();
+                                saveMemoryJobs(jobs);
+                            }
+                        }
+                    } catch (err) { console.error('memoryWorker message handler 失败：', err); }
+                });
+                window._memoryWorker = w;
+                window._memoryWorkerStarted = true;
+                // 恢复并分发当前 pending 任务
+                try {
+                    const pending = getMemoryJobs().filter(j => j && j.status === 'pending');
+                    for (const p of pending) {
+                        // 标记为 in-progress 并发送
+                        const jobs = getMemoryJobs();
+                        const i = jobs.findIndex(x => x && x.id === p.id);
+                        if (i !== -1) {
+                            jobs[i].status = 'in-progress';
+                            jobs[i].startedAt = new Date().toISOString();
+                            saveMemoryJobs(jobs);
+                            // 更新 UI 徽章
+                            try { if (typeof updateMemoryBadge === 'function') updateMemoryBadge(); } catch(_) {}
+                            window._memoryWorker.postMessage({ job: jobs[i] });
+                        }
+                    }
+                } catch (_) {}
+            } catch (e) {
+                console.error('startMemoryWorkerIfNeeded 失败：', e);
+            }
         }
 
         /**
@@ -1168,13 +1474,21 @@
                         // 优先使用会话管理页预先输入的名称；否则回退为首条消息前缀
                         const presetNameRaw = (localStorage.getItem('deepseekNewConversationName') || '').trim();
                         const namePrefix = presetNameRaw || (messageText.slice(0, 20) || '新会话');
+                        const selectedModelForAutoCreate = localStorage.getItem('deepseekNewConversationModel') || localStorage.getItem('chatModel') || window.MODEL_NAME || 'minimax/minimax-m2:free';
                         const newEntry = {
                             id: newId,
                             name: namePrefix,
                             messages: JSON.parse(localStorage.getItem('deepseekConversation') || '[]'),
                             summary: null,
                             groupId: currentConversationGroupId || null,
-                            model: window.MODEL_NAME,
+                            model: selectedModelForAutoCreate || window.MODEL_NAME,
+                            modelParams: (function(){
+                                try {
+                                    const tmp = localStorage.getItem('deepseekConversationModelParams') || localStorage.getItem('freechat.modelParams') || null;
+                                    return tmp ? JSON.parse(tmp) : null;
+                                } catch (_) { try { return JSON.parse(localStorage.getItem('freechat.modelParams')||'null'); } catch(e){ return null; } }
+                            })(),
+                            systemPrompt: (function(){ try { return localStorage.getItem('freechat.systemPrompt') || ''; } catch(_) { return ''; } })(),
                             updatedAt: new Date().toISOString(),
                             lastSummarizedMessageCount: 0
                         };
@@ -1182,8 +1496,18 @@
                         localStorage.setItem('savedDeepseekConversations', JSON.stringify(saved));
                         localStorage.setItem('deepseekConversationId', newId);
                         try { renderSessionTitle(); } catch (_) {}
+                        // 将自动创建时选中的模型同步为全局模型（即时生效）
+                        try {
+                            if (selectedModelForAutoCreate) {
+                                try { localStorage.setItem('chatModel', selectedModelForAutoCreate); } catch(_) {}
+                                try { window.MODEL_NAME = selectedModelForAutoCreate; } catch(_) {}
+                                try { updateCurrentModelBadge(); } catch(_) {}
+                            }
+                        } catch (_) {}
                         // 清理临时名称键，避免影响下一次新建
                         try { localStorage.removeItem('deepseekNewConversationName'); } catch (_) {}
+                        // 创建后清理临时模型选择（若存在）
+                        try { localStorage.removeItem('deepseekNewConversationModel'); } catch (_) {}
                     }
                 } catch (e) {
                     console.error('自动创建持久会话失败：', e);
@@ -1233,7 +1557,7 @@
                     renderWelcomeIfEmpty();
                 } catch (_) {}
                 if (sendBtn) sendBtn.disabled = false;
-            } catch (error) {
+                } catch (error) {
                 console.error('发送消息失败:', error);
                 showStatus('发送失败：' + (error && error.message ? error.message : '请重试'));
                 setTimeout(hideStatus, 5000);
@@ -1367,13 +1691,36 @@
                 _sysMerged = true;
             }
 
-            const requestBody = {
-                model: getCurrentModel(),
-                messages: messagesForRequest,
-                temperature: 0.7,
-                max_tokens: 40000,
-                stream: true
-            };
+            // 使用有效参数：优先会话级，其次全局，最后兜底默认
+            try {
+                const convId = localStorage.getItem('deepseekConversationId');
+                let convObj = null;
+                if (convId) {
+                    try { convObj = (JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]') || []).find(c => c && c.id === convId) || null; } catch (_) { convObj = null; }
+                }
+                const effectiveParams = getEffectiveModelParams(convObj);
+                const effectiveSystemPrompt = getEffectiveSystemPrompt(convObj);
+                const messagesWithSystem = effectiveSystemPrompt ? [ { role: 'system', content: effectiveSystemPrompt } ].concat(messagesForRequest) : messagesForRequest;
+                var requestBody = {
+                    model: getCurrentModel(),
+                    messages: messagesWithSystem,
+                    temperature: (typeof effectiveParams.temperature !== 'undefined') ? effectiveParams.temperature : 0.7,
+                    top_p: (typeof effectiveParams.top_p !== 'undefined') ? effectiveParams.top_p : 0.9,
+                    max_tokens: (typeof effectiveParams.max_tokens !== 'undefined') ? effectiveParams.max_tokens : 1024,
+                    // 本项目默认始终使用流式输出（streaming）
+                    stream: true
+                };
+            } catch (e) {
+                console.error('构建请求体时使用参数失败，回退默认值：', e);
+                var requestBody = {
+                    model: getCurrentModel(),
+                    messages: messagesForRequest,
+                    temperature: 0.7,
+                    top_p: 0.9,
+                    max_tokens: 1024,
+                    stream: true
+                };
+            }
 
             // 按开关注入 OpenRouter Web 插件与搜索上下文选项
             try {
@@ -1565,8 +1912,8 @@
             }
             // 流结束后进行一次最终的持久写回，避免丢失最后片段
             try { upsertSavedConversationNow(); } catch (e) { /* 忽略上报 */ }
-            // 流结束后自动尝试生成会话记忆（具备去重判断）
-            try { await autoSummarizeIfNeeded(); } catch (e) { console.error('自动会话记忆失败：', e); }
+            // 流结束后自动尝试生成会话记忆（改为入队异步执行，避免阻塞主流程）
+            try { enqueueAutoSummarizeIfNeeded(); } catch (e) { console.error('自动会话记忆入队失败：', e); }
 
             // 清理 current controller（请求/流已完成）
             try { window._currentRequestController = null; } catch (_) {}
@@ -1580,6 +1927,33 @@
          * 参数：无
          * 返回值：Promise
          */
+        // 将自动摘要改为可入队的轻量判断函数（实际摘要由后台 memoryWorker 执行）
+        function enqueueAutoSummarizeIfNeeded() {
+            try {
+                const conversationId = localStorage.getItem('deepseekConversationId');
+                if (!conversationId) return;
+                let saved = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
+                const idx = saved.findIndex(c => c.id === conversationId);
+                if (idx === -1) return;
+                const entry = saved[idx];
+                const msgCount = currentConversation.length;
+                const lastCount = entry.lastSummarizedMessageCount || 0;
+                if (entry.summary && msgCount <= lastCount) return;
+                const apiKey = (window.OPENROUTER_API_KEY || localStorage.getItem('deepseekApiKey'));
+                if (!apiKey) return;
+                if (!window.PROMPTS || !window.PROMPTS.SESSION_SUMMARY) return;
+                const systemPrompt = window.PROMPTS.SESSION_SUMMARY;
+                const userContent = currentConversation.map(m => `${(m.role||'').toUpperCase()}: ${m.content||''}`).join('\\n');
+                const modelToUse = (entry && entry.model) ? entry.model : (window.MODEL_NAME || 'minimax/minimax-m2:free');
+                const url = (window.DEEPSEEK_API_URL || 'https://openrouter.ai/api/v1/chat/completions');
+                const requestBody = { model: modelToUse, messages: [ { role: 'system', content: systemPrompt }, { role: 'user', content: userContent } ], temperature: 0.2 };
+                const payload = { apiKey: apiKey, url: url, requestBody: requestBody, msgCount: msgCount, groupId: entry.groupId || null, maxAttempts: 2 };
+                enqueueMemoryJob(conversationId, 'session', payload);
+            } catch (e) {
+                console.error('enqueueAutoSummarizeIfNeeded 失败：', e);
+            }
+        }
+
         async function autoSummarizeIfNeeded() {
             const conversationId = localStorage.getItem('deepseekConversationId');
             if (!conversationId) return;
@@ -2281,6 +2655,7 @@
             const existingSelect = document.getElementById('existingGroupSelect');
             const nameInput = document.getElementById('newChatNameInput');
             if (!modal || !groupInput || !nameInput) return;
+            // 填充已有分组下拉并根据选择显示/隐藏新建分组输入框
             try { populateExistingGroupSelect(); } catch (_) {}
             if (existingSelect) {
                 existingSelect.value = '';
@@ -2295,6 +2670,45 @@
             if (modal) modal.style.display = 'none';
         }
         (function bindNewChatModal(){
+            // 填充模态中的模型下拉（使用 config 页面缓存的模型列表或回退值）
+            function populateNewChatModelSelect() {
+                try {
+                    const sel = document.getElementById('newChatModelSelect');
+                    if (!sel) return;
+                    sel.innerHTML = '';
+                    // 先尝试从 config 页面缓存读取模型列表
+                    const cached = JSON.parse(localStorage.getItem('openrouter.models.cache') || 'null');
+                    const models = Array.isArray(cached && cached.models) ? cached.models : [];
+                    if (models.length) {
+                        // models 可能为字符串或对象 {value,label}
+                        const placeholder = document.createElement('option');
+                        placeholder.value = '';
+                        placeholder.textContent = '（使用全局模型）';
+                        sel.appendChild(placeholder);
+                        for (const m of models) {
+                            const opt = document.createElement('option');
+                            if (typeof m === 'string') {
+                                opt.value = m; opt.textContent = m;
+                            } else if (m && typeof m === 'object') {
+                                opt.value = m.value || ''; opt.textContent = m.label || m.value || '';
+                            }
+                            sel.appendChild(opt);
+                        }
+                    } else {
+                        // 无缓存时仅展示当前全局模型作为占位
+                        const gm = localStorage.getItem('chatModel') || window.MODEL_NAME || 'minimax/minimax-m2:free';
+                        const opt = document.createElement('option');
+                        opt.value = ''; opt.textContent = `使用全局模型（${gm}）`;
+                        sel.appendChild(opt);
+                    }
+                    // 尝试默认选中 localStorage.chatModel
+                    const savedModel = localStorage.getItem('chatModel') || window.MODEL_NAME || '';
+                    if (savedModel) {
+                        try { sel.value = savedModel; } catch (_) {}
+                    }
+                } catch (e) { console.warn('populateNewChatModelSelect failed', e); }
+            }
+
             // 填充分组选择下拉（若无分组则保持显示新建输入框）
             function populateExistingGroupSelect() {
                 try {
@@ -2315,6 +2729,7 @@
                             sel.appendChild(opt);
                         }
                     }
+                    // 变更时控制新分组输入框显隐
                     sel.addEventListener('change', () => {
                         try {
                             if (!groupInput) return;
@@ -2328,34 +2743,43 @@
 
             document.addEventListener('DOMContentLoaded', () => {
                 try {
-                    populateExistingGroupSelect();
+                    // 页面就绪时填充模型下拉
+                    populateNewChatModelSelect();
                     try { if (typeof populateExistingGroupSelect === 'function') populateExistingGroupSelect(); } catch (_) {}
+
                     const confirmBtn = document.getElementById('groupModalConfirmBtn');
                     const cancelBtn = document.getElementById('groupModalCancelBtn');
                     if (confirmBtn) confirmBtn.addEventListener('click', () => {
-                        const sel = document.getElementById('existingGroupSelect');
                         const gInput = document.getElementById('newGroupNameInput');
                         const nInput = document.getElementById('newChatNameInput');
+                        const modelSel = document.getElementById('newChatModelSelect');
+                        const groupName = gInput && gInput.value ? gInput.value.trim() : '';
+                        if (!groupName) { alert('请输入分组名称'); return; }
                         const convName = nInput && nInput.value ? nInput.value.trim() : '';
-                        let target = null;
-                        // 若选择了已有分组，使用其 id；否则根据输入创建或查找同名分组
+                        // 查找或创建分组
                         let groups = JSON.parse(localStorage.getItem('conversationGroups') || '[]');
-                        if (sel && sel.value) {
-                            target = groups.find(g => g && g.id === sel.value);
-                        } else {
-                            const groupName = gInput && gInput.value ? gInput.value.trim() : '';
-                            if (!groupName) { alert('请输入分组名称或选择已有分组'); return; }
-                            target = groups.find(g => g && g.name === groupName);
-                            if (!target) {
-                                target = { id: Date.now().toString(), name: groupName, memorySummary: null, updatedAt: new Date().toISOString() };
-                                groups.push(target);
-                                localStorage.setItem('conversationGroups', JSON.stringify(groups));
-                            }
+                        let target = groups.find(g => g && g.name === groupName);
+                        if (!target) {
+                            target = { id: Date.now().toString(), name: groupName, memorySummary: null, updatedAt: new Date().toISOString() };
+                            groups.push(target);
+                            localStorage.setItem('conversationGroups', JSON.stringify(groups));
                         }
                         localStorage.setItem('deepseekConversationGroupId', target.id);
                         if (convName) localStorage.setItem('deepseekNewConversationName', convName);
                         else localStorage.removeItem('deepseekNewConversationName');
+
+                        // 选择的模型优先级：模态选择 -> 全局 chatModel -> window.MODEL_NAME -> 回退值
+                        const selValue = modelSel ? (modelSel.value || '') : '';
+                        const selectedModel = selValue || localStorage.getItem('chatModel') || window.MODEL_NAME || 'minimax/minimax-m2:free';
                         // 清空当前临时会话，准备开始新会话
+                        // 在开始新会话前，先中止任何正在进行的生成请求并取消待写入，避免旧数据延迟写入覆盖新会话
+                        try {
+                            if (window._currentRequestController && typeof window._currentRequestController.abort === 'function') {
+                                try { window._currentRequestController.abort(); } catch(_) {}
+                            }
+                            try { window._sendingInProgress = false; } catch(_) {}
+                        } catch(_) {}
+                        try { if (typeof batchedStorageCancelKey === 'function') batchedStorageCancelKey('deepseekConversation'); } catch(_) {}
                         localStorage.setItem('deepseekConversation', JSON.stringify([]));
                         // 创建并持久化一个空的持久会话条目，使其立即出现在抽屉中
                         try {
@@ -2368,13 +2792,21 @@
                                 messages: [],
                                 summary: null,
                                 groupId: target.id,
-                                model: window.MODEL_NAME || null,
+                                model: selectedModel || (window.MODEL_NAME || null),
                                 updatedAt: new Date().toISOString(),
                                 lastSummarizedMessageCount: 0
                             };
                             saved.push(newEntry);
                             localStorage.setItem('savedDeepseekConversations', JSON.stringify(saved));
                             localStorage.setItem('deepseekConversationId', newId);
+                            // 将新建时选择的模型同步为全局模型（使标题栏与配置页即时反映）
+                            try {
+                                if (selectedModel) {
+                                    try { localStorage.setItem('chatModel', selectedModel); } catch(_) {}
+                                    try { window.MODEL_NAME = selectedModel; } catch(_) {}
+                                    try { updateCurrentModelBadge(); } catch(_) {}
+                                }
+                            } catch (_) {}
                         } catch (_) {}
                         // 刷新界面与抽屉列表
                         loadConversation(); renderMessages(); renderWelcomeIfEmpty();
@@ -2408,6 +2840,9 @@
             <select id="existingGroupSelect" class="modal-input" style="width:100%; margin-bottom:6px;"></select>
             <input id="newGroupNameInput" class="modal-input" placeholder="输入分组名称（必填）" maxlength="50" />
             <input id="newChatNameInput" class="modal-input" placeholder="输入会话名称（可选）" maxlength="50" />
+            <!-- 新增：选择模型（可选，若不选择则使用全局模型） -->
+            <label for="newChatModelSelect" class="modal-label" style="margin-top:6px;">选择模型（可选）：</label>
+            <select id="newChatModelSelect" class="modal-input" style="width:100%;"></select>
             <div class="modal-actions">
                 <button id="groupModalConfirmBtn">确认</button>
                 <button id="groupModalCancelBtn">取消</button>

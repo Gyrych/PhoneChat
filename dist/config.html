@@ -106,6 +106,29 @@
             <label for="webSearchPromptInputCfg" class="config-label">Search Prompt（可选）</label>
             <textarea id="webSearchPromptInputCfg" class="config-input" rows="3" placeholder="留空以使用默认提示"></textarea>
         </div>
+        <!-- 全局 System 提示词（可选） -->
+        <div class="config-item">
+            <label for="globalSystemPrompt" class="config-label">全局 System 提示（可选）</label>
+            <textarea id="globalSystemPrompt" class="config-input" rows="4" placeholder="可留空，不注入"></textarea>
+        </div>
+        <!-- 模型参数设置 -->
+        <div class="config-item">
+            <label class="config-label">模型参数（默认可选）</label>
+            <div class="config-grid">
+                <div>
+                    <label for="paramTemperature">Temperature</label>
+                    <input id="paramTemperature" class="config-input" type="number" step="0.01" min="0" max="2" placeholder="0.7" />
+                </div>
+                <div>
+                    <label for="paramTopP">Top P</label>
+                    <input id="paramTopP" class="config-input" type="number" step="0.01" min="0" max="1" placeholder="0.9" />
+                </div>
+                <div>
+                    <label for="paramMaxTokens">Max Tokens</label>
+                    <input id="paramMaxTokens" class="config-input" type="number" step="1" min="1" placeholder="1024" />
+                </div>
+            </div>
+        </div>
         <button id="saveConfigBtn" class="save-btn">保存设置</button>
         <div id="saveMessage" class="save-message"></div>
     </main>
@@ -396,6 +419,21 @@
                 const ctx = read('freechat.web.contextSize', '');
                 ctxEl.value = (ctx === 'low' || ctx === 'medium' || ctx === 'high') ? ctx : '';
                 promptEl.value = read('freechat.web.searchPrompt', '');
+                // 读取并初始化：全局 system 提示与模型参数
+                try {
+                    const sysEl = document.getElementById('globalSystemPrompt');
+                    if (sysEl) sysEl.value = read('freechat.systemPrompt', '');
+                    const paramsRaw = localStorage.getItem('freechat.modelParams');
+                    const params = paramsRaw ? JSON.parse(paramsRaw) : null;
+                    const tempEl = document.getElementById('paramTemperature');
+                    const topEl = document.getElementById('paramTopP');
+                    const maxEl = document.getElementById('paramMaxTokens');
+                    if (params) {
+                        if (tempEl) tempEl.value = (typeof params.temperature !== 'undefined') ? String(params.temperature) : '';
+                        if (topEl) topEl.value = (typeof params.top_p !== 'undefined') ? String(params.top_p) : '';
+                        if (maxEl) maxEl.value = (typeof params.max_tokens !== 'undefined') ? String(params.max_tokens) : '';
+                    }
+                } catch (e) { console.error('初始化全局 system 提示与模型参数失败：', e); }
             } catch (e) {
                 console.error('初始化 联网搜索设置 失败：', e);
             }
@@ -435,6 +473,23 @@
                     // 自定义搜索提示：允许为空（为空则移除键）
                     const searchPrompt = (promptEl.value || '').trim();
                     write('freechat.web.searchPrompt', searchPrompt);
+                    // 保存全局 systemPrompt 与模型参数
+                    try {
+                        const sysVal = (document.getElementById('globalSystemPrompt') && document.getElementById('globalSystemPrompt').value) || '';
+                        if (sysVal && sysVal.trim()) localStorage.setItem('freechat.systemPrompt', sysVal.trim());
+                        else localStorage.removeItem('freechat.systemPrompt');
+
+                        const temp = parseFloat(document.getElementById('paramTemperature').value);
+                        const top = parseFloat(document.getElementById('paramTopP').value);
+                        const maxT = parseInt(document.getElementById('paramMaxTokens').value, 10);
+                        const mp = {};
+                        if (!Number.isNaN(temp)) mp.temperature = temp;
+                        if (!Number.isNaN(top)) mp.top_p = top;
+                        if (!Number.isNaN(maxT)) mp.max_tokens = maxT;
+                        // 若没有任何数值字段则移除键，否则写入 JSON
+                        if (Object.keys(mp).length === 0) localStorage.removeItem('freechat.modelParams');
+                        else localStorage.setItem('freechat.modelParams', JSON.stringify(mp));
+                    } catch (e) { console.error('保存全局 system 提示/模型参数失败：', e); }
 
                     const saveMessage = document.getElementById('saveMessage');
                     saveMessage.textContent = '保存成功！';

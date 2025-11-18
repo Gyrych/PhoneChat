@@ -208,36 +208,37 @@ body.drawer-open .conversations-fab {
 
 /* 会话标题栏：显示当前会话名称与分组（玻璃风格，响应式） */
 .session-title {
-    display: flex;
-    flex-direction: row;
+    /* 三列布局：左按钮、中间信息、右模型徽章 */
+    display: grid;
+    grid-template-columns: auto 1fr auto;
     align-items: center;
     gap: 12px;
     padding: 8px 14px;
     border-radius: var(--radius);
     -webkit-backdrop-filter: blur(var(--blur)) saturate(140%);
     backdrop-filter: blur(var(--blur)) saturate(140%);
-    background: rgba(255,255,255,0.6);
+    background: rgba(255,255,255,0.75);
     box-shadow: var(--shadow);
     width: 100%;
-    max-width: 860px;
-    margin: 8px auto;
-    border: 1px solid var(--border);
+    max-width: 980px;
+    margin: 10px auto;
+    border: 1px solid rgba(0,0,0,0.06);
     position: sticky;
-    top: 12px;
+    top: calc(env(safe-area-inset-top, 12px) + 0px);
     z-index: 9999;
 }
-.session-title > div { display: flex; flex-direction: column; }
-.session-name { font-size: var(--fs-h2); font-weight: 600; color: var(--fg); }
-.session-group { font-size: 0.85rem; color: var(--muted); margin-top: 2px; }
+.session-title .session-info { display: flex; flex-direction: column; min-width: 0; }
+.session-name { font-size: 1.05rem; font-weight: 600; color: var(--fg); line-height: 1; }
+.session-group { font-size: 0.78rem; color: var(--muted); margin-top: 4px; }
 .session-title .conversations-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     width: var(--tap);
     height: var(--tap);
-    border-radius: 12px;
-    background: rgba(255,255,255,0.75);
-    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: rgba(255,255,255,0.92);
+    border: 1px solid rgba(0,0,0,0.06);
     color: #1d1d1f;
     cursor: pointer;
     -webkit-backdrop-filter: blur(var(--blur)) saturate(140%);
@@ -1052,6 +1053,77 @@ body.drawer-open .conversations-fab {
     backdrop-filter: blur(var(--blur)) saturate(140%);
 }
 
+/* 记忆状态徽章（右上） */
+.memory-badge {
+    display: inline-block;
+    font-size: 12px;
+    color: #08327a;
+    background: rgba(255,255,255,0.6);
+    border: 1px solid var(--border);
+    padding: 4px 10px;
+    border-radius: 999px;
+    margin-left: 8px;
+    -webkit-backdrop-filter: blur(var(--blur)) saturate(140%);
+    backdrop-filter: blur(var(--blur)) saturate(140%);
+    display: none; /* 无任务时隐藏 */
+    align-items: center;
+}
+
+.memory-spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    /* 半圆环：上半蓝，下半灰 */
+    background: conic-gradient(#007aff 0deg 180deg, rgba(0,0,0,0.08) 180deg 360deg);
+    position: relative;
+    margin-right: 6px;
+    vertical-align: middle;
+}
+
+.memory-spinner.spinning {
+    animation: memory-spin 1s linear infinite;
+}
+
+@keyframes memory-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* 通用 SVG 圆环加载器样式（更美观、通用） */
+.memory-spinner-svg {
+    width: 18px;
+    height: 18px;
+    display: inline-block;
+    vertical-align: middle;
+}
+.memory-spinner-svg .path {
+    stroke: #007aff;
+    stroke-linecap: round;
+    stroke-dasharray: 60;
+    stroke-dashoffset: 60;
+    transform-origin: 50% 50%;
+    transform-box: fill-box;
+    animation: spinner-rotate 2s linear infinite, spinner-dash 1.2s ease-in-out infinite;
+}
+@keyframes spinner-rotate {
+    100% { transform: rotate(360deg); }
+}
+@keyframes spinner-dash {
+    0% { stroke-dashoffset: 60; }
+    50% { stroke-dashoffset: 18; }
+    100% { stroke-dashoffset: 60; }
+}
+
+/* 完成态：静态圆环（带勾）大小控制 */
+.memory-done {
+    width: 18px;
+    height: 18px;
+    display: inline-block;
+    vertical-align: middle;
+}
+.memory-done circle { opacity: 0.98; }
+
 .conversation-time {
     font-size: 0.8rem;
     color: #666;
@@ -1451,6 +1523,97 @@ body.drawer-open .conversations-fab {
     /* 保持与抽屉视觉一致，避免内容透出时看见下层 */
     -webkit-backdrop-filter: blur(var(--blur)) saturate(140%);
     backdrop-filter: blur(var(--blur)) saturate(140%);
+}
+.model-badge {
+    display: inline-block;
+    background: rgba(0,0,0,0.06);
+    color: var(--fg);
+    font-size: 0.78rem;
+    padding: 4px 8px;
+    border-radius: 999px;
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.modal-label {
+    font-size: 0.9rem;
+    color: var(--muted);
+    display: block;
+    margin-bottom: 6px;
+}
+.conversation-model {
+    font-size: 0.85rem;
+    color: var(--muted);
+    margin-top: 6px;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.session-model {
+    font-size: 0.9rem;
+    color: var(--muted);
+    margin-top: 6px;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: right;
+}
+.session-title .session-name-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap; /* 不换行 */
+}
+.session-title .session-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.session-title .memory-badge {
+    padding: 0;
+    width: 20px;
+    height: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    margin-left: 4px;
+}
+.session-title .memory-badge .memory-spinner {
+    width: 16px;
+    height: 16px;
+}
+
+.memory-spinner::before {
+    content: "";
+    position: absolute;
+    left: 3px;
+    top: 3px;
+    right: 3px;
+    bottom: 3px;
+    border-radius: 50%;
+    background: var(--surface, #fff);
+}
+
+.memory-spinner.spinning {
+    animation: memory-spin 1s linear infinite;
+}
+
+/* 完成态：整圆环（SVG）样式 */
+.memory-done {
+    width: 16px;
+    height: 16px;
+    display: inline-block;
+}
+.memory-done circle {
+    fill: none;
+    stroke: #007aff;
+    stroke-width: 2;
 }
 .drawer-section { /* 兼容：保持抽屉内 section 默认样式 */ }
 .drawer-primary {

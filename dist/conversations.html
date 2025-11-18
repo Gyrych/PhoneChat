@@ -251,6 +251,16 @@
                 summary: null,
                 groupId: localStorage.getItem('deepseekConversationGroupId') || null,
                 model: window.MODEL_NAME,
+                // 保存会话时同时把当前有效模型参数与全局/会话级 systemPrompt 一并保存，便于历史回放
+                modelParams: (function(){
+                    try {
+                        const tmp = localStorage.getItem('deepseekConversationModelParams') || localStorage.getItem('freechat.modelParams') || null;
+                        return tmp ? JSON.parse(tmp) : null;
+                    } catch (_) {
+                        try { return JSON.parse(localStorage.getItem('freechat.modelParams')||'null'); } catch(e){ return null; }
+                    }
+                })(),
+                systemPrompt: (function(){ try { return localStorage.getItem('freechat.systemPrompt') || ''; } catch(_) { return ''; } })(),
                 updatedAt: new Date().toISOString()
             };
 
@@ -258,74 +268,29 @@
             savedConversations.push(conversationObj);
             localStorage.setItem('savedDeepseekConversations', JSON.stringify(savedConversations));
 
-            // 异步调用 DeepSeek 生成会话摘要并保存（失败不影响主流程）
+            // 改为入队异步生成会话记忆，避免阻塞 UI 主流程
             try {
                 const apiKey = (window.OPENROUTER_API_KEY || localStorage.getItem('deepseekApiKey'));
-                    if (apiKey) {
-                    // 使用更明确的记忆提示词，让模型以要点形式返回会话记忆
+                if (apiKey) {
                     if (!window.PROMPTS || !window.PROMPTS.SESSION_SUMMARY) {
                         throw new Error('PROMPTS.SESSION_SUMMARY 未找到，无法生成会话记忆，请确保 prompts.js 已加载且包含 SESSION_SUMMARY');
                     }
                     const systemPrompt = window.PROMPTS.SESSION_SUMMARY;
-
-                    // 使用已保存的完整消息数组作为会话记忆输入，防止只提交最近一条消息
                     let savedForSummary = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
                     const savedIdxForThis = savedForSummary.findIndex(c => c.id === conversationId);
                     const messagesForSummary = (savedIdxForThis !== -1 && savedForSummary[savedIdxForThis].messages && savedForSummary[savedIdxForThis].messages.length > 0)
                         ? savedForSummary[savedIdxForThis].messages
                         : conversationObj.messages;
-                    console.log('生成会话记忆，消息条数：', messagesForSummary.length);
-                    const userContent = messagesForSummary.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
-
-                    // 优先使用该会话记录的模型；若缺失则回退到全局模型，最后兜底
+                    const userContent = messagesForSummary.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\\n');
                     const convModel = (savedIdxForThis !== -1 && savedForSummary[savedIdxForThis].model) || (conversationObj && conversationObj.model) || null;
                     const modelToUse = convModel || (window.MODEL_NAME || 'minimax/minimax-m2:free');
-                    // 日志：开始会话记忆请求
-                    let _sumEvtId = null;
-                    try {
-                        _sumEvtId = (window.Logger && window.Logger.start({
-                            type: 'summary_request',
-                            endpoint: (window.DEEPSEEK_API_URL || 'https://openrouter.ai/api/v1/chat/completions'),
-                            model: modelToUse,
-                            req: { headersMasked: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ***masked***' }, body: { model: modelToUse, messages: [ { role: 'system', content: systemPrompt }, { role: 'user', content: userContent } ], temperature: 0.2 } }
-                        })) || null;
-                    } catch (_) {}
-
-                    const resp = await fetch(window.DEEPSEEK_API_URL || 'https://openrouter.ai/api/v1/chat/completions', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${apiKey}`
-                        },
-                        body: JSON.stringify({ model: modelToUse, messages: [ { role: 'system', content: systemPrompt }, { role: 'user', content: userContent } ], temperature: 0.2 })
-                    });
-                    try { window.Logger && _sumEvtId && window.Logger.append(_sumEvtId, { res: { status: resp.status } }); } catch (_) {}
-
-                    if (resp.ok) {
-                        const data = await resp.json();
-                        try { window.Logger && _sumEvtId && window.Logger.end(_sumEvtId, { type: 'summary_done', res: { final: data } }); } catch (_) {}
-                        const summaryText = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content ? data.choices[0].message.content : null;
-                        if (summaryText) {
-                            // 更新对应会话的 summary 字段
-                            let saved = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
-                            const idx = saved.findIndex(c => c.id === conversationId);
-                            if (idx !== -1) {
-                                saved[idx].summary = summaryText;
-                                saved[idx].updatedAt = new Date().toISOString();
-                                localStorage.setItem('savedDeepseekConversations', JSON.stringify(saved));
-                            }
-
-                            // 如果属于分组，则触发分组记忆聚合更新
-                            if (conversationObj.groupId) {
-                                await updateGroupMemory(conversationObj.groupId);
-                            }
-                        }
-                    } else {
-                        try { window.Logger && _sumEvtId && window.Logger.end(_sumEvtId, { error: { message: '会话记忆请求失败' } }); } catch (_) {}
-                    }
+                    const url = (window.DEEPSEEK_API_URL || 'https://openrouter.ai/api/v1/chat/completions');
+                    const requestBody = { model: modelToUse, messages: [ { role: 'system', content: systemPrompt }, { role: 'user', content: userContent } ], temperature: 0.2 };
+                    const payload = { apiKey: apiKey, url: url, requestBody: requestBody, msgCount: messagesForSummary.length, groupId: conversationObj.groupId || null, maxAttempts: 2 };
+                    enqueueMemoryJob(conversationId, 'session', payload);
                 }
             } catch (err) {
-                console.error('生成会话记忆失败：', err);
+                console.error('生成会话记忆入队失败：', err);
                 try { window.Logger && window.Logger.error({ type: 'summary_request', endpoint: (window.DEEPSEEK_API_URL || ''), model: (window.MODEL_NAME || '') }, err); } catch (_) {}
             }
         }
@@ -361,19 +326,21 @@
                 renameBtn.innerHTML = '<i class="fas fa-edit"></i>';
                 renameBtn.title = '重命名分组';
                 renameBtn.style.marginLeft = '8px';
-                renameBtn.addEventListener('click', (e) => {
+                renameBtn.addEventListener('click', async (e) => {
                     e.stopPropagation();
-                    const newName = prompt('输入新的分组名称：', group.name);
-                    if (newName) {
-                        let groups = JSON.parse(localStorage.getItem('conversationGroups') || '[]');
-                        const idx = groups.findIndex(g => g.id === group.id);
-                        if (idx !== -1) {
-                            groups[idx].name = newName;
-                            groups[idx].updatedAt = new Date().toISOString();
-                            localStorage.setItem('conversationGroups', JSON.stringify(groups));
-                            renderConversationsList();
+                    try {
+                        const newName = await showInputModal({ title: '重命名分组', label: '新的分组名称', value: group.name, placeholder: '输入新的分组名称' });
+                        if (newName !== null && String(newName).trim() !== '') {
+                            let groups = JSON.parse(localStorage.getItem('conversationGroups') || '[]');
+                            const idx = groups.findIndex(g => g.id === group.id);
+                            if (idx !== -1) {
+                                groups[idx].name = String(newName).trim();
+                                groups[idx].updatedAt = new Date().toISOString();
+                                localStorage.setItem('conversationGroups', JSON.stringify(groups));
+                                renderConversationsList();
+                            }
                         }
-                    }
+                    } catch (err) { console.error('分组重命名异常：', err); }
                 });
 
                 const delBtn = document.createElement('button');
@@ -572,45 +539,45 @@
             });
 
             conversationsList.querySelectorAll('.rename-conv-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const conversationId = e.currentTarget.getAttribute('data-id');
-                    const newName = prompt('输入新的会话名称：');
-                    if (newName) {
-                        let saved = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
+                btn.addEventListener('click', async (e) => {
+                    try {
+                        const conversationId = e.currentTarget.getAttribute('data-id');
+                        const saved = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
                         const idx = saved.findIndex(c => c.id === conversationId);
-                        if (idx !== -1) {
-                            saved[idx].name = newName;
-                            saved[idx].updatedAt = new Date().toISOString();
-                            localStorage.setItem('savedDeepseekConversations', JSON.stringify(saved));
-                            renderConversationsList();
+                        const currentName = (idx !== -1 && saved[idx].name) ? saved[idx].name : '';
+                        const newName = await showInputModal({ title: '重命名会话', label: '新的会话名称', value: currentName, placeholder: '输入新的会话名称' });
+                        if (newName !== null && String(newName).trim() !== '') {
+                            if (idx !== -1) {
+                                saved[idx].name = String(newName).trim();
+                                saved[idx].updatedAt = new Date().toISOString();
+                                localStorage.setItem('savedDeepseekConversations', JSON.stringify(saved));
+                                renderConversationsList();
+                            }
                         }
-                    }
+                    } catch (err) { console.error('会话重命名异常：', err); }
                 });
             });
 
             conversationsList.querySelectorAll('.move-conv-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const conversationId = e.currentTarget.getAttribute('data-id');
-                    const groups = JSON.parse(localStorage.getItem('conversationGroups') || '[]');
-                    const groupOptions = ['无分组'].concat(groups.map(g => g.name));
-                    const choice = prompt(`输入目标分组名称（可选）：\n${groupOptions.join('\n')}`);
-                    if (choice !== null) {
-                        let targetGroupId = null;
-                        if (choice !== '' && choice !== '无分组') {
-                            const g = groups.find(x => x.name === choice);
-                            if (g) targetGroupId = g.id;
-                            else alert('未找到该分组名称');
+                btn.addEventListener('click', async (e) => {
+                    try {
+                        const conversationId = e.currentTarget.getAttribute('data-id');
+                        const groups = JSON.parse(localStorage.getItem('conversationGroups') || '[]');
+                        // 构建下拉选项：空字符串表示无分组
+                        const selectOptions = [{ value: '', label: '无分组' }].concat(groups.map(g => ({ value: g.id, label: g.name })));
+                        const choice = await showInputModal({ title: '移动会话到分组', label: '选择目标分组（或选择“无分组”）', selectOptions: selectOptions, value: '' });
+                        if (choice !== null) {
+                            let targetGroupId = (choice === '') ? null : String(choice);
+                            let saved = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
+                            const idx = saved.findIndex(c => c.id === conversationId);
+                            if (idx !== -1) {
+                                saved[idx].groupId = targetGroupId;
+                                saved[idx].updatedAt = new Date().toISOString();
+                                localStorage.setItem('savedDeepseekConversations', JSON.stringify(saved));
+                                renderConversationsList();
+                            }
                         }
-
-                        let saved = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
-                        const idx = saved.findIndex(c => c.id === conversationId);
-                        if (idx !== -1) {
-                            saved[idx].groupId = targetGroupId;
-                            saved[idx].updatedAt = new Date().toISOString();
-                            localStorage.setItem('savedDeepseekConversations', JSON.stringify(saved));
-                            renderConversationsList();
-                        }
-                    }
+                    } catch (err) { console.error('移动会话异常：', err); }
                 });
             });
 
