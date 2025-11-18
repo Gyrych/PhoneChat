@@ -137,6 +137,48 @@
                 return (window.MODEL_NAME || 'minimax/minimax-m2:free');
             }
         }
+        /**
+         * 获取全局模型参数（从 localStorage.freechat.modelParams）
+         * 返回默认值对象（保证字段存在）
+         */
+        function getGlobalModelParams() {
+            try {
+                const raw = localStorage.getItem('freechat.modelParams');
+                if (!raw) return { temperature: 0.7, top_p: 0.9, max_tokens: 1024, stream: true };
+                const parsed = JSON.parse(raw || 'null') || {};
+                return {
+                    temperature: typeof parsed.temperature !== 'undefined' ? parsed.temperature : 0.7,
+                    top_p: typeof parsed.top_p !== 'undefined' ? parsed.top_p : 0.9,
+                    max_tokens: typeof parsed.max_tokens !== 'undefined' ? parsed.max_tokens : 1024,
+                    stream: typeof parsed.stream !== 'undefined' ? !!parsed.stream : true
+                };
+            } catch (e) {
+                console.error('读取全局模型参数失败：', e);
+                return { temperature: 0.7, top_p: 0.9, max_tokens: 1024, stream: true };
+            }
+        }
+
+        function getConversationModelParams(conv) {
+            try {
+                if (!conv) return null;
+                if (conv.modelParams && typeof conv.modelParams === 'object') return conv.modelParams;
+                return null;
+            } catch (_) { return null; }
+        }
+
+        function getEffectiveModelParams(conv) {
+            const globalParams = getGlobalModelParams() || {};
+            const convParams = getConversationModelParams(conv) || {};
+            return Object.assign({}, globalParams, convParams);
+        }
+
+        function getEffectiveSystemPrompt(conv) {
+            try {
+                if (conv && conv.systemPrompt && String(conv.systemPrompt).trim()) return String(conv.systemPrompt).trim();
+                const g = localStorage.getItem('freechat.systemPrompt');
+                return g ? String(g).trim() : '';
+            } catch (e) { return ''; }
+        }
 
         const LOCAL_PASSPHRASE = 'local_obfuscation_passphrase_2025';
         const ENCRYPTED_OPENROUTER_KEY = 'U2FsdGVkX18PSVwBhdx/XQSmTwr5UimvbPYKhcmoMNXytQwT4HgYIMh2Hl/BxCv/0zYPUjEzfprco76j74BEMQIjYwM5iIkP7VMSS1vKYLqbhNjbCqP369SdZlcmikUg';
@@ -1111,6 +1153,13 @@
                     latestSaved[idxLatest].updatedAt = new Date().toISOString();
                     // 同步保存当前使用的模型，保证会话记录模型可被恢复
                     latestSaved[idxLatest].model = window.MODEL_NAME;
+                    // 同步保存当前有效的模型参数与（可选）会话级 systemPrompt，便于回溯
+                    try {
+                        latestSaved[idxLatest].modelParams = getEffectiveModelParams(latestSaved[idxLatest]) || getGlobalModelParams();
+                    } catch (_) { latestSaved[idxLatest].modelParams = getGlobalModelParams(); }
+                    try {
+                        latestSaved[idxLatest].systemPrompt = getEffectiveSystemPrompt(latestSaved[idxLatest]) || '';
+                    } catch (_) { latestSaved[idxLatest].systemPrompt = (localStorage.getItem('freechat.systemPrompt')||''); }
                     // 保持分组ID与当前内存一致
                     latestSaved[idxLatest].groupId = currentConversationGroupId || null;
                     try { batchedStorageSetJson('savedDeepseekConversations', latestSaved); } catch (e) { console.error('upsertSavedConversationNow 写入失败：', e); }
@@ -1433,6 +1482,13 @@
                             summary: null,
                             groupId: currentConversationGroupId || null,
                             model: selectedModelForAutoCreate || window.MODEL_NAME,
+                            modelParams: (function(){
+                                try {
+                                    const tmp = localStorage.getItem('deepseekConversationModelParams') || localStorage.getItem('freechat.modelParams') || null;
+                                    return tmp ? JSON.parse(tmp) : null;
+                                } catch (_) { try { return JSON.parse(localStorage.getItem('freechat.modelParams')||'null'); } catch(e){ return null; } }
+                            })(),
+                            systemPrompt: (function(){ try { return localStorage.getItem('freechat.systemPrompt') || ''; } catch(_) { return ''; } })(),
                             updatedAt: new Date().toISOString(),
                             lastSummarizedMessageCount: 0
                         };
@@ -1635,13 +1691,36 @@
                 _sysMerged = true;
             }
 
-            const requestBody = {
-                model: getCurrentModel(),
-                messages: messagesForRequest,
-                temperature: 0.7,
-                max_tokens: 40000,
-                stream: true
-            };
+            // 使用有效参数：优先会话级，其次全局，最后兜底默认
+            try {
+                const convId = localStorage.getItem('deepseekConversationId');
+                let convObj = null;
+                if (convId) {
+                    try { convObj = (JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]') || []).find(c => c && c.id === convId) || null; } catch (_) { convObj = null; }
+                }
+                const effectiveParams = getEffectiveModelParams(convObj);
+                const effectiveSystemPrompt = getEffectiveSystemPrompt(convObj);
+                const messagesWithSystem = effectiveSystemPrompt ? [ { role: 'system', content: effectiveSystemPrompt } ].concat(messagesForRequest) : messagesForRequest;
+                var requestBody = {
+                    model: getCurrentModel(),
+                    messages: messagesWithSystem,
+                    temperature: (typeof effectiveParams.temperature !== 'undefined') ? effectiveParams.temperature : 0.7,
+                    top_p: (typeof effectiveParams.top_p !== 'undefined') ? effectiveParams.top_p : 0.9,
+                    max_tokens: (typeof effectiveParams.max_tokens !== 'undefined') ? effectiveParams.max_tokens : 1024,
+                    // 本项目默认始终使用流式输出（streaming）
+                    stream: true
+                };
+            } catch (e) {
+                console.error('构建请求体时使用参数失败，回退默认值：', e);
+                var requestBody = {
+                    model: getCurrentModel(),
+                    messages: messagesForRequest,
+                    temperature: 0.7,
+                    top_p: 0.9,
+                    max_tokens: 1024,
+                    stream: true
+                };
+            }
 
             // 按开关注入 OpenRouter Web 插件与搜索上下文选项
             try {

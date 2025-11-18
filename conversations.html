@@ -251,6 +251,16 @@
                 summary: null,
                 groupId: localStorage.getItem('deepseekConversationGroupId') || null,
                 model: window.MODEL_NAME,
+                // 保存会话时同时把当前有效模型参数与全局/会话级 systemPrompt 一并保存，便于历史回放
+                modelParams: (function(){
+                    try {
+                        const tmp = localStorage.getItem('deepseekConversationModelParams') || localStorage.getItem('freechat.modelParams') || null;
+                        return tmp ? JSON.parse(tmp) : null;
+                    } catch (_) {
+                        try { return JSON.parse(localStorage.getItem('freechat.modelParams')||'null'); } catch(e){ return null; }
+                    }
+                })(),
+                systemPrompt: (function(){ try { return localStorage.getItem('freechat.systemPrompt') || ''; } catch(_) { return ''; } })(),
                 updatedAt: new Date().toISOString()
             };
 

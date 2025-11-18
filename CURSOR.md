@@ -783,3 +783,11 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
 - 影响与回退：
   - 影响：会话重命名/移动/分组重命名的弹窗现在使用项目统一的模态样式，提升一致性；原来使用的浏览器 prompt/alert 被替换为友好的模态交互。
   - 回退：可通过还原 `conversations.html` 中被替换的 prompt 调用、移除 `script.js` 中的 `showInputModal` 实现并恢复原有逻辑回退此改动。
+2025-11-18（新增：设置页全局 system 提示与模型参数支持）
+  - 目的：在设置页增加全局可选的 system 提示词与常用模型参数（temperature、top_p、max_tokens），并在会话首次持久化或节流写回时将当前生效参数拷贝进会话记录，确保历史会话能复现当时的参数与提示词。
+- 修改项：
+  1. `config.html`：新增 `#globalSystemPrompt` 文本域与模型参数输入控件（`#paramTemperature`、`#paramTopP`、`#paramMaxTokens`、`#paramStream`），保存为 `localStorage.freechat.systemPrompt` 与 `localStorage.freechat.modelParams`（JSON）。
+  2. `index.html`：新增 `getGlobalModelParams()`、`getConversationModelParams(conv)`、`getEffectiveModelParams(conv)`、`getEffectiveSystemPrompt(conv)` 等辅助函数；在自动创建持久会话与 `upsertSavedConversationNow()` 中同步保存 `modelParams` 与 `systemPrompt` 字段；在发起请求时按照 会话级 `modelParams` → 全局 `freechat.modelParams` → 内置默认 的优先级合并参数，并在 messages 前插入非空的 system 提示（会话级优先）。
+  3. `conversations.html`：保存会话时也会把当前生效的参数/提示词写入会话对象便于回放。
+  4. 文档：已同步更新 `README.md` 与 `README_zh.md` 记录新增的 localStorage 键与行为说明。
+- 备注：该改动保持对 `localStorage.chatModel` 与 `window.MODEL_NAME` 的向后兼容，不改变原有模型选择的核心逻辑，仅在请求构造层合并并使用新增的参数与提示词以影响请求体。

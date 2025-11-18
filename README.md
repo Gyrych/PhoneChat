@@ -87,6 +87,12 @@ npm run build:apk
 4. Fixed: The sending flow now reads `localStorage.chatModel` at runtime (via `getCurrentModel()`), ensuring a model selected when creating/loading a conversation in the drawer is used immediately instead of being overridden by a script-initialized cached value.
 4. Demo uses a built-in encrypted OpenRouter API key inside `index.html` (for demonstration only; do not rely on it for production).
 5. To use your own key for main chat, replace the encrypted string in `index.html`. Optionally set `localStorage.setItem('deepseekApiKey', 'YOUR_KEY')` for session/group memory generation calls; main chat does not read this key.
+6. New: Global system prompt and model parameters — the settings page now allows you to set an optional global system prompt and common model parameters (temperature, top_p, max_tokens). They persist to:
+
+   - `freechat.systemPrompt` — optional string injected as a leading `system` message when present.
+   - `freechat.modelParams` — JSON object with fields like `temperature`, `top_p`, `max_tokens`.
+
+   When a conversation is first saved/created, the effective parameters at that time are copied into the conversation record as `savedDeepseekConversations[].modelParams` so historical conversations can reproduce the original settings. At request time the runtime uses `savedDeepseekConversations[].modelParams` (if present) → `freechat.modelParams` → hardcoded defaults.
 
 ### Web Search (OpenRouter plugin)
 

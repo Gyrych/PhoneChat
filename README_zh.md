@@ -87,6 +87,12 @@ npm run build:apk
 4. 已修复：发送流程在运行时读取 `localStorage.chatModel`（通过 `getCurrentModel()`），确保抽屉中新建或加载的会话所选模型能即时生效，而不会被脚本初始化时缓存的模型覆盖。
 4. 演示默认使用内置的加密 OpenRouter Key（仅用于演示，不可用于生产）。
 5. 如需让“主聊天”使用你的 Key，请替换 `index.html` 中的加密串。你也可以在浏览器控制台执行 `localStorage.setItem('deepseekApiKey', 'YOUR_KEY')` 供“会话记忆/分组记忆”调用回退使用；主聊天不会读取该键。
+6. 新增：全局 System 提示与模型参数 — 设置页现在允许配置可选的全局 system 提示词与常用模型参数（temperature、top_p、max_tokens）。它们将持久化到：
+
+- `freechat.systemPrompt` — 可选字符串，若存在会作为首条 `system` 消息插入请求。
+- `freechat.modelParams` — JSON 对象，包含 `temperature`、`top_p`、`max_tokens` 等字段。
+
+在首次保存/创建会话时，当前生效的参数会被复制到会话记录（`savedDeepseekConversations[].modelParams`）以便历史会话能复现当时设置；运行时优先使用会话级 `modelParams` → 全局 `freechat.modelParams` → 内置默认值。
 
 ### 联网搜索（OpenRouter 插件）
 
