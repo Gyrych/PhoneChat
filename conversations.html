@@ -316,19 +316,21 @@
                 renameBtn.innerHTML = '<i class="fas fa-edit"></i>';
                 renameBtn.title = '重命名分组';
                 renameBtn.style.marginLeft = '8px';
-                renameBtn.addEventListener('click', (e) => {
+                renameBtn.addEventListener('click', async (e) => {
                     e.stopPropagation();
-                    const newName = prompt('输入新的分组名称：', group.name);
-                    if (newName) {
-                        let groups = JSON.parse(localStorage.getItem('conversationGroups') || '[]');
-                        const idx = groups.findIndex(g => g.id === group.id);
-                        if (idx !== -1) {
-                            groups[idx].name = newName;
-                            groups[idx].updatedAt = new Date().toISOString();
-                            localStorage.setItem('conversationGroups', JSON.stringify(groups));
-                            renderConversationsList();
+                    try {
+                        const newName = await showInputModal({ title: '重命名分组', label: '新的分组名称', value: group.name, placeholder: '输入新的分组名称' });
+                        if (newName !== null && String(newName).trim() !== '') {
+                            let groups = JSON.parse(localStorage.getItem('conversationGroups') || '[]');
+                            const idx = groups.findIndex(g => g.id === group.id);
+                            if (idx !== -1) {
+                                groups[idx].name = String(newName).trim();
+                                groups[idx].updatedAt = new Date().toISOString();
+                                localStorage.setItem('conversationGroups', JSON.stringify(groups));
+                                renderConversationsList();
+                            }
                         }
-                    }
+                    } catch (err) { console.error('分组重命名异常：', err); }
                 });
 
                 const delBtn = document.createElement('button');
@@ -527,45 +529,45 @@
             });
 
             conversationsList.querySelectorAll('.rename-conv-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const conversationId = e.currentTarget.getAttribute('data-id');
-                    const newName = prompt('输入新的会话名称：');
-                    if (newName) {
-                        let saved = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
+                btn.addEventListener('click', async (e) => {
+                    try {
+                        const conversationId = e.currentTarget.getAttribute('data-id');
+                        const saved = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
                         const idx = saved.findIndex(c => c.id === conversationId);
-                        if (idx !== -1) {
-                            saved[idx].name = newName;
-                            saved[idx].updatedAt = new Date().toISOString();
-                            localStorage.setItem('savedDeepseekConversations', JSON.stringify(saved));
-                            renderConversationsList();
+                        const currentName = (idx !== -1 && saved[idx].name) ? saved[idx].name : '';
+                        const newName = await showInputModal({ title: '重命名会话', label: '新的会话名称', value: currentName, placeholder: '输入新的会话名称' });
+                        if (newName !== null && String(newName).trim() !== '') {
+                            if (idx !== -1) {
+                                saved[idx].name = String(newName).trim();
+                                saved[idx].updatedAt = new Date().toISOString();
+                                localStorage.setItem('savedDeepseekConversations', JSON.stringify(saved));
+                                renderConversationsList();
+                            }
                         }
-                    }
+                    } catch (err) { console.error('会话重命名异常：', err); }
                 });
             });
 
             conversationsList.querySelectorAll('.move-conv-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const conversationId = e.currentTarget.getAttribute('data-id');
-                    const groups = JSON.parse(localStorage.getItem('conversationGroups') || '[]');
-                    const groupOptions = ['无分组'].concat(groups.map(g => g.name));
-                    const choice = prompt(`输入目标分组名称（可选）：\n${groupOptions.join('\n')}`);
-                    if (choice !== null) {
-                        let targetGroupId = null;
-                        if (choice !== '' && choice !== '无分组') {
-                            const g = groups.find(x => x.name === choice);
-                            if (g) targetGroupId = g.id;
-                            else alert('未找到该分组名称');
+                btn.addEventListener('click', async (e) => {
+                    try {
+                        const conversationId = e.currentTarget.getAttribute('data-id');
+                        const groups = JSON.parse(localStorage.getItem('conversationGroups') || '[]');
+                        // 构建下拉选项：空字符串表示无分组
+                        const selectOptions = [{ value: '', label: '无分组' }].concat(groups.map(g => ({ value: g.id, label: g.name })));
+                        const choice = await showInputModal({ title: '移动会话到分组', label: '选择目标分组（或选择“无分组”）', selectOptions: selectOptions, value: '' });
+                        if (choice !== null) {
+                            let targetGroupId = (choice === '') ? null : String(choice);
+                            let saved = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
+                            const idx = saved.findIndex(c => c.id === conversationId);
+                            if (idx !== -1) {
+                                saved[idx].groupId = targetGroupId;
+                                saved[idx].updatedAt = new Date().toISOString();
+                                localStorage.setItem('savedDeepseekConversations', JSON.stringify(saved));
+                                renderConversationsList();
+                            }
                         }
-
-                        let saved = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
-                        const idx = saved.findIndex(c => c.id === conversationId);
-                        if (idx !== -1) {
-                            saved[idx].groupId = targetGroupId;
-                            saved[idx].updatedAt = new Date().toISOString();
-                            localStorage.setItem('savedDeepseekConversations', JSON.stringify(saved));
-                            renderConversationsList();
-                        }
-                    }
+                    } catch (err) { console.error('移动会话异常：', err); }
                 });
             });
 

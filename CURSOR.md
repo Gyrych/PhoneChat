@@ -33,6 +33,7 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
 - `config.html`：设置页面，提供"模型选择（写入 `localStorage.chatModel`）"与"联网搜索设置（写入 `freechat.web.*`）"；当前不提供 API Key 输入项。
 - （已废弃）`conversations.html`：早期的高级会话管理页面；保存/加载/删除、分组管理、记忆查看/重新生成等能力已整合到 `index.html` 的覆盖式抽屉中（含"新分组名 + 创建分组"控件）。
  - `conversations.html`：会话管理页面，支持保存/加载/删除会话、分组管理、查看/重新生成会话记忆与分组记忆；新建会话时弹窗询问是否加入已有分组并提供下拉选择。
+  - 说明：`conversations.html` 的视觉样式、文本与布局现已与主页面侧边栏（抽屉）保持一致，复用同一套样式与模态组件；此页面相较抽屉仅新增与会话管理相关的操作按钮（会话删除 / 会话重命名 / 会话移动分组 / 分组删除 / 分组重命名），并复用统一模态（`.modal` / `.modal-overlay`）与脚本辅助函数（`showConfirmModal`、`showInputModal`）。
 - `prompts.js`：提示词模板，集中管理"会话记忆（SESSION_SUMMARY）/分组记忆（GROUP_SUMMARY）"等提示词常量。
 - `style.css`：应用样式与响应式布局。
 - `script.js`：可选的共用脚本（导航、localStorage JSON 助手等）；当前页面未默认引入。
@@ -771,3 +772,14 @@ FreeChat 是一个轻量级的本地 Web 聊天应用，提供简单的聊天 UI
   - 从会话列表加载历史会话（包含 `model` 字段）→ 跳转到主页 → 发送消息时使用该会话保存的模型。
 - 回退：
   - 恢复对 `MODEL_NAME` 常量的直接使用，或删除 `getCurrentModel()` 的替换调用即可回退本次行为改动。
+
+2025-11-18（修复：会话管理页与主页面侧边栏样式/交互对齐）
+- 目的：使独立的会话管理页（`conversations.html`）在视觉、排布和模态交互上与主页面的抽屉侧边栏保持一致，减少风格差异并复用现有样式/脚本组件，便于维护与用户认知一致性。
+- 修改项：
+  1. `conversations.html`：将会话/分组操作的交互替换为统一模态调用，新增会话重命名/移动到分组的输入模态调用；保留并复用 `showConfirmModal` 作为删除确认对话框，新增 `showInputModal`（见下）。
+  2. `script.js`：新增 `showInputModal(opts)` 通用输入/选择模态函数，返回 Promise，兼容文本输入与下拉选择；与已有 `showConfirmModal` 使用相同的 `.modal` / `.modal-overlay` 样式与键盘行为（ESC 取消、回车确认）。
+  3. `style.css`：无需改动样式主体，复用抽屉/模态现有规则；若后续需要可在 `.conversations-page` 作用域做小幅适配。
+  4. `CURSOR.md`：记录本次变更并更新 `conversations.html` 的说明（已同步）。
+- 影响与回退：
+  - 影响：会话重命名/移动/分组重命名的弹窗现在使用项目统一的模态样式，提升一致性；原来使用的浏览器 prompt/alert 被替换为友好的模态交互。
+  - 回退：可通过还原 `conversations.html` 中被替换的 prompt 调用、移除 `script.js` 中的 `showInputModal` 实现并恢复原有逻辑回退此改动。
