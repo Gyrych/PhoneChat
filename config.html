@@ -8,18 +8,58 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-    <header class="header title-centered">
-        <button id="backBtn" class="back-btn">
-            <i class="fas fa-arrow-left"></i>
-        </button>
-        <h1>FreeChat 设置</h1>
-    </header>
-
-    <main class="config-container">
-        <div class="config-item">
-            <label for="customModelSelect" class="config-label">选择模型</label>
-            <!-- 保留原生 select 作为数据源并隐藏，以保持与现有保存/读取逻辑兼容（value 会由自定义组件同步） -->
-            <select id="modelSelect" class="config-input" style="display:none;">
+    <div class="app-shell settings-app">
+        <header class="app-bar">
+            <div class="app-brand">
+                <button id="backBtn" class="back-btn" title="返回">
+                    <i class="fas fa-arrow-left"></i>
+                </button>
+                <div>
+                    <h1>FreeChat 设置中心</h1>
+                    <span class="app-pill">所有配置仅存储在本地设备</span>
+                </div>
+            </div>
+            <div class="app-actions">
+                <a href="index.html" class="settings-btn" title="返回聊天">
+                    <i class="fas fa-comments"></i>
+                </a>
+            </div>
+        </header>
+        <main class="config-shell">
+            <aside class="stepper">
+                <div class="stepper-step active">
+                    <span>1</span>
+                    <div>
+                        <strong>选择模型</strong>
+                        <p>挑选默认聊天模型</p>
+                    </div>
+                </div>
+                <div class="stepper-step">
+                    <span>2</span>
+                    <div>
+                        <strong>模型参数</strong>
+                        <p>设置温度、最大 Token 等</p>
+                    </div>
+                </div>
+                <div class="stepper-step">
+                    <span>3</span>
+                    <div>
+                        <strong>联网搜索</strong>
+                        <p>配置 Web 插件参数</p>
+                    </div>
+                </div>
+                <div class="stepper-step">
+                    <span>4</span>
+                    <div>
+                        <strong>安全与摘要</strong>
+                        <p>System 提示与本地说明</p>
+                    </div>
+                </div>
+            </aside>
+            <section class="config-panel">
+                <div class="config-item">
+                    <label for="customModelSelect" class="config-label">选择模型</label>
+                    <select id="modelSelect" class="config-input" style="display:none;">
                 <option value="">请选择模型</option>
                 <option value="agentica-org/deepcoder-14b-preview:free">agentica-org/deepcoder-14b-preview:free</option>
                 <option value="alibaba/tongyi-deepresearch-30b-a3b:free">alibaba/tongyi-deepresearch-30b-a3b:free</option>
@@ -67,71 +107,88 @@
                 <option value="tngtech/deepseek-r1t-chimera:free">tngtech/deepseek-r1t-chimera:free</option>
                 <option value="tngtech/deepseek-r1t2-chimera:free">tngtech/deepseek-r1t2-chimera:free</option>
                 <option value="z-ai/glm-4.5-air:free">z-ai/glm-4.5-air:free</option>
-            </select>
-            <!-- 自定义下拉组件：在移动端保证单行显示、截断与搜索功能 -->
-            <div class="custom-select" id="customModelSelect" data-value="">
-              <button class="custom-select__trigger" aria-haspopup="listbox" aria-expanded="false" type="button">
-                <span class="custom-select__value">请选择模型</span>
-                <i class="fas fa-caret-down"></i>
-              </button>
-              <div class="custom-select__panel" role="listbox" tabindex="-1" aria-hidden="true">
-                <input class="custom-select__search" placeholder="搜索模型" aria-label="搜索模型">
-                <ul class="custom-select__options"></ul>
-              </div>
-            </div>
-        </div>
-        <!-- 联网搜索设置（从主页面迁移至设置页） -->
-        <div class="config-item">
-            <label for="webEngineSelectCfg" class="config-label">联网搜索引擎</label>
-            <select id="webEngineSelectCfg" class="config-input">
-                <option value="auto">auto（默认）</option>
-                <option value="native">native</option>
-                <option value="exa">exa</option>
-            </select>
-        </div>
-        <div class="config-item">
-            <label for="webMaxResultsInputCfg" class="config-label">最大结果数</label>
-            <input type="number" id="webMaxResultsInputCfg" class="config-input" min="1" max="10" step="1" placeholder="1 - 10（默认 5）" />
-        </div>
-        <div class="config-item">
-            <label for="webContextSizeSelectCfg" class="config-label">搜索上下文</label>
-            <select id="webContextSizeSelectCfg" class="config-input">
-                <option value="">- 不指定 -</option>
-                <option value="low">low</option>
-                <option value="medium">medium</option>
-                <option value="high">high</option>
-            </select>
-        </div>
-        <div class="config-item">
-            <label for="webSearchPromptInputCfg" class="config-label">Search Prompt（可选）</label>
-            <textarea id="webSearchPromptInputCfg" class="config-input" rows="3" placeholder="留空以使用默认提示"></textarea>
-        </div>
-        <!-- 全局 System 提示词（可选） -->
-        <div class="config-item">
-            <label for="globalSystemPrompt" class="config-label">全局 System 提示（可选）</label>
-            <textarea id="globalSystemPrompt" class="config-input" rows="4" placeholder="可留空，不注入"></textarea>
-        </div>
-        <!-- 模型参数设置 -->
-        <div class="config-item">
-            <label class="config-label">模型参数（默认可选）</label>
-            <div class="config-grid">
-                <div>
-                    <label for="paramTemperature">Temperature</label>
-                    <input id="paramTemperature" class="config-input" type="number" step="0.01" min="0" max="2" placeholder="0.7" />
+                    <!-- 自定义下拉组件 -->
+                    <div class="custom-select" id="customModelSelect" data-value="">
+                        <button class="custom-select__trigger" aria-haspopup="listbox" aria-expanded="false" type="button">
+                            <span class="custom-select__value">请选择模型</span>
+                            <i class="fas fa-caret-down"></i>
+                        </button>
+                        <div class="custom-select__panel" role="listbox" tabindex="-1" aria-hidden="true">
+                            <input class="custom-select__search" placeholder="搜索模型" aria-label="搜索模型">
+                            <ul class="custom-select__options"></ul>
+                        </div>
+                    </div>
                 </div>
-                <div>
-                    <label for="paramTopP">Top P</label>
-                    <input id="paramTopP" class="config-input" type="number" step="0.01" min="0" max="1" placeholder="0.9" />
+                <div class="config-item">
+                    <label class="config-label">模型参数</label>
+                    <div class="config-grid two-col">
+                        <div>
+                            <label for="paramTemperature">Temperature</label>
+                            <input id="paramTemperature" class="config-input" type="number" step="0.01" min="0" max="2" placeholder="0.7" />
+                        </div>
+                        <div>
+                            <label for="paramTopP">Top P</label>
+                            <input id="paramTopP" class="config-input" type="number" step="0.01" min="0" max="1" placeholder="0.9" />
+                        </div>
+                        <div>
+                            <label for="paramMaxTokens">Max Tokens</label>
+                            <input id="paramMaxTokens" class="config-input" type="number" step="1" min="1" placeholder="1024" />
+                        </div>
+                    </div>
                 </div>
-                <div>
-                    <label for="paramMaxTokens">Max Tokens</label>
-                    <input id="paramMaxTokens" class="config-input" type="number" step="1" min="1" placeholder="1024" />
+                <div class="config-item">
+                    <label class="config-label">联网搜索设置</label>
+                    <div class="config-grid two-col">
+                        <div>
+                            <label for="webEngineSelectCfg">搜索引擎</label>
+                            <select id="webEngineSelectCfg" class="config-input">
+                                <option value="auto">auto（默认）</option>
+                                <option value="native">native</option>
+                                <option value="exa">exa</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="webMaxResultsInputCfg">最大结果数</label>
+                            <input type="number" id="webMaxResultsInputCfg" class="config-input" min="1" max="10" step="1" placeholder="默认 5" />
+                        </div>
+                        <div>
+                            <label for="webContextSizeSelectCfg">搜索上下文</label>
+                            <select id="webContextSizeSelectCfg" class="config-input">
+                                <option value="">不指定</option>
+                                <option value="low">low</option>
+                                <option value="medium">medium</option>
+                                <option value="high">high</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="webSearchPromptInputCfg">Search Prompt（可选）</label>
+                            <textarea id="webSearchPromptInputCfg" class="config-input" rows="3" placeholder="留空使用默认提示"></textarea>
+                        </div>
+                    </div>
                 </div>
-            </div>
-        </div>
-        <button id="saveConfigBtn" class="save-btn">保存设置</button>
-        <div id="saveMessage" class="save-message"></div>
-    </main>
+                <div class="config-item">
+                    <label for="globalSystemPrompt" class="config-label">全局 System 提示（可选）</label>
+                    <textarea id="globalSystemPrompt" class="config-input" rows="4" placeholder="为所有会话添加额外指令"></textarea>
+                </div>
+                <div class="config-summary">
+                    <h3>配置总览</h3>
+                    <ul>
+                        <li>模型：<span id="summaryModel">未选择</span></li>
+                        <li>参数：<span id="summaryParams">默认</span></li>
+                        <li>联网搜索：<span id="summaryWeb">关闭</span></li>
+                        <li>System 提示：<span id="summarySystem">未设置</span></li>
+                    </ul>
+                </div>
+                <div class="privacy-panel">
+                    <strong>本地隐私与同步</strong>
+                    <p>所有设置存储在本地 LocalStorage，可随时清除浏览器数据以重置。</p>
+                    <p id="privacyStats">正在统计本地存储占用...</p>
+                </div>
+                <button id="saveConfigBtn" class="save-btn">保存设置</button>
+                <div id="saveMessage" class="save-message"></div>
+            </section>
+        </main>
+    </div>
 
     <script>
         /**
@@ -142,6 +199,11 @@
         document.getElementById('backBtn').addEventListener('click', function() {
             window.location.assign('index.html');
         });
+        const summaryModelEl = document.getElementById('summaryModel');
+        const summaryParamsEl = document.getElementById('summaryParams');
+        const summaryWebEl = document.getElementById('summaryWeb');
+        const summarySystemEl = document.getElementById('summarySystem');
+        const privacyStatsEl = document.getElementById('privacyStats');
 
         /**
          * 构建自定义下拉组件：从隐藏的原生 select 读取选项并在页面内渲染可搜索的列表
@@ -225,6 +287,35 @@
                     if (selectEl) selectEl.value = saved;
                     container.dataset.value = saved;
                 }
+            }
+        }
+
+        function summarizeTextLite(text, limit = 60) {
+            const trimmed = String(text || '').replace(/\s+/g, ' ').trim();
+            if (!trimmed) return '未设置';
+            return trimmed.length > limit ? `${trimmed.slice(0, limit)}...` : trimmed;
+        }
+
+        function updateLiveSummary() {
+            try {
+                const modelName = localStorage.getItem('chatModel') || '未选择';
+                if (summaryModelEl) summaryModelEl.textContent = modelName;
+                const params = JSON.parse(localStorage.getItem('freechat.modelParams') || '{}');
+                const temperature = typeof params.temperature === 'number' ? params.temperature : 0.7;
+                const topP = typeof params.top_p === 'number' ? params.top_p : 0.9;
+                const maxTokens = params.max_tokens || 1024;
+                if (summaryParamsEl) summaryParamsEl.textContent = `T=${temperature}, TopP=${topP}, Max=${maxTokens}`;
+                const webEnabled = (localStorage.getItem('freechat.web.enable') || 'false') === 'true';
+                const engine = localStorage.getItem('freechat.web.engine') || 'auto';
+                if (summaryWebEl) summaryWebEl.textContent = webEnabled ? `开启（${engine}）` : '关闭';
+                const sysPrompt = localStorage.getItem('freechat.systemPrompt') || '';
+                if (summarySystemEl) summarySystemEl.textContent = summarizeTextLite(sysPrompt, 80);
+                if (privacyStatsEl) {
+                    const convs = JSON.parse(localStorage.getItem('savedDeepseekConversations') || '[]');
+                    privacyStatsEl.textContent = `已保存 ${convs.length} 个会话，localStorage 键数量 ${localStorage.length}`;
+                }
+            } catch (err) {
+                console.error('更新配置概览失败：', err);
             }
         }
 
@@ -503,7 +594,9 @@
                 } catch (e) {
                     console.error('保存设置失败：', e);
                 }
+                updateLiveSummary();
             });
+            updateLiveSummary();
         });
     </script>
 </body>
