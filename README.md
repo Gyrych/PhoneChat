@@ -6,7 +6,7 @@ FreeChat is a privacy-first chat surface built purely with static HTML/CSS/JavaS
 ### Highlights
 - **On-device privacy** – no login or sync; a privacy banner and stats panel remind users that every bit stays local.
 - **Unified UX** – the chat page now combines an app bar, adaptive drawer, token meter, and contextual toasts; the conversation manager renders card-based sections with batch actions; the config center introduces a four-step flow with live summaries.
-- **Mobile polish** – sticky composer, swipe-friendly tool rows, full-screen drawer sheets, and sticky batch bars keep the phone UI tidy and thumb-friendly.
+- **Mobile polish** – a single-row top bar (menu + title), swipe-friendly tool rows, safe-area aware composer, and full-screen drawer sheets keep the phone UI tidy and thumb-friendly.
 - **Memory pipeline** – session/group memories are generated asynchronously via worker jobs and injected ahead of prompts (web synthesis → group → session → history). Reasoning output and citations remain foldable.
 - **Android-ready** – `npm run build` + `npx cap copy` reproduces the same UI inside a WebView without bundlers.
 
@@ -29,9 +29,9 @@ flowchart LR
    - Clone the repo and open `index.html` directly in a modern browser (no build required).
    - Optional: `npm install && npm run build` to copy assets into `dist/` for packaging/deployment.
 2. **Chat workspace**
-   - Desktop keeps the conversation drawer in view; mobile toggles it via the history button.
-   - Composer auto-grows, exposes placebo voice/attachment slots, and shows a token meter; `Enter`/`Ctrl+Enter` sends while `Shift+Enter` inserts a newline.
-   - Thinking/Web toggles live next to the composer; a status pill plus toast stack report streaming or warnings.
+   - Desktop keeps the conversation drawer in view; mobile toggles it via the top-left menu button into a full-screen sheet.
+   - Composer auto-grows, exposes placebo voice/attachment slots, shows a token meter, and is now fixed to the bottom with extra safe-area padding so it never scrolls away; `Enter`/`Ctrl+Enter` sends while `Shift+Enter` inserts a newline.
+   - Thinking/Web/Voice/Attachment toggles now live in a dedicated horizontal strip under the composer so all four stay visible on phones; a status pill plus toast stack report streaming or warnings.
 3. **Conversation manager (`conversations.html`)**
    - Left sidebar lists groups with rename/delete/regenerate buttons; the right column renders cards grouped by folder.
    - Enable “multi-select” to batch move/delete/export conversations; selected items highlight and update the counter/CTA state.

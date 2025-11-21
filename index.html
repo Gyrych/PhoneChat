@@ -42,8 +42,11 @@
     <div class="app-shell chat-app">
         <header class="app-bar">
             <div class="app-brand">
+                <button id="conversationsBtn" class="app-menu-btn" aria-label="打开会话抽屉" title="会话列表">
+                    <i class="fas fa-bars"></i>
+                </button>
                 <img src="icon/logo.png" alt="FreeChat" class="welcome-logo" style="height:40px;width:40px;border-radius:10px;" />
-                <div>
+                <div class="brand-text">
                     <h1>FreeChat</h1>
                     <span class="app-pill">数据仅保存在此设备</span>
                 </div>
@@ -53,13 +56,10 @@
                 <span>无需登录 · 支持手机与电脑浏览器</span>
             </div>
             <div class="app-actions">
-                <button id="privacyHintBtn" class="settings-btn" title="查看隐私说明">
+                <button id="privacyHintBtn" class="settings-btn" title="查看隐私说明" aria-label="查看隐私说明">
                     <i class="fas fa-shield-alt"></i>
                 </button>
-                <button id="conversationsBtn" class="settings-btn" aria-label="打开会话抽屉">
-                    <i class="fas fa-history"></i>
-                </button>
-                <a href="config.html" class="settings-btn" title="设置">
+                <a href="config.html" class="settings-btn" title="设置" aria-label="打开设置页面">
                     <i class="fas fa-cog"></i>
                 </a>
             </div>
@@ -106,21 +106,6 @@
                     <div id="messageContainer" class="message-container"></div>
                     <div id="statusIndicator" class="status-indicator" aria-live="polite"></div>
                     <footer class="input-container">
-                        <div class="input-tools">
-                            <button id="thinkingInlineToggle" class="pill-toggle thinking-inline-toggle" title="深度思考">
-                                <i class="fas fa-brain"></i>
-                            </button>
-                            <button id="webInlineToggle" class="pill-toggle web-inline-toggle" title="联网搜索">
-                                <i class="fas fa-globe"></i>
-                            </button>
-                            <button id="voiceBtn" class="pill-toggle" title="语音输入（实验中）">
-                                <i class="fas fa-microphone"></i>
-                            </button>
-                            <button id="attachBtn" class="pill-toggle" title="添加附件" aria-label="添加附件">
-                                <i class="fas fa-paperclip"></i>
-                            </button>
-                            <input id="fileInput" type="file" multiple style="display:none" />
-                        </div>
                         <div class="input-main">
                             <textarea
                                 id="messageInput"
@@ -135,13 +120,30 @@
                                 <span id="tokenCountLabel">0 / 1024 tokens</span>
                             </div>
                         </div>
-                        <div class="input-tools">
-                            <button id="sendBtn" class="send-btn circle-btn" title="发送">
-                                <i class="fas fa-paper-plane"></i>
+                        <div class="composer-primary input-bottom">
+                            <div class="input-tools input-tools-main" aria-label="输入工具栏">
+                            <button id="thinkingInlineToggle" class="pill-toggle thinking-inline-toggle" title="深度思考" aria-label="切换深度思考">
+                                <i class="fas fa-brain"></i>
                             </button>
-                            <button id="stopBtn" class="stop-btn circle-btn" title="停止生成" aria-label="停止生成">
-                                <i class="fas fa-stop"></i>
+                            <button id="webInlineToggle" class="pill-toggle web-inline-toggle" title="联网搜索" aria-label="切换联网搜索">
+                                <i class="fas fa-globe"></i>
                             </button>
+                            <button id="voiceBtn" class="pill-toggle" title="语音输入（实验中）" aria-label="语音输入（实验中）">
+                                <i class="fas fa-microphone"></i>
+                            </button>
+                            <button id="attachBtn" class="pill-toggle" title="添加附件" aria-label="添加附件">
+                                <i class="fas fa-paperclip"></i>
+                            </button>
+                            <input id="fileInput" type="file" multiple style="display:none" />
+                            </div>
+                            <div class="input-tools input-tools-actions">
+                                <button id="sendBtn" class="sendBtn send-btn circle-btn" title="发送" aria-label="发送消息">
+                                    <i class="fas fa-paper-plane"></i>
+                                </button>
+                                <button id="stopBtn" class="stop-btn circle-btn" title="停止生成" aria-label="停止生成">
+                                    <i class="fas fa-stop"></i>
+                                </button>
+                            </div>
                         </div>
                     </footer>
                 </section>

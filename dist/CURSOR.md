@@ -4,7 +4,7 @@
 
 ### 一句概述
 
-FreeChat 是一个以纯静态前端实现的本地 Web 聊天示例与原型，支持与可配置的外部聊天 API 交互、会话分组与本地记忆管理，提供 Android（Capacitor）打包支持。该仓库为演示用途包含一个内置加密的 OpenRouter demo Key；生产环境请勿在客户端存储密钥。
+FreeChat 是一个纯静态、本地存储的聊天界面：新版 UI 采用统一 App Shell（桌面双栏 + 移动抽屉）、全局状态条与 toast、会话卡片 + 多选批量，以及四步式设置中心，仍支持与可配置的外部聊天 API 交互、会话/分组记忆与 Android（Capacitor）打包。仓库附带 AES 混淆的 OpenRouter demo Key，仅供本地演示。
 
 ### 技术栈与运行环境
 
@@ -14,9 +14,10 @@ FreeChat 是一个以纯静态前端实现的本地 Web 聊天示例与原型，
 
 ### 核心功能（实现要点）
 
-- 聊天交互：通过配置的外部 API 端点发送请求（默认演示端点：`https://openrouter.ai/api/v1/chat/completions`，演示模型：`minimax/minimax-m2:free`）。请求使用 `Authorization: Bearer <apiKey>` 头部，主聊天默认使用内置演示 Key。
-- 会话持久化：当前会话缓存在 `deepseekConversation`；持久会话列表保存为 `savedDeepseekConversations`。首次发送会自动创建持久会话；后续以节流（默认 ~1.5s）写回以减少写入频率。
-- 会话分组：分组数据保存在 `conversationGroups`，支持分组创建/重命名/移动/删除。
+- 聊天交互：通过配置的外部 API 端点发送请求（默认 `https://openrouter.ai/api/v1/chat/completions` + `minimax/minimax-m2:free`）。App Shell 包含顶部状态栏、token 进度条、语音/附件入口、toast/状态条，移动端仍可抽屉化。
+- 会话管理：分组信息存于 `conversationGroups`，主列表按分组渲染卡片；支持多选批量移动/删除/导出，卡片内含记忆折叠、模型/消息数元数据。
+- 设置中心：`config.html` 升级为四步 Stepper（模型 → 参数 → 联网 → System/隐私），并提供实时概览卡 + 隐私面板。
+- 会话持久化：当前对话缓存在 `deepseekConversation`；持久列表写入 `savedDeepseekConversations`，首条发送自动建档，后续节流（~1.5s）写回。
 - 记忆体系：
   - 会话记忆（session memory）与分组记忆（group memory）分别以 `summary` / `memorySummary` 字段保存。
   - 记忆生成不再直接阻塞主线程：摘要任务被封装为 `memoryJobs` 并写入 `localStorage`；内联 Blob Worker 异步拉取并执行队列任务，完成后主线程在核验 `lastSummarizedMessageCount` 后将 `summary` 写回对应会话并触发分组内聚合更新。
@@ -24,7 +25,7 @@ FreeChat 是一个以纯静态前端实现的本地 Web 聊天示例与原型，
 - Web Search（OpenRouter web plugin）：当启用时在请求体注入 `plugins: [{ id: 'web', ... }]` 与 `web_search_options`；返回的 `message.annotations[].url_citation` 会被解析并显示为“参考来源”折叠列表。
 - 流式解析与思考显示：流式增量写入 assistant 占位消息；若响应包含 reasoning，按流式顺序将其渲染在正文之前，默认展开并允许折叠。
 - 日志：`logger.js` 维护本地环形缓冲（`freechat.logs`），记录请求/响应事件（Authorization 被遮蔽）。导出支持 `current|all|byConversationId`。
-- 性能与鲁棒性优化：批量写入（`batchedStorageSetJson`）、AbortController（停止生成时中止请求）、流式解析的 Worker 化、Markdown/DOMPurify 延迟加载、非流式请求的重试与退避策略、消息虚拟化（只渲染最新 N 条）等。
+- 性能与鲁棒性优化：批量写入（`batchedStorageSetJson`）、AbortController、Worker 化流式解析、Markdown/DOMPurify 延迟加载、重试/退避策略、消息虚拟化等。
 
 ### 重要 localStorage 键（摘要）
 
@@ -52,6 +53,13 @@ FreeChat 是一个以纯静态前端实现的本地 Web 聊天示例与原型，
 - 请求体注入：`plugins: [{ id: 'web', engine?, max_results?, search_prompt? }]`，以及 `web_search_options`（`search_context_size`）。
 - 输出合成：当启用时首位注入 `PROMPTS.WEB_SYNTHESIS`（定义于 `prompts.js`），要求“先给结论再给引用”、时间使用 `Asia/Shanghai`、在数据/统计场景中给出关键数值 + 来源时间戳并说明口径，引用以域名为文本链接并与正文一一对应。
 
+### UI 布局与交互要点
+
+- `index.html`：App Bar + Drawer + Chat Body 由 `.app-shell` 统一布局；输入区增加 `voiceBtn`、自动增高 textarea、token meter（基于字符长度估算），`showStatus` 现与固定状态条/Toast 栈联动。
+- `conversations.html`：主体采用 `.conversation-layout`（左侧分组面板、右侧卡片区）；多选通过 `selectedConversationIds` + `bulk*` 操作按钮实现；列表渲染新函数 `renderConversationsList`（旧逻辑保留为 `legacyRenderConversationsList` 仅供参考）。
+- `config.html`：增加 Stepper（静态指示）、实时概览卡 `summary*El` 与 `updateLiveSummary()`，保存后同步摘要与隐私统计。
+- `<960px` 响应式：App Bar 自动换行、输入区底部吸附、工具列横向滚动；抽屉改为全屏滑入；会话批量操作条/设置 Stepper 均可滚动并吸附顶部。
+
 ### Android（Capacitor）打包要点
 
 - 构建：`npm run build`（`node scripts/build.js`）生成/复制静态资源到 `dist/`；`npx cap copy` 同步到 `android/` 原生工程；在 Android Studio 中打开并运行或打包。
@@ -65,6 +73,7 @@ FreeChat 是一个以纯静态前端实现的本地 Web 聊天示例与原型，
 
 ### 变更记录（简要）
 
+- 2025-11-20：重构三大页面 UI（App Shell、会话卡片 + 批量操作、四步式设置中心），新增 token meter/Toast 栈/批量导出等体验，并同步 `README*.md` 与本文件描述。
 - 2025-11-18：重写 `CURSOR.md` / `README.md` / `README_zh.md`，确保文档与当前代码实现一致，记录记忆队列、注入顺序、localStorage 键与 Android 打包说明（文档对齐，不修改代码）。
 - （历史记录请参见项目仓库中原有条目，变更记录区保留以便追溯）
 

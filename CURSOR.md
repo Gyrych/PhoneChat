@@ -55,10 +55,10 @@ FreeChat 是一个纯静态、本地存储的聊天界面：新版 UI 采用统�
 
 ### UI 布局与交互要点
 
-- `index.html`：App Bar + Drawer + Chat Body 由 `.app-shell` 统一布局；输入区增加 `voiceBtn`、自动增高 textarea、token meter（基于字符长度估算），`showStatus` 现与固定状态条/Toast 栈联动。
+- `index.html`：App Bar + Drawer + Chat Body 由 `.app-shell` 统一布局；App Bar 在桌面保留隐私提示/设置按钮，移动端仅显示左侧菜单按钮与标题；输入区包含 `voiceBtn`、自动增高 textarea、token meter（基于字符长度估算），并把思考/联网开关放在可换行的工具列，`showStatus` 现与固定状态条/Toast 栈联动。
 - `conversations.html`：主体采用 `.conversation-layout`（左侧分组面板、右侧卡片区）；多选通过 `selectedConversationIds` + `bulk*` 操作按钮实现；列表渲染新函数 `renderConversationsList`（旧逻辑保留为 `legacyRenderConversationsList` 仅供参考）。
 - `config.html`：增加 Stepper（静态指示）、实时概览卡 `summary*El` 与 `updateLiveSummary()`，保存后同步摘要与隐私统计。
-- `<960px` 响应式：App Bar 自动换行、输入区底部吸附、工具列横向滚动；抽屉改为全屏滑入；会话批量操作条/设置 Stepper 均可滚动并吸附顶部。
+- `<960px` 响应式：App Bar 收敛为“菜单 + 标题”单行，隐藏上下文文案/多余按钮；输入区固定在底部并额外留出 `env(safe-area-inset-bottom)`，思考/联网/语音/附件按钮组成单独的横向工具条固定在输入框下沿；抽屉变成全屏滑入式 Sheet，顶部/底部留安全区；会话批量操作条/设置 Stepper 均可滚动并吸附顶部。
 
 ### Android（Capacitor）打包要点
 
@@ -73,6 +73,7 @@ FreeChat 是一个纯静态、本地存储的聊天界面：新版 UI 采用统�
 
 ### 变更记录（简要）
 
+- 2025-11-21：精简移动端 UI（App Bar 仅显示菜单+标题、输入工具固化为底部横排、抽屉安全区适配）、新增按钮无障碍属性，并同步 README*/CURSOR 文档。
 - 2025-11-20：重构三大页面 UI（App Shell、会话卡片 + 批量操作、四步式设置中心），新增 token meter/Toast 栈/批量导出等体验，并同步 `README*.md` 与本文件描述。
 - 2025-11-18：重写 `CURSOR.md` / `README.md` / `README_zh.md`，确保文档与当前代码实现一致，记录记忆队列、注入顺序、localStorage 键与 Android 打包说明（文档对齐，不修改代码）。
 - （历史记录请参见项目仓库中原有条目，变更记录区保留以便追溯）

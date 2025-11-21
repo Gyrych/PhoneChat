@@ -39,75 +39,125 @@
 
 
 
-    <main class="chat-container">
-        <section id="welcomeHero" class="welcome-hero">
-            <div class="welcome-brand-line">
-                <img src="icon/logo.png" alt="FreeChat" class="welcome-logo" />
-                <h2 class="welcome-title">FreeChat</h2>
-            </div>
-            <p class="welcome-subtitle">在这里可以进行无约束交流。</p>
-        </section>
-        <div id="sessionTitleBar" class="session-title glass" aria-hidden="false">
-            <button id="conversationsBtn" class="conversations-btn" aria-label="打开会话抽屉">
-                <i class="fas fa-history"></i>
-            </button>
-            <div class="session-info">
-                <div class="session-name-row">
-                    <div class="session-name" id="sessionName">未命名会话</div>
-                    <div id="memoryStatusBadge" class="memory-badge" title="记忆状态"></div>
+    <div class="app-shell chat-app">
+        <header class="app-bar">
+            <div class="app-brand">
+                <img src="icon/logo.png" alt="FreeChat" class="welcome-logo" style="height:40px;width:40px;border-radius:10px;" />
+                <div>
+                    <h1>FreeChat</h1>
+                    <span class="app-pill">数据仅保存在此设备</span>
                 </div>
-                <div class="session-group" id="sessionGroup">未分组</div>
             </div>
-            <div id="currentModelBadge" class="session-model model-badge" title="当前模型">未选择模型</div>
-        </div>
-        <div id="messageContainer" class="message-container"></div>
-        <div id="statusIndicator" class="status-indicator" aria-live="polite"></div>
-    </main>
+            <div class="app-context">
+                <strong>自由对话 · 私密守护</strong>
+                <span>无需登录 · 支持手机与电脑浏览器</span>
+            </div>
+            <div class="app-actions">
+                <button id="privacyHintBtn" class="settings-btn" title="查看隐私说明">
+                    <i class="fas fa-shield-alt"></i>
+                </button>
+                <button id="conversationsBtn" class="settings-btn" aria-label="打开会话抽屉">
+                    <i class="fas fa-history"></i>
+                </button>
+                <a href="config.html" class="settings-btn" title="设置">
+                    <i class="fas fa-cog"></i>
+                </a>
+            </div>
+        </header>
+        <main>
+            <div class="chat-layout">
+                <!-- 会话抽屉（桌面常驻，移动保持抽屉行为） -->
+                <aside id="drawer" class="drawer chat-drawer" aria-hidden="true" aria-label="会话抽屉">
+                    <div class="drawer-header">
+                        <button id="drawerNewChatBtn" class="drawer-primary">新建会话</button>
+                        <input id="drawerSearch" class="drawer-search" placeholder="搜索会话或分组" />
+                    </div>
+                    <nav id="drawerList" class="drawer-list"></nav>
+                    <div class="drawer-footer">
+                        <a href="conversations.html" class="drawer-icon-btn" aria-label="会话管理" title="会话管理">
+                            <i class="fas fa-list"></i>
+                        </a>
+                        <a href="config.html" class="drawer-icon-btn" aria-label="设置" title="设置">
+                            <i class="fas fa-cog"></i>
+                        </a>
+                    </div>
+                </aside>
+                <!-- 聊天主体 -->
+                <section class="chat-body">
+                    <div id="sessionTitleBar" class="chat-header glass" aria-hidden="false">
+                        <div class="session-meta">
+                            <div class="session-name-row">
+                                <div class="session-name" id="sessionName">未命名会话</div>
+                                <div id="memoryStatusBadge" class="memory-badge" title="记忆状态"></div>
+                            </div>
+                            <div class="session-group" id="sessionGroup">未分组</div>
+                        </div>
+                        <div class="session-actions">
+                            <div id="currentModelBadge" class="session-model model-badge" title="当前模型">未选择模型</div>
+                        </div>
+                    </div>
+                    <section id="welcomeHero" class="welcome-hero">
+                        <div class="welcome-brand-line">
+                            <img src="icon/logo.png" alt="FreeChat" class="welcome-logo" />
+                            <h2 class="welcome-title">FreeChat</h2>
+                        </div>
+                        <p class="welcome-subtitle">端侧私密 · 离线可用 · 多设备统一体验</p>
+                    </section>
+                    <div id="messageContainer" class="message-container"></div>
+                    <div id="statusIndicator" class="status-indicator" aria-live="polite"></div>
+                    <footer class="input-container">
+                        <div class="input-tools">
+                            <button id="thinkingInlineToggle" class="pill-toggle thinking-inline-toggle" title="深度思考">
+                                <i class="fas fa-brain"></i>
+                            </button>
+                            <button id="webInlineToggle" class="pill-toggle web-inline-toggle" title="联网搜索">
+                                <i class="fas fa-globe"></i>
+                            </button>
+                            <button id="voiceBtn" class="pill-toggle" title="语音输入（实验中）">
+                                <i class="fas fa-microphone"></i>
+                            </button>
+                            <button id="attachBtn" class="pill-toggle" title="添加附件" aria-label="添加附件">
+                                <i class="fas fa-paperclip"></i>
+                            </button>
+                            <input id="fileInput" type="file" multiple style="display:none" />
+                        </div>
+                        <div class="input-main">
+                            <textarea
+                                id="messageInput"
+                                class="message-input"
+                                placeholder="输入内容（Enter 发送，Shift+Enter 换行）"
+                                rows="3"
+                            ></textarea>
+                            <div class="composer-meta">
+                                <div class="token-meter" aria-label="Token 使用进度">
+                                    <span id="tokenMeterFill" style="width:0%;"></span>
+                                </div>
+                                <span id="tokenCountLabel">0 / 1024 tokens</span>
+                            </div>
+                        </div>
+                        <div class="input-tools">
+                            <button id="sendBtn" class="send-btn circle-btn" title="发送">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                            <button id="stopBtn" class="stop-btn circle-btn" title="停止生成" aria-label="停止生成">
+                                <i class="fas fa-stop"></i>
+                            </button>
+                        </div>
+                    </footer>
+                </section>
+            </div>
+        </main>
+    </div>
 
-    <!-- 覆盖式会话抽屉与遮罩 -->
+    <!-- 覆盖式会话抽屉与遮罩（移动端） -->
     <div id="drawerOverlay" class="drawer-overlay" aria-hidden="true"></div>
-    <aside id="drawer" class="drawer" aria-hidden="true" aria-label="会话抽屉">
-        <div class="drawer-header">
-            <button id="drawerNewChatBtn" class="drawer-primary">新建会话</button>
-            <input id="drawerSearch" class="drawer-search" placeholder="搜索会话或分组" />
-        </div>
-        <nav id="drawerList" class="drawer-list"></nav>
-        <div class="drawer-footer">
-            <a href="conversations.html" class="drawer-icon-btn" aria-label="会话管理" title="会话管理">
-                <i class="fas fa-list"></i>
-            </a>
-            <a href="config.html" class="drawer-icon-btn" aria-label="设置" title="设置">
-                <i class="fas fa-cog"></i>
-            </a>
-        </div>
-    </aside>
 
-    <footer class="input-container">
-        <button id="thinkingInlineToggle" class="pill-toggle thinking-inline-toggle" title="深度思考">
-            <i class="fas fa-brain"></i>
-            <span class="label">深度思考</span>
-        </button>
-        <button id="webInlineToggle" class="pill-toggle web-inline-toggle" title="联网搜索">
-            <i class="fas fa-globe"></i>
-            <span class="label">联网搜索</span>
-        </button>
-        <textarea
-            id="messageInput"
-            class="message-input"
-            placeholder="给 大模型 发送消息"
-            rows="3"
-        ></textarea>
-        <button id="attachBtn" class="attach-btn" title="添加附件" aria-label="添加附件">
-            <i class="fas fa-paperclip"></i>
-        </button>
-        <input id="fileInput" type="file" multiple style="display:none" />
-        <button id="sendBtn" class="send-btn circle-btn">
-            <i class="fas fa-paper-plane"></i>
-        </button>
-        <button id="stopBtn" class="stop-btn circle-btn" title="停止生成" aria-label="停止生成">
-            <i class="fas fa-stop"></i>
-        </button>
-    </footer>
+    <!-- 全局提示 -->
+    <div id="toastStack" class="toast-stack" aria-live="polite" aria-atomic="true"></div>
+    <div id="statusBar" class="status-bar" role="status">
+        <i class="fas fa-circle-notch fa-spin"></i>
+        <span id="statusBarText">准备就绪</span>
+    </div>
 
     <script>
         /**
@@ -136,6 +186,27 @@
             } catch (_) {
                 return (window.MODEL_NAME || 'minimax/minimax-m2:free');
             }
+
+            if (voiceBtn) {
+                voiceBtn.addEventListener('click', () => {
+                    showToast('语音输入功能正在打磨，暂时请使用键盘输入。');
+                });
+            }
+            if (privacyHintBtn) {
+                privacyHintBtn.addEventListener('click', () => {
+                    showToast('所有对话与记忆均保存在本地，不会上传云端。', 'success');
+                });
+            }
+
+            try { syncDrawerMode(); } catch (_) {}
+            try {
+                const mq = window.matchMedia && window.matchMedia('(min-width: 960px)');
+                if (mq) {
+                    const handler = () => { try { syncDrawerMode(); } catch (_) {} };
+                    if (mq.addEventListener) mq.addEventListener('change', handler);
+                    else if (mq.addListener) mq.addListener(handler);
+                }
+            } catch (_) {}
         }
         /**
          * 获取全局模型参数（从 localStorage.freechat.modelParams）
@@ -258,14 +329,69 @@
             });
             return _markdownLibsPromise;
         }
+
+        /** 自动调整输入框高度，确保长文本不遮挡操作区 */
+        function autoResizeTextarea(el) {
+            if (!el) return;
+            el.style.height = 'auto';
+            const max = 220;
+            const next = Math.min(max, el.scrollHeight);
+            el.style.height = next + 'px';
+        }
+
+        /** 根据字符长度估算 token 使用情况 */
+        function updateTokenMeter() {
+            if (!tokenMeterFill || !tokenCountLabel) return;
+            try {
+                const text = messageInput ? String(messageInput.value || '') : '';
+                const approxTokens = Math.max(0, Math.ceil(text.length / 4));
+                const maxTokens = Math.max(1, Number(getGlobalModelParams().max_tokens || 1024));
+                const percent = Math.min(100, (approxTokens / maxTokens) * 100);
+                tokenMeterFill.style.width = percent + '%';
+                tokenMeterFill.classList.toggle('critical', percent > 90);
+                tokenCountLabel.textContent = `${approxTokens} / ${maxTokens} tokens`;
+            } catch (e) {
+                tokenCountLabel.textContent = 'Token 统计不可用';
+            }
+        }
+
+        /** 桌面宽度判定，用于同步抽屉模式 */
+        function isDesktopLayout() {
+            try { return window.matchMedia && window.matchMedia('(min-width: 960px)').matches; } catch (_) { return false; }
+        }
+
+        /** 统一轻量通知 */
+        function showToast(message, type = 'info', duration = 3200) {
+            if (!toastStack) return;
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            const icon = document.createElement('i');
+            icon.className = type === 'error' ? 'fas fa-exclamation-circle' : (type === 'success' ? 'fas fa-check-circle' : 'fas fa-info-circle');
+            const text = document.createElement('span');
+            text.textContent = message;
+            toast.appendChild(icon);
+            toast.appendChild(text);
+            toastStack.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.add('leaving');
+                setTimeout(() => toast.remove(), 300);
+            }, duration);
+        }
         const messageInput = document.getElementById('messageInput');
         const sendBtn = document.getElementById('sendBtn');
         const stopBtn = document.getElementById('stopBtn');
         const webInlineToggle = document.getElementById('webInlineToggle');
         const thinkingInlineToggle = document.getElementById('thinkingInlineToggle');
         const attachBtn = document.getElementById('attachBtn');
+        const voiceBtn = document.getElementById('voiceBtn');
+        const privacyHintBtn = document.getElementById('privacyHintBtn');
         const fileInput = document.getElementById('fileInput');
         const statusIndicator = document.getElementById('statusIndicator');
+        const tokenMeterFill = document.getElementById('tokenMeterFill');
+        const tokenCountLabel = document.getElementById('tokenCountLabel');
+        const toastStack = document.getElementById('toastStack');
+        const statusBarEl = document.getElementById('statusBar');
+        const statusBarText = document.getElementById('statusBarText');
         // 当前请求控制器与发送锁，用于支持真正中止和防止并发发送
         window._currentRequestController = null;
         window._sendingInProgress = false;
@@ -333,6 +459,10 @@
             loadConversation();
             renderMessages();
             renderWelcomeIfEmpty();
+            try {
+                autoResizeTextarea(messageInput);
+                updateTokenMeter();
+            } catch (_) {}
 
             // 初始化抽屉列表、搜索与“新建会话”
             try {
@@ -360,10 +490,19 @@
 
             if (messageInput) {
                 messageInput.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
+                    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                        e.preventDefault();
+                        sendMessage();
+                        return;
+                    }
+                    if (e.key === 'Enter' && !e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey) {
                         e.preventDefault();
                         sendMessage();
                     }
+                });
+                messageInput.addEventListener('input', () => {
+                    autoResizeTextarea(messageInput);
+                    updateTokenMeter();
                 });
             }
 
@@ -448,8 +587,35 @@
         document.addEventListener('DOMContentLoaded', initApp);
         window.addEventListener('load', initApp);
 
-        /** 打开/关闭抽屉 */
+        /** 打开/关闭抽屉（桌面常驻、移动抽屉） */
+        function syncDrawerMode() {
+            if (!drawerEl) return;
+            if (isDesktopLayout()) {
+                drawerEl.classList.add('open');
+                drawerEl.setAttribute('aria-hidden', 'false');
+                if (drawerOverlayEl) {
+                    drawerOverlayEl.classList.remove('open');
+                    drawerOverlayEl.setAttribute('aria-hidden', 'true');
+                }
+                try { document.body.classList.remove('drawer-open'); } catch (_) {}
+            } else {
+                if (drawerEl.classList.contains('open')) return;
+                drawerEl.setAttribute('aria-hidden', 'true');
+                if (drawerOverlayEl) {
+                    drawerOverlayEl.classList.remove('open');
+                    drawerOverlayEl.setAttribute('aria-hidden', 'true');
+                }
+                try { document.body.classList.remove('drawer-open'); } catch (_) {}
+            }
+        }
         function openDrawer() {
+            if (isDesktopLayout()) {
+                syncDrawerMode();
+                if (drawerSearchEl && typeof drawerSearchEl.focus === 'function') {
+                    setTimeout(() => { try { drawerSearchEl.focus(); } catch (_) {} }, 0);
+                }
+                return;
+            }
             try {
                 if (drawerEl) drawerEl.classList.add('open');
                 if (drawerEl) drawerEl.setAttribute('aria-hidden', 'false');
@@ -460,6 +626,7 @@
             try { adjustSessionTitleHeight(); } catch (_) {}
         }
         function closeDrawer() {
+            if (isDesktopLayout()) return;
             try {
                 if (drawerEl) drawerEl.classList.remove('open');
                 if (drawerEl) drawerEl.setAttribute('aria-hidden', 'true');
@@ -470,6 +637,12 @@
         }
         function toggleDrawer() {
             if (!drawerEl) return;
+            if (isDesktopLayout()) {
+                if (drawerSearchEl && typeof drawerSearchEl.focus === 'function') {
+                    drawerSearchEl.focus();
+                }
+                return;
+            }
             if (drawerEl.classList.contains('open')) closeDrawer(); else openDrawer();
         }
 
@@ -2562,29 +2735,28 @@
          * 参数：text - 要显示的文本，isLoading - 是否显示加载动画，默认为false
          * 返回值：无
          */
+        let statusHideTimer = null;
         function showStatus(text, isLoading = false) {
-            statusIndicator.textContent = '';
-
-            if (isLoading) {
-                const loadingDiv = document.createElement('div');
-                loadingDiv.className = 'loading-animation';
-
-                const dot1 = document.createElement('div');
-                dot1.className = 'loading-dot';
-                const dot2 = document.createElement('div');
-                dot2.className = 'loading-dot';
-                const dot3 = document.createElement('div');
-                dot3.className = 'loading-dot';
-
-                loadingDiv.appendChild(dot1);
-                loadingDiv.appendChild(dot2);
-                loadingDiv.appendChild(dot3);
-
-                const textNode = document.createTextNode(text);
-                statusIndicator.appendChild(loadingDiv);
-                statusIndicator.appendChild(textNode);
-            } else {
-                statusIndicator.textContent = text;
+            try {
+                if (statusIndicator) {
+                    statusIndicator.textContent = text || '';
+                }
+                if (statusBarEl && statusBarText) {
+                    statusBarText.textContent = text || '';
+                    statusBarEl.classList.add('active');
+                    const icon = statusBarEl.querySelector('i');
+                    if (icon) {
+                        icon.classList.toggle('fa-spin', !!isLoading);
+                        icon.classList.toggle('fa-circle-notch', !!isLoading);
+                        icon.classList.toggle('fa-check', !isLoading);
+                    }
+                }
+                if (statusHideTimer) clearTimeout(statusHideTimer);
+                statusHideTimer = setTimeout(() => {
+                    if (!isLoading) hideStatus();
+                }, isLoading ? 4000 : 2200);
+            } catch (e) {
+                console.error('showStatus 异常：', e);
             }
         }
 
@@ -2595,7 +2767,16 @@
          * 返回值：无
          */
         function hideStatus() {
-            statusIndicator.textContent = '';
+            try {
+                if (statusIndicator) statusIndicator.textContent = '';
+                if (statusBarEl) statusBarEl.classList.remove('active');
+                if (statusHideTimer) {
+                    clearTimeout(statusHideTimer);
+                    statusHideTimer = null;
+                }
+            } catch (e) {
+                console.error('hideStatus 异常：', e);
+            }
         }
 
         /**

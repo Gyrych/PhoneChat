@@ -1,89 +1,61 @@
 # FreeChat
 
-FreeChat is a lightweight local web-based chat application intended for quick prototyping and demos. It runs entirely in the browser (static HTML/CSS/JS) and supports configurable external chat API endpoints, local conversation persistence, session/group memories, and optional Android packaging via Capacitor.
+## Project Overview
+FreeChat is a privacy-first chat surface built purely with static HTML/CSS/JavaScript. The refreshed interface ships a unified app shell (desktop dual-column + mobile drawer), inline toast/status feedback, multi-select conversation management, and a guided stepper-based settings center. All data—messages, groups, memories, logs, configuration—stays on the device (`localStorage`/IndexedDB), and the exact assets can be wrapped into an Android app through Capacitor.
 
-Key notes:
-- Demo-only built-in encrypted OpenRouter API key is included for convenience; do not use it in production. For main chat replace the encrypted key in `index.html` or use a backend proxy.
-- Default demo endpoint: `https://openrouter.ai/api/v1/chat/completions`
-- Default demo model: `minimax/minimax-m2:free`
+### Highlights
+- **On-device privacy** – no login or sync; a privacy banner and stats panel remind users that every bit stays local.
+- **Unified UX** – the chat page now combines an app bar, adaptive drawer, token meter, and contextual toasts; the conversation manager renders card-based sections with batch actions; the config center introduces a four-step flow with live summaries.
+- **Mobile polish** – sticky composer, swipe-friendly tool rows, full-screen drawer sheets, and sticky batch bars keep the phone UI tidy and thumb-friendly.
+- **Memory pipeline** – session/group memories are generated asynchronously via worker jobs and injected ahead of prompts (web synthesis → group → session → history). Reasoning output and citations remain foldable.
+- **Android-ready** – `npm run build` + `npx cap copy` reproduces the same UI inside a WebView without bundlers.
 
-Features
-- Send/receive messages via a configurable external API endpoint.
-- Auto-persist conversations to localStorage (`savedDeepseekConversations`) — first send auto-creates an entry; subsequent updates use throttled writes.
-- Conversation grouping, create/rename/move/delete groups.
-- Session (conversation) and group memories: auto-generate summaries and inject them as system messages before requests.
-- Web Search plugin support (OpenRouter web plugin) — configurable engine/max results/context size/search prompt; returns citations rendered under assistant messages.
-- Flow streaming support, reasoning (if provider returns it) rendered above assistant reply and foldable.
-- Local request/response logging with masked Authorization in `localStorage.freechat.logs`.
-- Android packaging via Capacitor using `dist/` static assets.
-
-Quick start
-1. Clone or download the repository.
-2. Open `index.html` in a modern browser — no build required for development.
-3. To build `dist/` for Capacitor: `npm install` then `npm run build` (copies static assets to `dist/`).
-4. For Android: `npx cap copy` → open `android/` in Android Studio → run or build.
-
-Configuration
-- Settings page (`config.html`) stores:
-  - `localStorage.chatModel` — selected model name.
-  - `freechat.systemPrompt` — optional global system prompt injected when present.
-  - `freechat.modelParams` — JSON object of model params (temperature/top_p/max_tokens/stream).
-  - `freechat.web.*` — web search settings (`engine`, `maxResults`, `contextSize`, `searchPrompt`).
-- Per-conversation: each saved conversation keeps its `model` and `modelParams` so replaying a conversation uses the original parameters if present.
-- Runtime model resolution uses `getCurrentModel()` (conversation-level `model` → `localStorage.chatModel` → built-in default).
-
-Memory & injection
-- Summaries are generated asynchronously: summary jobs are enqueued into `memoryJobs` (localStorage) and processed by a Blob Worker. The UI shows per-session memory status badges.
-- Injection order: (1) Web synthesis prompt (if web search enabled), (2) group memories (each as system), (3) session memories in current group (each as system), (4) conversation history.
-- For providers accepting only one system message, multiple system items are merged with `---` separators.
-- Memory generation templates and rules live in `prompts.js` and enforce noise reduction, maximum lengths, and content restrictions.
-
-Web Search (OpenRouter web plugin)
-- Enable with the inline Web Search toggle near the input; parameters are configured in `config.html`.
-- When enabled the request body includes `plugins: [{ id: "web", ... }]`. Returned `message.annotations[].url_citation` are rendered as a collapsible "References (N)" list below assistant messages.
-- Output guidance is injected (`PROMPTS.WEB_SYNTHESIS`) to request final answer first and structured references with timestamps and units where applicable.
-
-LocalStorage keys (important)
-- `deepseekConversation`, `savedDeepseekConversations`, `conversationGroups`, `memoryJobs`, `deepseekApiKey` (optional fallback for memory calls), `freechat.logs`, `freechat.web.*`, `freechat.memory.*`, `freechat.systemPrompt`, `freechat.modelParams`.
-
-Logging
-- `logger.js` stores masked events in `freechat.logs` (ring buffer). Export examples (in the browser console):
-```js
-// current conversation
-Logger.export({ format: 'ndjson', scope: 'current' });
-// all logs
-Logger.export({ format: 'ndjson', scope: 'all' });
-```
-
-Android (Capacitor)
-- Build web assets: `npm run build` (copies to `dist/`).
-- Sync to native: `npx cap copy`.
-- Open Android Studio: open `android/` and run on device/emulator or build signed APK.
-- Windows one-click: `scripts/build-apk.ps1` / `scripts/build-apk.cmd` (requires JDK17 and Android SDK components).
-
-Security & production notes
-- Do not store production API keys in client-side storage. Use a backend proxy to manage secrets.
-- Client-side calls may be blocked by CORS; prefer a server-side proxy for production or use a provider with permissive CORS for client access.
-
-Project structure (high level)
+## Project Structure Overview
 ```mermaid
-flowchart TB
-  A[index.html] --> C[style.css]
-  A --> D[config.html]
-  A --> E[conversations.html]
-  A --> F[prompts.js]
-  A --> G[logger.js]
-  subgraph Mobile
-    H[dist/ web assets] --> I[android/ native project]
-  end
+flowchart LR
+    A[index.html\nApp Shell & Chat] --> B[style.css\nDesign tokens + components]
+    A --> C[prompts.js\nMemory/Web prompts]
+    A --> D[logger.js\nLocal log ring buffer]
+    A --> E[script.js\nShared modals/storage helpers]
+    F[conversations.html\nDual-pane manager] --> B
+    G[config.html\nStepper settings] --> B
+    subgraph Mobile Packaging
+        H[dist/\nstatic build] --> I[android/\nCapacitor wrapper]
+    end
 ```
 
-Dependencies
-- All runtime libraries are pulled via CDN in the HTML files: `marked`, `DOMPurify`, `CryptoJS`, `Font Awesome`, plus Google Fonts for `Inter`.
+## Project Usage Overview
+1. **Quick start**
+   - Clone the repo and open `index.html` directly in a modern browser (no build required).
+   - Optional: `npm install && npm run build` to copy assets into `dist/` for packaging/deployment.
+2. **Chat workspace**
+   - Desktop keeps the conversation drawer in view; mobile toggles it via the history button.
+   - Composer auto-grows, exposes placebo voice/attachment slots, and shows a token meter; `Enter`/`Ctrl+Enter` sends while `Shift+Enter` inserts a newline.
+   - Thinking/Web toggles live next to the composer; a status pill plus toast stack report streaming or warnings.
+3. **Conversation manager (`conversations.html`)**
+   - Left sidebar lists groups with rename/delete/regenerate buttons; the right column renders cards grouped by folder.
+   - Enable “multi-select” to batch move/delete/export conversations; selected items highlight and update the counter/CTA state.
+4. **Settings center (`config.html`)**
+   - Stepper: pick a model → tune parameters → configure web search → manage system prompt & privacy notes.
+   - A live summary card mirrors saved values (model/params/web/system); a privacy panel reports local storage stats.
+5. **Android packaging**
+   - `npm run build` → `npx cap copy` → open `android/` in Android Studio to run or build APK/AAB.
 
-License
-- MIT
+## Dependencies Overview
+- **Runtime (CDN-loaded):** `marked` (Markdown), `DOMPurify` (sanitizer), `CryptoJS` (demo key decrypt), `Font Awesome`, Google Fonts (`Inter`).
+- **Tooling:** Node.js/npm (for `npm run build`), Capacitor CLI, JDK 17 + Android SDK for packaging scripts.
+- No bundler/dev server is required for local/web use; everything remains static assets.
 
-Acknowledgements
-- See `prompts.js` / `index.html` for implementation details and configuration keys.
+## Implementation Notes
+- **LocalStorage keys:** `deepseekConversation`, `savedDeepseekConversations`, `conversationGroups`, `memoryJobs`, `freechat.logs`, `freechat.web.*`, `freechat.systemPrompt`, `freechat.modelParams`, etc.
+- **Memory & injection:** worker-processed jobs keep the UI responsive. Providers limited to one system prompt receive merged content separated by `---`.
+- **Web Search plugin:** toggled inline, configured in `config.html`; citations render under each assistant message.
+- **Logging:** `Logger.export({ scope: 'current' | 'all', format: 'ndjson' })` outputs masked request/response traces.
+
+## Security Notes
+- The AES-obfuscated OpenRouter key is for demos only; replace it or, preferably, route traffic through your own backend proxy before shipping.
+- Client-side calls remain subject to CORS—deploy behind a gateway for production workloads.
+
+## License
+MIT
 
