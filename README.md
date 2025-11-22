@@ -5,8 +5,10 @@ FreeChat is a privacy-first chat surface built purely with static HTML/CSS/JavaS
 
 ### Highlights
 - **On-device privacy** – no login or sync; a privacy banner and stats panel remind users that every bit stays local.
-- **Unified UX** – the chat page now combines an app bar, adaptive drawer, token meter, and contextual toasts; the conversation manager renders card-based sections with batch actions; the config center is a straightforward single-page form with live summaries.
-- **Mobile polish** – a single-row top bar (menu + title), swipe-friendly tool rows, safe-area aware composer, and full-screen drawer sheets keep the phone UI tidy and thumb-friendly.
+- **🎨 Vintage Typewriter Interface** – brand-new sticky note style presentation: user questions and AI replies are paired on cream-colored note cards with paper texture, 3D shadows, and subtle rotation effects; historical messages feature character-by-character typewriter animation; the composer adopts a metallic typewriter aesthetic.
+- **📊 Accurate Token Counting** – integrated `js-tiktoken` library provides precise token statistics (supporting mixed Chinese-English scenarios) with an improved estimation fallback.
+- **Unified UX** – the chat page now combines an app bar, adaptive drawer, precise token meter, and contextual toasts; the conversation manager renders card-based sections with batch actions; the config center is a straightforward single-page form with live summaries.
+- **Mobile polish** – a single-row top bar (menu + title), swipe-friendly tool rows, safe-area aware composer, and full-screen drawer sheets keep the phone UI tidy and thumb-friendly; sticky notes auto-cancel rotation on mobile to prevent content clipping.
 - **Memory pipeline** – session/group memories are generated asynchronously via worker jobs and injected ahead of prompts (web synthesis → group → session → history). Reasoning output and citations remain foldable.
 - **Android-ready** – `npm run build` + `npx cap copy` reproduces the same UI inside a WebView without bundlers.
 
@@ -30,7 +32,8 @@ flowchart LR
    - Optional: `npm install && npm run build` to copy assets into `dist/` for packaging/deployment.
 2. **Chat workspace**
    - Desktop keeps the conversation drawer in view; mobile toggles it via the top-left menu button into a full-screen sheet.
-   - Composer auto-grows, exposes placebo voice/attachment slots, shows a token meter, and is now fixed to the bottom with extra safe-area padding so it never scrolls away; `Enter`/`Ctrl+Enter` sends while `Shift+Enter` inserts a newline.
+   - **Sticky Note Display**: messages appear as vintage sticky notes, with each Q&A pair shown on a cream-colored card featuring paper texture and 3D effects; historical messages automatically play typewriter animation (can be disabled via `localStorage.setItem('freechat.ui.typewriterAnimation', 'false')`), click any note to instantly reveal full content.
+   - Composer features a metallic typewriter aesthetic, auto-grows, exposes placebo voice/attachment slots, shows a precise token meter (powered by tiktoken), and is now fixed to the bottom with extra safe-area padding; `Enter`/`Ctrl+Enter` sends while `Shift+Enter` inserts a newline.
    - Thinking/Web/Voice/Attachment toggles now live in a dedicated horizontal strip under the composer so all four stay visible on phones; a status pill plus toast stack report streaming or warnings.
 3. **Conversation manager (`conversations.html`)**
    - Left sidebar lists groups with rename/delete/regenerate buttons; the right column renders cards grouped by folder.
@@ -43,7 +46,7 @@ flowchart LR
    - `npm run build` → `npx cap copy` → open `android/` in Android Studio to run or build APK/AAB.
 
 ## Dependencies Overview
-- **Runtime (CDN-loaded):** `marked` (Markdown), `DOMPurify` (sanitizer), `CryptoJS` (demo key decrypt), `Font Awesome`, Google Fonts (`Inter`).
+- **Runtime (CDN-loaded):** `marked` (Markdown), `DOMPurify` (sanitizer), `CryptoJS` (demo key decrypt), `js-tiktoken` (accurate token counting), `Font Awesome`, Google Fonts (`Inter`).
 - **Tooling:** Node.js/npm (for `npm run build`), Capacitor CLI, JDK 17 + Android SDK for packaging scripts.
 - No bundler/dev server is required for local/web use; everything remains static assets.
 

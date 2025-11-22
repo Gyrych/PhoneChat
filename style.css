@@ -1094,7 +1094,7 @@ body.drawer-open .conversations-fab {
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 8px;
 }
 
 /* 消息样式（优化视觉，提升可读性） */
@@ -1188,6 +1188,316 @@ body.drawer-open .conversations-fab {
     from { opacity: 0; transform: translateY(6px); }
     to { opacity: 1; transform: translateY(0); }
 }
+
+/* ============ 复古打字机便签纸样式 ============ */
+
+/* 便签纸卡片容器：包裹一对问答 */
+.sticky-note-card {
+    max-width: 100%;
+    width: 100%;
+    margin: 12px 0;
+    padding: 24px 28px;
+    background: linear-gradient(135deg, #fefaf0 0%, #fdf5e6 100%);
+    border-radius: 4px;
+    box-shadow:
+        0 2px 4px rgba(139, 117, 77, 0.15),
+        0 8px 16px rgba(139, 117, 77, 0.12),
+        0 16px 32px rgba(139, 117, 77, 0.08),
+        inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    position: relative;
+    transform-origin: center top;
+    animation: stickySlideIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    /* 纸张纹理效果 */
+    background-image:
+        repeating-linear-gradient(
+            0deg,
+            transparent,
+            transparent 2px,
+            rgba(139, 117, 77, 0.02) 2px,
+            rgba(139, 117, 77, 0.02) 4px
+        ),
+        repeating-linear-gradient(
+            90deg,
+            transparent,
+            transparent 2px,
+            rgba(139, 117, 77, 0.015) 2px,
+            rgba(139, 117, 77, 0.015) 4px
+        ),
+        linear-gradient(135deg, #fefaf0 0%, #fdf5e6 100%);
+}
+
+/* 交替旋转效果：增加真实感 */
+.sticky-note-card:nth-child(odd) {
+    transform: rotate(-0.5deg);
+}
+
+.sticky-note-card:nth-child(even) {
+    transform: rotate(0.5deg);
+}
+
+.sticky-note-card:hover {
+    transform: rotate(0deg) translateY(-2px);
+    box-shadow:
+        0 4px 8px rgba(139, 117, 77, 0.18),
+        0 12px 24px rgba(139, 117, 77, 0.15),
+        0 20px 40px rgba(139, 117, 77, 0.10),
+        inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    transition: all 0.3s ease;
+}
+
+/* 便签进入动画：从底部打印出来 */
+@keyframes stickySlideIn {
+    0% {
+        opacity: 0;
+        transform: translateY(40px) scale(0.95);
+    }
+    60% {
+        opacity: 0.8;
+        transform: translateY(-4px) scale(1.01);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* 便签纸左上角折叠效果（装饰） */
+.sticky-note-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 0 20px 20px 0;
+    border-color: transparent #f5deb3 transparent transparent;
+    filter: drop-shadow(-1px 1px 2px rgba(139, 117, 77, 0.3));
+}
+
+/* 用户问题区域：便签顶部 */
+.sticky-question {
+    font-size: 0.95rem;
+    color: #5a4a3a;
+    padding: 8px 12px;
+    margin-bottom: 12px;
+    background: rgba(139, 117, 77, 0.08);
+    border-left: 3px solid #8b754d;
+    border-radius: 3px;
+    font-family: 'Courier New', monospace;
+    line-height: 1.6;
+    word-break: break-word;
+}
+
+/* 分隔线：虚线 */
+.sticky-divider {
+    height: 1px;
+    background: repeating-linear-gradient(
+        90deg,
+        #8b754d,
+        #8b754d 6px,
+        transparent 6px,
+        transparent 12px
+    );
+    margin: 16px 0;
+    opacity: 0.4;
+}
+
+/* AI回复区域：便签主要内容 */
+.sticky-answer {
+    font-size: 1rem;
+    color: #2a2520;
+    line-height: 1.65;
+    font-family: 'Georgia', 'Times New Roman', serif;
+    word-break: break-word;
+}
+
+/* 便签内的代码块样式调整 */
+.sticky-answer pre {
+    background: #2a2520;
+    color: #f5deb3;
+    padding: 12px;
+    border-radius: 4px;
+    overflow: auto;
+    max-height: 320px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.88rem;
+    line-height: 1.5;
+    margin: 12px 0;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.3);
+}
+
+.sticky-answer code {
+    background: rgba(139, 117, 77, 0.12);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: 'Courier New', monospace;
+    color: #5a4a3a;
+    font-size: 0.9em;
+}
+
+.sticky-answer pre code {
+    background: transparent;
+    padding: 0;
+    color: inherit;
+}
+
+/* 便签底部元信息：模型标签、时间戳等 */
+.sticky-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(139, 117, 77, 0.15);
+    font-size: 0.8rem;
+    color: #8b754d;
+    font-family: 'Courier New', monospace;
+}
+
+.sticky-model-label {
+    opacity: 0.75;
+}
+
+.sticky-timestamp {
+    opacity: 0.65;
+    font-style: italic;
+}
+
+/* 便签内的操作按钮区域 */
+.sticky-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    margin-top: 12px;
+}
+
+.sticky-action-btn {
+    background: rgba(139, 117, 77, 0.15);
+    border: 1px solid rgba(139, 117, 77, 0.25);
+    border-radius: 4px;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 0.85rem;
+    color: #5a4a3a;
+    transition: all 0.2s ease;
+}
+
+.sticky-action-btn:hover {
+    background: rgba(139, 117, 77, 0.25);
+    border-color: rgba(139, 117, 77, 0.4);
+    transform: translateY(-1px);
+}
+
+.sticky-action-btn:active {
+    transform: translateY(0);
+}
+
+/* 打字中效果：光标闪烁 */
+.typing-cursor {
+    display: inline-block;
+    width: 2px;
+    height: 1em;
+    background: #5a4a3a;
+    margin-left: 2px;
+    animation: blink 1s step-end infinite;
+    vertical-align: text-bottom;
+}
+
+@keyframes blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0; }
+}
+
+/* ============ 打字机输入区域样式 ============ */
+
+/* 输入区域改造为打字机外观 */
+.input-container.typewriter-style {
+    background: linear-gradient(135deg, #34495e 0%, #2c3e50 100%);
+    border-top: 3px solid #95a5a6;
+    border-left: 3px solid #95a5a6;
+    border-right: 3px solid #95a5a6;
+    box-shadow:
+        0 -4px 16px rgba(0, 0, 0, 0.3),
+        inset 0 2px 4px rgba(255, 255, 255, 0.1);
+    padding: 16px 20px;
+}
+
+.input-container.typewriter-style .message-input {
+    background: #ecf0f1;
+    border: 2px solid #7f8c8d;
+    border-radius: 6px;
+    font-family: 'Courier New', monospace;
+    font-size: 1rem;
+    color: #2c3e50;
+    padding: 14px 18px;
+    box-shadow:
+        inset 0 2px 4px rgba(0, 0, 0, 0.15),
+        0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.input-container.typewriter-style .message-input:focus {
+    border-color: #3498db;
+    box-shadow:
+        inset 0 2px 4px rgba(0, 0, 0, 0.15),
+        0 0 0 3px rgba(52, 152, 219, 0.2);
+}
+
+/* 打字机风格的发送按钮 */
+.input-container.typewriter-style .send-btn {
+    background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+    box-shadow:
+        0 4px 8px rgba(231, 76, 60, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.input-container.typewriter-style .send-btn:hover {
+    box-shadow:
+        0 6px 12px rgba(231, 76, 60, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+/* ============ 响应式适配（移动端） ============ */
+
+@media (max-width: 960px) {
+    .sticky-note-card {
+        max-width: 100%;
+        width: 100%;
+        padding: 18px 20px;
+        margin: 10px 0;
+    }
+
+    .sticky-question {
+        font-size: 0.9rem;
+        padding: 6px 10px;
+    }
+
+    .sticky-answer {
+        font-size: 0.95rem;
+    }
+
+    .sticky-meta {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+    }
+
+    /* 移动端取消旋转效果，避免内容被裁切 */
+    .sticky-note-card:nth-child(odd),
+    .sticky-note-card:nth-child(even) {
+        transform: rotate(0deg);
+    }
+
+    .sticky-note-card:hover {
+        transform: rotate(0deg) translateY(-1px);
+    }
+}
+
+/* ============ 保留原有消息样式作为备选 ============ */
 
 .user-message {
     /* 用户消息采用品牌渐变，提升对比度 */
