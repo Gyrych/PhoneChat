@@ -112,7 +112,26 @@
                         <button id="drawerNewChatBtn" class="drawer-primary">新建会话</button>
                         <input id="drawerSearch" class="drawer-search" placeholder="搜索会话或分组" />
                     </div>
-                    <nav id="drawerList" class="drawer-list"></nav>
+
+                    <!-- 收藏夹区域 -->
+                    <div class="drawer-section favorites-section">
+                        <div class="drawer-section-header" id="favoritesHeader">
+                            <i class="fas fa-star" style="color: #f59e0b;"></i>
+                            <span style="flex: 1; font-weight: 600;">收藏夹</span>
+                            <i class="fas fa-chevron-down" id="favoritesToggleIcon"></i>
+                        </div>
+                        <div id="favoritesContainer" class="drawer-section-content"></div>
+                    </div>
+
+                    <!-- 会话列表区域 -->
+                    <div class="drawer-section">
+                        <div class="drawer-section-header">
+                            <i class="fas fa-comments"></i>
+                            <span style="flex: 1; font-weight: 600;">会话列表</span>
+                        </div>
+                        <nav id="drawerList" class="drawer-list"></nav>
+                    </div>
+
                     <div class="drawer-footer">
                         <a href="conversations.html" class="drawer-icon-btn" aria-label="会话管理" title="会话管理">
                             <i class="fas fa-list"></i>
@@ -515,6 +534,27 @@
                     } catch (_) {}
                 });
             } catch (_) {}
+
+            // 初始化收藏夹
+            try {
+                updateFavoritesDrawer();
+                // 收藏夹折叠/展开功能
+                const favoritesHeader = document.getElementById('favoritesHeader');
+                const favoritesContainer = document.getElementById('favoritesContainer');
+                const favoritesToggleIcon = document.getElementById('favoritesToggleIcon');
+                if (favoritesHeader && favoritesContainer) {
+                    favoritesHeader.addEventListener('click', () => {
+                        favoritesContainer.classList.toggle('collapsed');
+                        if (favoritesToggleIcon) {
+                            favoritesToggleIcon.className = favoritesContainer.classList.contains('collapsed')
+                                ? 'fas fa-chevron-right'
+                                : 'fas fa-chevron-down';
+                        }
+                    });
+                }
+            } catch (e) {
+                console.error('初始化收藏夹失败：', e);
+            }
             // 绑定品牌 Logo 点击：回到首页
             const brandLogo = document.getElementById('brandLogo');
             if (brandLogo) {
@@ -1694,6 +1734,228 @@
             }
         }
 
+        // ============ 便签收藏功能 ============
+
+        /**
+         * 获取所有收藏的便签
+         */
+        function getFavoriteStickies() {
+            return storageGetJson('freechat.favoriteStickies', []);
+        }
+
+        /**
+         * 保存收藏的便签列表
+         */
+        function saveFavoriteStickies(favorites) {
+            storageSetJson('freechat.favoriteStickies', favorites);
+        }
+
+        /**
+         * 检查便签是否已收藏
+         */
+        function isStickyFavorited(favoriteId) {
+            const favorites = getFavoriteStickies();
+            return favorites.some(f => f.id === favoriteId);
+        }
+
+        /**
+         * 切换便签收藏状态
+         */
+        function toggleStickyFavorite(favoriteId, userMsg, assistantMsg, btnElement) {
+            const favorites = getFavoriteStickies();
+            const existingIndex = favorites.findIndex(f => f.id === favoriteId);
+
+            if (existingIndex !== -1) {
+                // 取消收藏
+                favorites.splice(existingIndex, 1);
+                btnElement.innerHTML = '<i class="far fa-star"></i>';
+                btnElement.title = '收藏';
+                showToast('已取消收藏', 'info');
+            } else {
+                // 添加收藏
+                const favoriteItem = {
+                    id: favoriteId,
+                    userContent: userMsg.content,
+                    assistantContent: assistantMsg.content,
+                    assistantModel: assistantMsg.model || window.MODEL_NAME || 'minimax/minimax-m2:free',
+                    reasoning: assistantMsg.reasoning || '',
+                    citations: assistantMsg.citations || [],
+                    timestamp: new Date().toISOString(),
+                    conversationId: currentConversation.id || null
+                };
+                favorites.unshift(favoriteItem); // 新收藏放在最前面
+                btnElement.innerHTML = '<i class="fas fa-star"></i>';
+                btnElement.title = '取消收藏';
+                showToast('已添加到收藏', 'success');
+            }
+
+            saveFavoriteStickies(favorites);
+            // 更新侧边栏收藏列表
+            updateFavoritesDrawer();
+        }
+
+        /**
+         * 更新侧边栏收藏列表
+         */
+        function updateFavoritesDrawer() {
+            const favoritesContainer = document.getElementById('favoritesContainer');
+            if (!favoritesContainer) return;
+
+            const favorites = getFavoriteStickies();
+            if (favorites.length === 0) {
+                favoritesContainer.innerHTML = '<div style="color: var(--muted); font-size: 0.9rem; text-align: center; padding: 20px;">暂无收藏</div>';
+                return;
+            }
+
+            favoritesContainer.innerHTML = '';
+            favorites.forEach((fav, index) => {
+                const favItem = document.createElement('div');
+                favItem.className = 'drawer-item favorite-item';
+                favItem.innerHTML = `
+                    <div style="font-size: 0.85rem; color: var(--muted); margin-bottom: 4px;">
+                        ${fav.userContent.substring(0, 50)}${fav.userContent.length > 50 ? '...' : ''}
+                    </div>
+                    <div style="font-size: 0.75rem; color: var(--muted); opacity: 0.7;">
+                        ${new Date(fav.timestamp).toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                `;
+                favItem.addEventListener('click', () => viewFavoriteSticky(fav));
+                favoritesContainer.appendChild(favItem);
+            });
+        }
+
+        /**
+         * 查看收藏的便签
+         */
+        function viewFavoriteSticky(favorite) {
+            // 关闭抽屉
+            closeDrawer();
+
+            // 清空当前消息容器，只显示这个收藏的便签
+            messageContainer.innerHTML = '';
+
+            // 创建便签卡片
+            const stickyCard = document.createElement('div');
+            stickyCard.className = 'sticky-note-card';
+
+            // 添加标题提示（查看收藏）
+            const viewModeHint = document.createElement('div');
+            viewModeHint.style.cssText = 'background: rgba(79,70,229,0.1); border-left: 3px solid var(--brand); padding: 8px 12px; margin-bottom: 12px; font-size: 0.85rem; color: var(--brand); border-radius: 4px;';
+            viewModeHint.innerHTML = '<i class="fas fa-star"></i> 收藏查看模式 - <a href="#" onclick="location.reload(); return false;" style="color: var(--brand); text-decoration: underline;">返回会话</a>';
+            stickyCard.appendChild(viewModeHint);
+
+            // 用户问题区域
+            const questionDiv = document.createElement('div');
+            questionDiv.className = 'sticky-question';
+            questionDiv.textContent = favorite.userContent;
+            stickyCard.appendChild(questionDiv);
+
+            // 分隔线
+            const divider = document.createElement('div');
+            divider.className = 'sticky-divider';
+            stickyCard.appendChild(divider);
+
+            // AI回复区域
+            const answerDiv = document.createElement('div');
+            answerDiv.className = 'sticky-answer';
+
+            try {
+                // 渲染思考过程（如果有）
+                if (favorite.reasoning && favorite.reasoning.trim()) {
+                    const reasoningBlock = document.createElement('div');
+                    reasoningBlock.className = 'reasoning-block';
+                    const toggleBtn = document.createElement('button');
+                    toggleBtn.className = 'reasoning-toggle';
+                    toggleBtn.textContent = '收起思考过程';
+                    const rDiv = document.createElement('div');
+                    rDiv.className = 'reasoning-content';
+                    try {
+                        const rHtml = (window.marked ? marked.parse(favorite.reasoning) : favorite.reasoning);
+                        rDiv.innerHTML = (window.DOMPurify ? DOMPurify.sanitize(rHtml) : rHtml);
+                    } catch (_) {
+                        rDiv.textContent = favorite.reasoning;
+                    }
+                    rDiv.style.display = 'block';
+                    toggleBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const willShow = (rDiv.style.display === 'none');
+                        rDiv.style.display = willShow ? 'block' : 'none';
+                        toggleBtn.textContent = willShow ? '收起思考过程' : '展开思考过程';
+                    });
+                    reasoningBlock.appendChild(toggleBtn);
+                    reasoningBlock.appendChild(rDiv);
+                    answerDiv.appendChild(reasoningBlock);
+                }
+
+                // 渲染AI回复内容
+                const rawHtml = (window.marked ? marked.parse(favorite.assistantContent) : favorite.assistantContent);
+                const cleanHtml = (window.DOMPurify ? DOMPurify.sanitize(rawHtml) : rawHtml);
+                const contentHolder = document.createElement('div');
+                contentHolder.innerHTML = cleanHtml;
+                answerDiv.appendChild(contentHolder);
+
+                // 渲染引用来源（如果有）
+                if (favorite.citations && favorite.citations.length > 0) {
+                    try {
+                        const anns = favorite.citations.filter(x => x && x.type === 'url_citation' && x.url_citation && x.url_citation.url);
+                        const citeBlock = buildCitationsElement(anns);
+                        if (citeBlock) {
+                            answerDiv.appendChild(citeBlock);
+                        }
+                    } catch (_) {}
+                }
+            } catch (e) {
+                console.error('渲染收藏便签失败：', e);
+                answerDiv.textContent = favorite.assistantContent;
+            }
+
+            stickyCard.appendChild(answerDiv);
+
+            // 便签底部元信息
+            const metaDiv = document.createElement('div');
+            metaDiv.className = 'sticky-meta';
+            const modelLabel = document.createElement('span');
+            modelLabel.className = 'sticky-model-label';
+            modelLabel.textContent = favorite.assistantModel;
+            metaDiv.appendChild(modelLabel);
+            const timestamp = document.createElement('span');
+            timestamp.className = 'sticky-timestamp';
+            timestamp.textContent = new Date(favorite.timestamp).toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+            metaDiv.appendChild(timestamp);
+            stickyCard.appendChild(metaDiv);
+
+            // 操作按钮
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'sticky-actions';
+
+            const unfavoriteBtn = document.createElement('button');
+            unfavoriteBtn.className = 'sticky-action-btn';
+            unfavoriteBtn.innerHTML = '<i class="fas fa-star"></i>';
+            unfavoriteBtn.title = '取消收藏';
+            unfavoriteBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                toggleStickyFavorite(favorite.id, { content: favorite.userContent }, { content: favorite.assistantContent }, unfavoriteBtn);
+                // 刷新页面返回会话
+                setTimeout(() => location.reload(), 500);
+            });
+
+            const copyBtn = document.createElement('button');
+            copyBtn.className = 'sticky-action-btn';
+            copyBtn.innerHTML = '<i class="fas fa-copy"></i>';
+            copyBtn.title = '复制回复';
+            copyBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                copyToClipboard(favorite.assistantContent);
+            });
+
+            actionsDiv.appendChild(unfavoriteBtn);
+            actionsDiv.appendChild(copyBtn);
+            stickyCard.appendChild(actionsDiv);
+
+            messageContainer.appendChild(stickyCard);
+            scrollToBottom();
+        }
+
         /**
          * 渲染消息列表（复古便签纸风格，问答配对）
          * 功能：将当前会话中的消息渲染为便签纸样式，用户问题和AI回复配对显示在同一张便签上
@@ -1846,6 +2108,19 @@
             const actionsDiv = document.createElement('div');
             actionsDiv.className = 'sticky-actions';
 
+            // 收藏按钮
+            const favoriteBtn = document.createElement('button');
+            favoriteBtn.className = 'sticky-action-btn';
+            const favoriteId = `${userIdx}-${assistantIdx}`;
+            const isFavorited = isStickyFavorited(favoriteId);
+            favoriteBtn.innerHTML = isFavorited ? '<i class="fas fa-star"></i>' : '<i class="far fa-star"></i>';
+            favoriteBtn.title = isFavorited ? '取消收藏' : '收藏';
+            favoriteBtn.dataset.favoriteId = favoriteId;
+            favoriteBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                toggleStickyFavorite(favoriteId, userMsg, assistantMsg, favoriteBtn);
+            });
+
             const copyBtn = document.createElement('button');
             copyBtn.className = 'sticky-action-btn';
             copyBtn.innerHTML = '<i class="fas fa-copy"></i>';
@@ -1869,6 +2144,7 @@
                 }
             });
 
+            actionsDiv.appendChild(favoriteBtn);
             actionsDiv.appendChild(copyBtn);
             actionsDiv.appendChild(deleteBtn);
             stickyCard.appendChild(actionsDiv);

@@ -249,6 +249,60 @@
     padding-bottom: 8px;
 }
 
+/* 侧边栏区域分组样式 */
+.drawer-section {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 8px;
+}
+
+.drawer-section-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    font-size: 0.9rem;
+    color: var(--fg);
+    background: rgba(79, 70, 229, 0.05);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.2s;
+    user-select: none;
+}
+
+.drawer-section-header:hover {
+    background: rgba(79, 70, 229, 0.12);
+}
+
+.drawer-section-header i {
+    font-size: 0.85rem;
+}
+
+.drawer-section-content {
+    max-height: 300px;
+    overflow-y: auto;
+    padding: 8px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.favorites-section .drawer-section-content.collapsed {
+    max-height: 0;
+    overflow: hidden;
+    padding: 0;
+}
+
+.favorite-item {
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.favorite-item:hover {
+    transform: translateX(4px);
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.15);
+}
+
 .drawer-item {
     border: 1px solid var(--border);
     border-radius: 12px;

@@ -15,7 +15,7 @@ FreeChat 是一个纯静态、本地存储的聊天界面：新版 UI 采用统�
 ### 核心功能（实现要点）
 
 - 聊天交互：通过配置的外部 API 端点发送请求（默认 `https://openrouter.ai/api/v1/chat/completions` + `minimax/minimax-m2:free`）。App Shell 包含顶部状态栏、精确 token 进度条（tiktoken）、语音/附件入口、toast/状态条，移动端仍可抽屉化。
-- **复古打字机界面**：消息以"便签纸"样式展示，用户问题和 AI 回复配对显示在同一张米黄色便签卡片上，具备纸张纹理、3D 阴影、轻微旋转等复古效果。历史消息支持逐字符打字机动画（可通过 `localStorage.setItem('freechat.ui.typewriterAnimation', 'false')` 禁用），底部输入区采用金属质感打字机风格。
+- **复古打字机界面**：消息以"便签纸"样式展示，用户问题和 AI 回复配对显示在同一张米黄色便签卡片上，具备纸张纹理、3D 阴影、轻微旋转等复古效果。历史消息支持逐字符打字机动画（可通过 `localStorage.setItem('freechat.ui.typewriterAnimation', 'false')` 禁用），底部输入区采用金属质感打字机风格。每张便签支持收藏功能，收藏的便签可在侧边栏"收藏夹"中查看。
 - 会话管理：分组信息存于 `conversationGroups`，主列表按分组渲染卡片；支持多选批量移动/删除/导出，卡片内含记忆折叠、模型/消息数元数据。新建会话时支持从下拉列表直接选择已有分组，也可以输入新分组名称创建分组：若已选择分组则不会再强制要求填写分组名称，仅在“既未选择分组、又未填写新分组名”的情况下弹出“请输入分组名称”提示。
 - 设置中心：`config.html` 升级为四步 Stepper（模型 → 参数 → 联网 → System/隐私），并提供实时概览卡 + 隐私面板。
 - 会话持久化：当前对话缓存在 `deepseekConversation`；持久列表写入 `savedDeepseekConversations`，首条发送自动建档，后续节流（~1.5s）写回。
@@ -40,6 +40,7 @@ FreeChat 是一个纯静态、本地存储的聊天界面：新版 UI 采用统�
 - `freechat.web.*`：Web Search 参数（`engine`、`maxResults`、`contextSize`、`searchPrompt`）。
 - `freechat.logs`：请求/响应日志环形缓冲。
 - `freechat.memory.*`：记忆注入相关配置（如 `freechat.memory.inject.allGroups` 等）。
+- `freechat.favoriteStickies`：收藏的便签列表（包含问答内容、模型、时间戳等信息）。
 
 ### 典型数据流（简要）
 
@@ -74,6 +75,12 @@ FreeChat 是一个纯静态、本地存储的聊天界面：新版 UI 采用统�
 
 ### 变更记录（简要）
 
+- 2025-11-22：**新增便签收藏功能**
+  - 每张便签卡片新增收藏按钮（星标图标），与复制、删除按钮并列显示。
+  - 收藏的便签保存到 `localStorage` 的 `freechat.favoriteStickies` 键中。
+  - 侧边栏新增"收藏夹"区域，支持折叠/展开，显示所有收藏的便签列表。
+  - 点击收藏夹中的便签可单独查看完整内容（包括思考过程和引用来源）。
+  - 收藏便签页面提供"返回会话"链接和取消收藏功能。
 - 2025-11-22：**重大UI改版 - 复古打字机便签纸界面**
   - **Token 计数改进**：集成 `js-tiktoken` 库（CDN 异步加载），实现精确的 token 计数（支持中英文混合场景）；降级方案采用改进的估算算法（中文 1 字≈2 token，英文 4 字符≈1 token）。
   - **便签纸样式**：将消息展示改造为复古便签纸风格，用户问题和 AI 回复配对显示在同一张米黄色卡片上，具备纸张纹理、多层阴影、3D 效果、交替轻微旋转等视觉特性。
