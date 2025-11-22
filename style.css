@@ -82,9 +82,22 @@
     position: sticky;
     top: 0;
     z-index: 1200;
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    box-shadow: 0 0 40px rgba(12,18,44,0.08);
+    /* 复古打字机金属面板风格 */
+    background: linear-gradient(135deg, #3a4a5c 0%, #2c3a48 100%);
+    border-bottom: 3px solid #7f8c8d;
+    box-shadow:
+        0 4px 12px rgba(0, 0, 0, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    /* 金属拉丝纹理 */
+    background-image:
+        repeating-linear-gradient(
+            90deg,
+            transparent,
+            transparent 2px,
+            rgba(255, 255, 255, 0.03) 2px,
+            rgba(255, 255, 255, 0.03) 4px
+        ),
+        linear-gradient(135deg, #3a4a5c 0%, #2c3a48 100%);
 }
 
 .app-bar .app-brand {
@@ -97,15 +110,34 @@
 .app-brand .app-menu-btn {
     width: 44px;
     height: 44px;
-    border-radius: 12px;
-    border: 1px solid var(--border);
-    background: rgba(255,255,255,0.65);
+    border-radius: 8px;
+    border: 2px solid #5a6a7a;
+    background: linear-gradient(135deg, #4a5a6a 0%, #3a4a5a 100%);
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 1rem;
-    color: var(--fg);
-    box-shadow: 0 4px 12px rgba(15,17,23,0.08);
+    color: #ecf0f1;
+    box-shadow:
+        0 2px 6px rgba(0, 0, 0, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    transition: all 0.2s ease;
+}
+
+.app-brand .app-menu-btn:hover {
+    background: linear-gradient(135deg, #5a6a7a 0%, #4a5a6a 100%);
+    border-color: #6a7a8a;
+    transform: translateY(-1px);
+    box-shadow:
+        0 4px 8px rgba(0, 0, 0, 0.5),
+        inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.app-brand .app-menu-btn:active {
+    transform: translateY(0);
+    box-shadow:
+        0 1px 3px rgba(0, 0, 0, 0.4),
+        inset 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 .app-brand .app-menu-btn i {
@@ -125,6 +157,8 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    color: #ecf0f1;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .app-bar .app-context {
@@ -132,6 +166,11 @@
     flex-direction: column;
     gap: 4px;
     min-width: 0;
+    color: #bdc3c7;
+}
+
+.app-bar .app-context strong {
+    color: #ecf0f1;
 }
 
 .app-bar .app-actions {
@@ -140,13 +179,23 @@
     gap: 10px;
 }
 
+.app-bar .app-actions .settings-btn {
+    color: #ecf0f1;
+    transition: color 0.2s;
+}
+
+.app-bar .app-actions .settings-btn:hover {
+    color: #3498db;
+}
+
 .app-pill {
     padding: 2px 10px;
     border-radius: 999px;
-    background: var(--brand-soft);
-    color: var(--brand);
+    background: rgba(241, 196, 15, 0.2);
+    color: #f1c40f;
     font-size: 0.78rem;
-    border: 1px solid rgba(79,70,229,0.15);
+    border: 1px solid rgba(241, 196, 15, 0.4);
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.3);
 }
 
 @media (max-width: 1200px) {
@@ -178,16 +227,29 @@
 }
 
 .chat-drawer {
-    border: 1px solid var(--border);
+    border: 2px solid #7f8c8d;
     border-radius: var(--radius);
-    background: var(--surface);
-    box-shadow: var(--shadow);
+    /* 复古木质纹理背景 */
+    background: linear-gradient(135deg, #8b7355 0%, #6b5846 100%);
+    box-shadow:
+        0 8px 24px rgba(0, 0, 0, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
     padding: 18px;
     display: flex;
     flex-direction: column;
     gap: 18px;
     max-height: calc(100vh - 140px);
     position: sticky;
+    /* 木纹纹理 */
+    background-image:
+        repeating-linear-gradient(
+            90deg,
+            transparent,
+            transparent 3px,
+            rgba(0, 0, 0, 0.08) 3px,
+            rgba(0, 0, 0, 0.08) 6px
+        ),
+        linear-gradient(135deg, #8b7355 0%, #6b5846 100%);
     top: 90px;
     overflow: hidden;
 }
@@ -234,10 +296,23 @@
 
 .chat-drawer .drawer-search {
     width: 100%;
-    border: 1px solid var(--border);
-    border-radius: 999px;
+    border: 2px solid #5a6a7a;
+    border-radius: 8px;
     padding: 10px 14px;
-    background: rgba(255,255,255,0.38);
+    background: #ecf0f1;
+    color: #2c3e50;
+    font-family: 'Courier New', monospace;
+    box-shadow:
+        inset 0 2px 4px rgba(0, 0, 0, 0.15),
+        0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.chat-drawer .drawer-search:focus {
+    border-color: #3498db;
+    outline: none;
+    box-shadow:
+        inset 0 2px 4px rgba(0, 0, 0, 0.15),
+        0 0 0 3px rgba(52, 152, 219, 0.2);
 }
 
 .drawer-list {
@@ -262,16 +337,23 @@
     gap: 8px;
     padding: 10px 12px;
     font-size: 0.9rem;
-    color: var(--fg);
-    background: rgba(79, 70, 229, 0.05);
-    border-radius: 8px;
+    color: #fef5e7;
+    background: rgba(0, 0, 0, 0.15);
+    border: 1px solid rgba(0, 0, 0, 0.3);
+    border-radius: 6px;
     cursor: pointer;
-    transition: background 0.2s;
+    transition: all 0.2s;
     user-select: none;
+    font-family: 'Georgia', serif;
+    font-weight: 600;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .drawer-section-header:hover {
-    background: rgba(79, 70, 229, 0.12);
+    background: rgba(0, 0, 0, 0.25);
+    border-color: rgba(0, 0, 0, 0.4);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 }
 
 .drawer-section-header i {
@@ -304,20 +386,39 @@
 }
 
 .drawer-item {
-    border: 1px solid var(--border);
-    border-radius: 12px;
+    border: 1px solid rgba(139, 117, 77, 0.3);
+    border-radius: 8px;
     padding: 12px;
-    background: rgba(255,255,255,0.6);
+    background: linear-gradient(135deg, #fefaf0 0%, #fdf5e6 100%);
     display: flex;
     flex-direction: column;
     gap: 6px;
-    transition: border-color 0.2s, transform 0.2s;
+    transition: all 0.2s;
+    box-shadow: 0 2px 4px rgba(139, 117, 77, 0.15);
+    color: #2a2520;
+    font-family: 'Georgia', serif;
+    /* 纸张纹理 */
+    background-image:
+        repeating-linear-gradient(
+            0deg,
+            transparent,
+            transparent 2px,
+            rgba(139, 117, 77, 0.02) 2px,
+            rgba(139, 117, 77, 0.02) 4px
+        ),
+        linear-gradient(135deg, #fefaf0 0%, #fdf5e6 100%);
 }
 
 .drawer-item.active {
-    border-color: var(--brand);
+    border-color: #f39c12;
     transform: translateX(4px);
-    background: rgba(79,70,229,0.08);
+    background: linear-gradient(135deg, #fff9e6 0%, #fef5dc 100%);
+    box-shadow: 0 4px 8px rgba(243, 156, 18, 0.2);
+}
+
+.drawer-item:hover {
+    transform: translateX(2px);
+    box-shadow: 0 4px 8px rgba(139, 117, 77, 0.25);
 }
 
 .drawer-item .item-actions {
@@ -327,22 +428,47 @@
 }
 
 .chat-body {
-    border: 1px solid var(--border);
+    border: 2px solid rgba(139, 117, 77, 0.3);
     border-radius: var(--radius);
-    background: var(--surface);
-    box-shadow: var(--shadow);
+    background: linear-gradient(135deg, #fefaf0 0%, #fdf5e6 100%);
+    box-shadow: 0 8px 24px rgba(139, 117, 77, 0.2);
     display: flex;
+    /* 纸张纹理 */
+    background-image:
+        repeating-linear-gradient(
+            0deg,
+            transparent,
+            transparent 2px,
+            rgba(139, 117, 77, 0.02) 2px,
+            rgba(139, 117, 77, 0.02) 4px
+        ),
+        linear-gradient(135deg, #fefaf0 0%, #fdf5e6 100%);
     flex-direction: column;
     min-height: 0;
 }
 
 .chat-header {
     padding: 16px 20px;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 2px solid rgba(139, 117, 77, 0.3);
     display: flex;
     justify-content: space-between;
     gap: 16px;
     flex-wrap: wrap;
+    /* 复古便签纸风格 */
+    background: linear-gradient(135deg, #fefaf0 0%, #fdf5e6 100%);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.5),
+        0 2px 4px rgba(139, 117, 77, 0.1);
+    /* 纸张纹理 */
+    background-image:
+        repeating-linear-gradient(
+            0deg,
+            transparent,
+            transparent 2px,
+            rgba(139, 117, 77, 0.02) 2px,
+            rgba(139, 117, 77, 0.02) 4px
+        ),
+        linear-gradient(135deg, #fefaf0 0%, #fdf5e6 100%);
 }
 
 .chat-header .session-meta {
@@ -352,15 +478,38 @@
     min-width: 0;
 }
 
+.chat-header .session-meta .session-name {
+    font-family: 'Georgia', 'Times New Roman', serif;
+    color: #2a2520;
+    font-weight: 600;
+    font-size: 1.1rem;
+}
+
+.chat-header .session-meta .session-group {
+    font-family: 'Courier New', monospace;
+    color: #8b754d;
+    font-size: 0.85rem;
+}
+
 .chat-header .session-meta span {
     font-size: 0.88rem;
-    color: var(--muted);
+    color: #8b754d;
 }
 
 .chat-header .session-actions {
     display: flex;
     gap: 10px;
     align-items: center;
+}
+
+.chat-header .session-actions .model-badge {
+    background: rgba(139, 117, 77, 0.12);
+    color: #5a4a3a;
+    border: 1px solid rgba(139, 117, 77, 0.25);
+    font-family: 'Courier New', monospace;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.85rem;
 }
 
 @media (max-width: 960px) {
@@ -730,20 +879,46 @@
 
 .conversation-sidebar,
 .conversation-content {
-    border: 1px solid var(--border);
+    border: 2px solid #7f8c8d;
     border-radius: var(--radius);
-    background: var(--surface);
-    box-shadow: var(--shadow);
+    /* 木质背景 */
+    background: linear-gradient(135deg, #8b7355 0%, #6b5846 100%);
+    box-shadow:
+        0 8px 24px rgba(0, 0, 0, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
     padding: 20px;
     display: flex;
     flex-direction: column;
     gap: 16px;
+    /* 木纹纹理 */
+    background-image:
+        repeating-linear-gradient(
+            90deg,
+            transparent,
+            transparent 3px,
+            rgba(0, 0, 0, 0.08) 3px,
+            rgba(0, 0, 0, 0.08) 6px
+        ),
+        linear-gradient(135deg, #8b7355 0%, #6b5846 100%);
 }
 
 .group-panel {
-    border: 1px solid var(--border);
-    border-radius: 12px;
+    border: 1px solid rgba(139, 117, 77, 0.3);
+    border-radius: 10px;
     padding: 14px;
+    background: linear-gradient(135deg, #fefaf0 0%, #fdf5e6 100%);
+    box-shadow: 0 2px 6px rgba(139, 117, 77, 0.2);
+    transition: all 0.2s;
+    /* 纸张纹理 */
+    background-image:
+        repeating-linear-gradient(
+            0deg,
+            transparent,
+            transparent 2px,
+            rgba(139, 117, 77, 0.02) 2px,
+            rgba(139, 117, 77, 0.02) 4px
+        ),
+        linear-gradient(135deg, #fefaf0 0%, #fdf5e6 100%);
     background: rgba(255,255,255,0.5);
 }
 
@@ -755,13 +930,25 @@
 }
 
 .conversation-card {
-    border: 1px solid var(--border);
-    border-radius: 16px;
+    border: 1px solid rgba(139, 117, 77, 0.3);
+    border-radius: 12px;
     padding: 16px;
     display: flex;
     flex-direction: column;
     gap: 10px;
-    background: rgba(255,255,255,0.65);
+    background: linear-gradient(135deg, #fefaf0 0%, #fdf5e6 100%);
+    box-shadow: 0 2px 6px rgba(139, 117, 77, 0.2);
+    transition: all 0.2s;
+    /* 纸张纹理 */
+    background-image:
+        repeating-linear-gradient(
+            0deg,
+            transparent,
+            transparent 2px,
+            rgba(139, 117, 77, 0.02) 2px,
+            rgba(139, 117, 77, 0.02) 4px
+        ),
+        linear-gradient(135deg, #fefaf0 0%, #fdf5e6 100%);
 }
 
 .conversation-card .card-top {
@@ -772,8 +959,204 @@
 }
 
 .conversation-card.active {
-    border-color: var(--brand);
-    background: rgba(79,70,229,0.05);
+    border-color: #f39c12;
+    background: linear-gradient(135deg, #fff9e6 0%, #fef5dc 100%);
+    box-shadow: 0 4px 10px rgba(243, 156, 18, 0.3);
+}
+
+.conversation-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(139, 117, 77, 0.3);
+}
+
+.conversation-card h3,
+.conversation-card .card-title {
+    color: #2a2520;
+    font-family: 'Georgia', serif;
+}
+
+/* ============ 会话管理页面：侧边栏分区样式 ============ */
+
+.sidebar-section {
+    margin-bottom: 16px;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.sidebar-section-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    background: rgba(0, 0, 0, 0.2);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.3);
+}
+
+.sidebar-section-header i {
+    font-size: 1rem;
+    color: #f39c12;
+}
+
+.sidebar-section-header h3 {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #fef5e7;
+    font-family: 'Georgia', serif;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.sidebar-section-content {
+    padding: 16px;
+    background: rgba(0, 0, 0, 0.1);
+}
+
+/* 可滚动的分组列表区域 */
+.sidebar-section-scroll {
+    max-height: 400px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar-section-scroll .group-list-panel {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+    background: rgba(0, 0, 0, 0.1);
+}
+
+/* 输入组合样式 */
+.input-group {
+    display: flex;
+    gap: 8px;
+}
+
+.input-group input {
+    flex: 1;
+    padding: 10px 12px;
+    border: 2px solid #5a6a7a;
+    border-radius: 6px;
+    background: #ecf0f1;
+    color: #2c3e50;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+}
+
+.input-group input:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+}
+
+/* 侧边栏按钮样式 */
+.sidebar-btn {
+    width: 100%;
+    padding: 10px 14px;
+    border: 2px solid;
+    border-radius: 6px;
+    font-family: 'Georgia', serif;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    margin-bottom: 8px;
+}
+
+.sidebar-btn:last-child {
+    margin-bottom: 0;
+}
+
+.sidebar-btn i {
+    font-size: 0.9rem;
+}
+
+/* 主按钮 */
+.sidebar-btn-primary {
+    background: linear-gradient(135deg, #e67e22 0%, #d35400 100%);
+    border-color: #a04000;
+    color: #fff;
+    box-shadow: 0 2px 6px rgba(230, 126, 34, 0.3);
+}
+
+.sidebar-btn-primary:hover {
+    background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(230, 126, 34, 0.4);
+}
+
+.sidebar-btn-primary:active {
+    transform: translateY(0);
+}
+
+/* 成功按钮 */
+.sidebar-btn-success {
+    background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+    border-color: #1e8449;
+    color: #fff;
+    box-shadow: 0 2px 6px rgba(39, 174, 96, 0.3);
+}
+
+.sidebar-btn-success:hover {
+    background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(39, 174, 96, 0.4);
+}
+
+/* 信息按钮 */
+.sidebar-btn-info {
+    background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+    border-color: #1f618d;
+    color: #fff;
+    box-shadow: 0 2px 6px rgba(52, 152, 219, 0.3);
+}
+
+.sidebar-btn-info:hover {
+    background: linear-gradient(135deg, #5dade2 0%, #3498db 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(52, 152, 219, 0.4);
+}
+
+/* 侧边栏底部说明 */
+.sidebar-footer {
+    margin-top: auto;
+}
+
+.privacy-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px;
+    background: rgba(243, 156, 18, 0.15);
+    border: 1px solid rgba(243, 156, 18, 0.3);
+    border-radius: 6px;
+}
+
+.privacy-note i {
+    font-size: 1.2rem;
+    color: #f39c12;
+    margin-top: 2px;
+}
+
+.privacy-note p {
+    margin: 0;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    color: #fef5e7;
+    font-family: 'Georgia', serif;
+}
+
+/* ============ 会话管理页面：内容区样式 ============ */
+
+.conversation-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
 }
 
 .conversation-card .card-meta {
@@ -813,32 +1196,61 @@
 }
 
 /* 会话管理页：批量操作按钮风格，复用主界面胶囊风格 */
+/* 批量操作按钮 - 统一复古风格 */
 .bulk-btn {
-    padding: 6px 14px;
-    border-radius: 999px;
-    border: 1px solid var(--border);
-    background: #ffffff;
-    color: var(--fg);
-    font-size: 0.88rem;
+    padding: 8px 16px;
+    border-radius: 6px;
+    border: 2px solid;
+    font-family: 'Georgia', serif;
+    font-weight: 600;
+    font-size: 0.9rem;
     cursor: pointer;
-    transition: background-color 0.16s ease, box-shadow 0.16s ease, transform 0.12s ease, border-color 0.16s ease;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
 }
-.bulk-btn:hover:enabled {
-    background: linear-gradient(135deg, #f3f5ff, #f7f9ff);
-    box-shadow: 0 6px 14px rgba(16,38,84,0.12);
-    transform: translateY(-1px);
+
+/* 默认按钮 - 蓝色 */
+.bulk-btn:not(.bulk-btn-danger) {
+    background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+    border-color: #1f618d;
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 2px 6px rgba(52, 152, 219, 0.3);
 }
+
+.bulk-btn:not(.bulk-btn-danger):hover:enabled {
+    background: linear-gradient(135deg, #5dade2 0%, #3498db 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(52, 152, 219, 0.4);
+}
+
+/* 危险按钮 - 红色 */
+.bulk-btn-danger {
+    background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+    border-color: #a93226;
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 2px 6px rgba(231, 76, 60, 0.3);
+}
+
+.bulk-btn-danger:hover:enabled {
+    background: linear-gradient(135deg, #ec7063 0%, #e74c3c 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(231, 76, 60, 0.4);
+}
+
+/* 禁用状态 */
 .bulk-btn:disabled {
     opacity: 0.5;
-    cursor: default;
+    cursor: not-allowed;
     box-shadow: none;
+    transform: none;
 }
-.bulk-btn-danger {
-    border-color: rgba(255,107,107,0.5);
-    color: #c0392b;
-}
-.bulk-btn-danger:hover:enabled {
-    background: linear-gradient(135deg,#fff5f6,#fff7f8);
+
+.bulk-btn:active:enabled {
+    transform: translateY(0);
 }
 
 /* 设置页 Stepper */
@@ -946,13 +1358,24 @@
 }
 
 body {
-    background: linear-gradient(180deg, #f8faff, #f4f6fb);
+    /* 复古办公桌背景 */
+    background: linear-gradient(135deg, #d4b896 0%, #c4a882 100%);
     color: var(--fg);
     height: 100vh;
     display: flex;
     flex-direction: column;
     font-size: var(--fs-body);
     line-height: var(--lh);
+    /* 桌面纹理 */
+    background-image:
+        repeating-linear-gradient(
+            90deg,
+            transparent,
+            transparent 4px,
+            rgba(0, 0, 0, 0.05) 4px,
+            rgba(0, 0, 0, 0.05) 8px
+        ),
+        linear-gradient(135deg, #d4b896 0%, #c4a882 100%);
 }
 
 /* 刘海/打孔屏安全区适配：为顶部预留安全区，避免品牌标题被摄像头/状态栏遮挡（Android/iOS WebView） */
@@ -1883,21 +2306,54 @@ body.drawer-open .conversations-fab {
 /* 配置页面样式 */
 .config-container {
     flex: 1;
-    padding: 20px;
+    padding: 24px;
     display: flex;
     flex-direction: column;
     gap: 24px;
+    /* 复古办公桌背景 */
+    background: linear-gradient(135deg, #d4b896 0%, #c4a882 100%);
+    min-height: 100vh;
+    /* 桌面纹理 */
+    background-image:
+        repeating-linear-gradient(
+            90deg,
+            transparent,
+            transparent 4px,
+            rgba(0, 0, 0, 0.05) 4px,
+            rgba(0, 0, 0, 0.05) 8px
+        ),
+        linear-gradient(135deg, #d4b896 0%, #c4a882 100%);
 }
 
 .config-section {
-    border: 1px solid var(--border);
+    border: 1px solid rgba(139, 117, 77, 0.3);
     border-radius: var(--radius);
-    background: var(--surface);
-    box-shadow: var(--shadow);
-    padding: 18px 20px;
+    background: linear-gradient(135deg, #fefaf0 0%, #fdf5e6 100%);
+    box-shadow: 0 4px 12px rgba(139, 117, 77, 0.2);
+    padding: 20px 24px;
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 16px;
+    /* 纸张纹理 */
+    background-image:
+        repeating-linear-gradient(
+            0deg,
+            transparent,
+            transparent 2px,
+            rgba(139, 117, 77, 0.02) 2px,
+            rgba(139, 117, 77, 0.02) 4px
+        ),
+        linear-gradient(135deg, #fefaf0 0%, #fdf5e6 100%);
+}
+
+.config-section-title {
+    color: #2a2520;
+    font-family: 'Georgia', serif;
+}
+
+.config-label {
+    color: #5a4a3a;
+    font-family: 'Courier New', monospace;
 }
 
 .config-section + .config-section {
@@ -2142,53 +2598,94 @@ body.drawer-open .conversations-fab {
 
 .conversation-actions button { border-radius: 8px; padding: 8px 10px; }
 
+/* ============ 会话管理页面：会话卡片按钮统一样式 ============ */
+
+/* 查看记忆按钮 */
 .toggle-summary-btn, .view-memory-btn {
-    background: rgba(13,71,161,0.06);
-    border: 1px solid rgba(13,71,161,0.12);
-    color: #08327a;
-    padding: 6px 10px;
-    border-radius: 8px;
+    background: linear-gradient(135deg, #fefaf0 0%, #fdf5e6 100%);
+    border: 2px solid rgba(139, 117, 77, 0.3);
+    color: #5a4a3a;
+    padding: 8px 12px;
+    border-radius: 6px;
     cursor: pointer;
     font-size: 0.85rem;
+    font-family: 'Courier New', monospace;
+    transition: all 0.2s;
+    box-shadow: 0 2px 4px rgba(139, 117, 77, 0.15);
 }
 
-/* 分组操作图标按钮美化 */
-.group-rename-btn, .group-delete-btn {
+.toggle-summary-btn:hover, .view-memory-btn:hover {
+    background: linear-gradient(135deg, #fff9e6 0%, #fef5dc 100%);
+    border-color: #8b754d;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(139, 117, 77, 0.25);
+}
+
+/* 分组操作按钮 - 统一复古风格 */
+.group-rename-btn, .group-delete-btn, .group-regen-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     width: 36px;
     height: 36px;
-    border-radius: 8px;
-    border: 1px solid rgba(13,71,161,0.12);
-    background: white;
-    color: #08327a;
+    border-radius: 6px;
+    border: 2px solid;
     cursor: pointer;
-    box-shadow: 0 2px 6px rgba(6,34,84,0.04);
-    transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s;
+    font-size: 0.95rem;
+    transition: all 0.2s;
 }
 
-/* 分组重新摘要按钮 */
-/* 分组记忆重新生成按钮 */
+/* 重命名按钮 - 米黄色 */
+.group-rename-btn {
+    background: linear-gradient(135deg, #fefaf0 0%, #fdf5e6 100%);
+    border-color: rgba(139, 117, 77, 0.4);
+    color: #5a4a3a;
+    box-shadow: 0 2px 4px rgba(139, 117, 77, 0.2);
+}
+
+.group-rename-btn:hover {
+    background: linear-gradient(135deg, #fff9e6 0%, #fef5dc 100%);
+    border-color: #8b754d;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(139, 117, 77, 0.3);
+}
+
+/* 删除按钮 - 红色 */
+.group-delete-btn {
+    background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+    border-color: #a93226;
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 2px 6px rgba(231, 76, 60, 0.3);
+}
+
+.group-delete-btn:hover {
+    background: linear-gradient(135deg, #ec7063 0%, #e74c3c 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(231, 76, 60, 0.4);
+}
+
+/* 重新生成分组记忆按钮 - 绿色 */
 .group-regen-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 36px;
-    height: 36px;
-    border-radius: 8px;
-    border: 1px solid rgba(13,71,161,0.12);
-    background: white;
-    color: #08327a;
-    cursor: pointer;
-    box-shadow: 0 2px 6px rgba(6,34,84,0.04);
-    transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s;
+    background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+    border-color: #1e8449;
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 2px 6px rgba(39, 174, 96, 0.3);
 }
-.group-regen-btn:hover { transform: translateY(-2px); background: linear-gradient(90deg,#f0f7ff,#f7f9ff); }
 
-.group-rename-btn:hover { transform: translateY(-2px); background: linear-gradient(90deg,#f0f7ff,#f7f9ff); }
-.group-delete-btn { border-color: rgba(255,107,107,0.2); color: #c0392b; }
-.group-delete-btn:hover { transform: translateY(-2px); background: linear-gradient(90deg,#fff5f6,#fff7f8); }
+.group-regen-btn:hover {
+    background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(39, 174, 96, 0.4);
+}
+
+/* 按钮按下效果 */
+.group-rename-btn:active,
+.group-delete-btn:active,
+.group-regen-btn:active {
+    transform: translateY(0);
+}
 
 .conversation-summary-content,
 .group-memory {
@@ -2241,9 +2738,97 @@ body.drawer-open .conversations-fab {
 }
 
 /* 优化按钮图标样式 */
-.load-btn, .delete-conv-btn { padding: 8px 12px; border-radius: 8px; }
-.load-btn { background: linear-gradient(90deg, #e6f0ff, #f0f7ff); border-color: #2f6fe4; }
-.delete-conv-btn { background: linear-gradient(90deg, #fff5f6, #fff7f8); border-color: #ff6b6b; }
+/* 会话操作按钮基础样式 */
+.load-btn, .rename-conv-btn, .move-conv-btn, .delete-conv-btn, .regenerate-summary-btn {
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 2px solid;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-family: 'Georgia', serif;
+    font-weight: 600;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* 加载按钮 - 蓝色 */
+.load-btn {
+    background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+    border-color: #1f618d;
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 2px 6px rgba(52, 152, 219, 0.3);
+}
+
+.load-btn:hover {
+    background: linear-gradient(135deg, #5dade2 0%, #3498db 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(52, 152, 219, 0.4);
+}
+
+/* 重命名按钮 - 米黄色 */
+.rename-conv-btn {
+    background: linear-gradient(135deg, #fefaf0 0%, #fdf5e6 100%);
+    border-color: rgba(139, 117, 77, 0.4);
+    color: #5a4a3a;
+    box-shadow: 0 2px 4px rgba(139, 117, 77, 0.2);
+}
+
+.rename-conv-btn:hover {
+    background: linear-gradient(135deg, #fff9e6 0%, #fef5dc 100%);
+    border-color: #8b754d;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(139, 117, 77, 0.3);
+}
+
+/* 移动按钮 - 橙色 */
+.move-conv-btn {
+    background: linear-gradient(135deg, #e67e22 0%, #d35400 100%);
+    border-color: #a04000;
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 2px 6px rgba(230, 126, 34, 0.3);
+}
+
+.move-conv-btn:hover {
+    background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(230, 126, 34, 0.4);
+}
+
+/* 删除按钮 - 红色 */
+.delete-conv-btn {
+    background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+    border-color: #a93226;
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 2px 6px rgba(231, 76, 60, 0.3);
+}
+
+.delete-conv-btn:hover {
+    background: linear-gradient(135deg, #ec7063 0%, #e74c3c 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(231, 76, 60, 0.4);
+}
+
+/* 重新生成记忆按钮 - 绿色 */
+.regenerate-summary-btn {
+    background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+    border-color: #1e8449;
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 2px 6px rgba(39, 174, 96, 0.3);
+    font-size: 1rem;
+    padding: 6px 10px;
+}
+
+.regenerate-summary-btn:hover {
+    background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(39, 174, 96, 0.4);
+}
 
 .conversation-item {
     background-color: white;
@@ -2285,14 +2870,13 @@ body.drawer-open .conversations-fab {
 .memory-badge {
     display: inline-block;
     font-size: 12px;
-    color: #08327a;
-    background: rgba(255,255,255,0.6);
-    border: 1px solid var(--border);
+    color: #5a4a3a;
+    background: rgba(139, 117, 77, 0.15);
+    border: 1px solid rgba(139, 117, 77, 0.3);
     padding: 4px 10px;
     border-radius: 999px;
     margin-left: 8px;
-    -webkit-backdrop-filter: blur(var(--blur)) saturate(140%);
-    backdrop-filter: blur(var(--blur)) saturate(140%);
+    font-family: 'Courier New', monospace;
     display: none; /* 无任务时隐藏 */
     align-items: center;
 }
@@ -2362,36 +2946,7 @@ body.drawer-open .conversations-fab {
     gap: 8px;
 }
 
-.load-btn, .delete-conv-btn {
-    background: none;
-    border: 1px solid #e0e0e0;
-    border-radius: 6px;
-    padding: 6px 10px;
-    cursor: pointer;
-    font-size: 0.9rem;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    transition: all 0.2s;
-}
-
-.load-btn {
-    color: #007aff;
-    border-color: #007aff;
-}
-
-.load-btn:hover {
-    background-color: #f0f7ff;
-}
-
-.delete-conv-btn {
-    color: #ff3b30;
-    border-color: #ff3b30;
-}
-
-.delete-conv-btn:hover {
-    background-color: #fff0f0;
-}
+/* 按钮样式已在上方统一定义 */
 
 .no-conversations {
     text-align: center;
@@ -2584,19 +3139,26 @@ body.drawer-open .conversations-fab {
     justify-content: center;
     width: var(--tap);
     height: var(--tap);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    background: rgba(255,255,255,0.75);
-    -webkit-backdrop-filter: blur(var(--blur)) saturate(140%);
-    backdrop-filter: blur(var(--blur)) saturate(140%);
-    color: #08327a;
+    border: 2px solid #5a4a3a;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #fefaf0 0%, #fdf5e6 100%);
+    color: #5a4a3a;
     text-decoration: none; /* 去除链接下划线 */
     text-decoration-skip-ink: none;
+    box-shadow: 0 2px 6px rgba(139, 117, 77, 0.2);
+    transition: all 0.2s;
 }
 .drawer-icon-btn i { font-size: var(--icon-lg); }
 .drawer-icon-btn:hover {
-    background: rgba(255,255,255,0.9);
-    box-shadow: 0 8px 18px rgba(16,38,84,0.10);
+    background: linear-gradient(135deg, #fff9e6 0%, #fef5dc 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(139, 117, 77, 0.3);
+    border-color: #8b754d;
+}
+
+.drawer-icon-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 3px rgba(139, 117, 77, 0.2);
 }
 
 /* 打开抽屉时隐藏左上角历史会话悬浮按钮，避免与抽屉内容冲突 */
@@ -2846,14 +3408,34 @@ body.drawer-open .conversations-fab {
 }
 .drawer-section { /* 兼容：保持抽屉内 section 默认样式 */ }
 .drawer-primary {
-    background: linear-gradient(135deg, var(--brand), var(--brand-2));
+    background: linear-gradient(135deg, #e67e22 0%, #d35400 100%);
     color: #fff;
-    border: none;
-    border-radius: 10px;
-    padding: 10px 12px;
+    border: 2px solid #a04000;
+    border-radius: 8px;
+    padding: 12px 16px;
     font-weight: 600;
     cursor: pointer;
-    box-shadow: 0 6px 16px rgba(47,111,228,0.18);
+    font-family: 'Georgia', serif;
+    box-shadow:
+        0 4px 12px rgba(230, 126, 34, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    transition: all 0.2s ease;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.drawer-primary:hover {
+    background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+    transform: translateY(-2px);
+    box-shadow:
+        0 6px 16px rgba(230, 126, 34, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.drawer-primary:active {
+    transform: translateY(0);
+    box-shadow:
+        0 2px 6px rgba(230, 126, 34, 0.3),
+        inset 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 .drawer-search {
     width: 100%;
