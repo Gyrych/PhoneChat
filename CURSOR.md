@@ -15,7 +15,7 @@ FreeChat 是一个纯静态、本地存储的聊天界面：新版 UI 采用统�
 ### 核心功能（实现要点）
 
 - 聊天交互：通过配置的外部 API 端点发送请求（默认 `https://openrouter.ai/api/v1/chat/completions` + `minimax/minimax-m2:free`）。App Shell 包含顶部状态栏、token 进度条、语音/附件入口、toast/状态条，移动端仍可抽屉化。
-- 会话管理：分组信息存于 `conversationGroups`，主列表按分组渲染卡片；支持多选批量移动/删除/导出，卡片内含记忆折叠、模型/消息数元数据。
+- 会话管理：分组信息存于 `conversationGroups`，主列表按分组渲染卡片；支持多选批量移动/删除/导出，卡片内含记忆折叠、模型/消息数元数据。新建会话时支持从下拉列表直接选择已有分组，也可以输入新分组名称创建分组：若已选择分组则不会再强制要求填写分组名称，仅在“既未选择分组、又未填写新分组名”的情况下弹出“请输入分组名称”提示。
 - 设置中心：`config.html` 升级为四步 Stepper（模型 → 参数 → 联网 → System/隐私），并提供实时概览卡 + 隐私面板。
 - 会话持久化：当前对话缓存在 `deepseekConversation`；持久列表写入 `savedDeepseekConversations`，首条发送自动建档，后续节流（~1.5s）写回。
 - 记忆体系：
@@ -55,10 +55,10 @@ FreeChat 是一个纯静态、本地存储的聊天界面：新版 UI 采用统�
 
 ### UI 布局与交互要点
 
-- `index.html`：App Bar + Drawer + Chat Body 由 `.app-shell` 统一布局；App Bar 在桌面保留隐私提示/设置按钮，移动端仅显示左侧菜单按钮与标题；输入区包含 `voiceBtn`、自动增高 textarea、token meter（基于字符长度估算），并把思考/联网开关放在可换行的工具列，`showStatus` 现与固定状态条/Toast 栈联动。
-- `conversations.html`：主体采用 `.conversation-layout`（左侧分组面板、右侧卡片区）；多选通过 `selectedConversationIds` + `bulk*` 操作按钮实现；列表渲染新函数 `renderConversationsList`（旧逻辑保留为 `legacyRenderConversationsList` 仅供参考）。
-- `config.html`：增加 Stepper（静态指示）、实时概览卡 `summary*El` 与 `updateLiveSummary()`，保存后同步摘要与隐私统计。
-- `<960px` 响应式：App Bar 收敛为“菜单 + 标题”单行，隐藏上下文文案/多余按钮；输入区固定在底部并额外留出 `env(safe-area-inset-bottom)`，思考/联网/语音/附件按钮组成单独的横向工具条固定在输入框下沿；抽屉变成全屏滑入式 Sheet，顶部/底部留安全区；会话批量操作条/设置 Stepper 均可滚动并吸附顶部。
+- `index.html`：App Bar + Drawer + Chat Body 由 `.app-shell` 统一布局；App Bar 在桌面保留设置按钮，移动端仅显示左侧菜单按钮与标题；输入区包含 `voiceBtn`、自动增高 textarea、token meter（基于字符长度估算），并把思考/联网开关放在可换行的工具列，`showStatus` 现与固定状态条/Toast 栈联动。侧边抽屉中的“新建会话”入口会弹出模态：用户可选择已有分组或输入新分组名，同时可选输入会话名与模型；当选择已有分组时不再强制校验“分组名称必填”，避免重复输入。
+- `conversations.html`：主体采用 `.conversation-layout`（左侧分组面板、右侧卡片区）；多选通过 `selectedConversationIds` + `bulk*` 操作按钮实现；列表渲染新函数 `renderConversationsList`（旧逻辑保留为 `legacyRenderConversationsList` 仅供参考）。会话管理页自身的新建会话模态只依赖下拉分组选择和会话名称，不再要求额外输入分组名；左侧“创建分组”区域则始终用于显式新建分组，因此保留“分组名称必填”的简单校验。
+- `config.html`：单页长表单样式的设置面板，集中展示模型选择、模型参数、联网搜索参数与全局 System 提示，并在下方通过 `updateLiveSummary()` 实时汇总当前保存的模型/参数/联网/System 与本地存储统计。
+- `<960px` 响应式：App Bar 收敛为“菜单 + 标题”单行，隐藏上下文文案/多余按钮；输入区固定在底部并额外留出 `env(safe-area-inset-bottom)`，思考/联网/语音/附件按钮组成单独的横向工具条固定在输入框下沿；抽屉变成全屏滑入式 Sheet，顶部/底部留安全区；会话批量操作条/设置页面在窄屏下均改为单列表单，便于上下滚动查看。
 
 ### Android（Capacitor）打包要点
 
@@ -73,6 +73,9 @@ FreeChat 是一个纯静态、本地存储的聊天界面：新版 UI 采用统�
 
 ### 变更记录（简要）
 
+- 2025-11-21：移除设置页 `config.html` 左侧的 Stepper 指示列，将其改为朴素的单页长表单，仅保留模型/参数/联网/System 提示等表单区与底部概览卡，使配置页面结构更直观简洁。
+- 2025-11-21：移除主聊天页 App Bar 中的“查看隐私说明”按钮，仅保留设置入口，使顶部操作区更简洁；功能层面的本地存储/隐私策略保持不变。
+- 2025-11-21：修正主聊天页新建会话模态的分组选择逻辑：当从下拉框选择已有分组时不再强制要求再次输入分组名称，仅在未选择任何分组且未输入新分组名称时才提示“请输入分组名称”；同步更新本文件与 README 文档的交互描述。
 - 2025-11-21：精简移动端 UI（App Bar 仅显示菜单+标题、输入工具固化为底部横排、抽屉安全区适配）、新增按钮无障碍属性，并同步 README*/CURSOR 文档。
 - 2025-11-20：重构三大页面 UI（App Shell、会话卡片 + 批量操作、四步式设置中心），新增 token meter/Toast 栈/批量导出等体验，并同步 `README*.md` 与本文件描述。
 - 2025-11-18：重写 `CURSOR.md` / `README.md` / `README_zh.md`，确保文档与当前代码实现一致，记录记忆队列、注入顺序、localStorage 键与 Android 打包说明（文档对齐，不修改代码）。

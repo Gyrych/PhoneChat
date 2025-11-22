@@ -11,55 +11,32 @@
     <div class="app-shell settings-app">
         <header class="app-bar">
             <div class="app-brand">
-                <button id="backBtn" class="back-btn" title="返回">
+                <button id="backBtn" class="app-menu-btn back-btn" title="返回" aria-label="返回聊天">
                     <i class="fas fa-arrow-left"></i>
                 </button>
-                <div>
-                    <h1>FreeChat 设置中心</h1>
-                    <span class="app-pill">所有配置仅存储在本地设备</span>
+                <img src="icon/logo.png" alt="FreeChat" class="welcome-logo" style="height:40px;width:40px;border-radius:10px;" />
+                <div class="brand-text">
+                    <h1>FreeChat 设置</h1>
+                    <span class="app-pill">数据仅保存在此设备</span>
                 </div>
+            </div>
+            <div class="app-context">
+                <strong>模型 · 参数 · 联网 · System 提示</strong>
+                <span>所有配置仅存储在本机浏览器 / App 内</span>
             </div>
             <div class="app-actions">
-                <a href="index.html" class="settings-btn" title="返回聊天">
-                    <i class="fas fa-comments"></i>
-                </a>
+                <!-- 设置页右上角暂不放按钮，保持与主界面视觉一致 -->
             </div>
         </header>
-        <main class="config-shell">
-            <aside class="stepper">
-                <div class="stepper-step active">
-                    <span>1</span>
-                    <div>
-                        <strong>选择模型</strong>
-                        <p>挑选默认聊天模型</p>
-                    </div>
-                </div>
-                <div class="stepper-step">
-                    <span>2</span>
-                    <div>
-                        <strong>模型参数</strong>
-                        <p>设置温度、最大 Token 等</p>
-                    </div>
-                </div>
-                <div class="stepper-step">
-                    <span>3</span>
-                    <div>
-                        <strong>联网搜索</strong>
-                        <p>配置 Web 插件参数</p>
-                    </div>
-                </div>
-                <div class="stepper-step">
-                    <span>4</span>
-                    <div>
-                        <strong>安全与摘要</strong>
-                        <p>System 提示与本地说明</p>
-                    </div>
-                </div>
-            </aside>
+        <main>
             <section class="config-panel">
-                <div class="config-item">
-                    <label for="customModelSelect" class="config-label">选择模型</label>
-                    <select id="modelSelect" class="config-input" style="display:none;">
+                <!-- 模型与参数 -->
+                <div class="config-section">
+                    <h2 class="config-section-title">模型与采样参数</h2>
+                    <p class="config-section-desc">选择默认聊天模型，并按需微调 Temperature / Top P / 最大 Token 数。</p>
+                    <div class="config-item">
+                        <label for="customModelSelect" class="config-label">选择模型</label>
+                        <select id="modelSelect" class="config-input" style="display:none;">
                 <option value="">请选择模型</option>
                 <option value="agentica-org/deepcoder-14b-preview:free">agentica-org/deepcoder-14b-preview:free</option>
                 <option value="alibaba/tongyi-deepresearch-30b-a3b:free">alibaba/tongyi-deepresearch-30b-a3b:free</option>
@@ -107,85 +84,107 @@
                 <option value="tngtech/deepseek-r1t-chimera:free">tngtech/deepseek-r1t-chimera:free</option>
                 <option value="tngtech/deepseek-r1t2-chimera:free">tngtech/deepseek-r1t2-chimera:free</option>
                 <option value="z-ai/glm-4.5-air:free">z-ai/glm-4.5-air:free</option>
-                    <!-- 自定义下拉组件 -->
-                    <div class="custom-select" id="customModelSelect" data-value="">
-                        <button class="custom-select__trigger" aria-haspopup="listbox" aria-expanded="false" type="button">
-                            <span class="custom-select__value">请选择模型</span>
-                            <i class="fas fa-caret-down"></i>
-                        </button>
-                        <div class="custom-select__panel" role="listbox" tabindex="-1" aria-hidden="true">
-                            <input class="custom-select__search" placeholder="搜索模型" aria-label="搜索模型">
-                            <ul class="custom-select__options"></ul>
+                        </select>
+                        <!-- 自定义下拉组件 -->
+                        <div class="custom-select" id="customModelSelect" data-value="">
+                            <button class="custom-select__trigger" aria-haspopup="listbox" aria-expanded="false" type="button">
+                                <span class="custom-select__value">请选择模型</span>
+                                <i class="fas fa-caret-down"></i>
+                            </button>
+                            <div class="custom-select__panel" role="listbox" tabindex="-1" aria-hidden="true">
+                                <input class="custom-select__search" placeholder="搜索模型" aria-label="搜索模型">
+                                <ul class="custom-select__options"></ul>
+                            </div>
+                        </div>
+                        <p class="config-hint">下拉选择常用模型，列表会尝试从 OpenRouter 实时更新，失败时回退到本地内置列表。</p>
+                    </div>
+                    <div class="config-item">
+                        <label class="config-label">模型参数</label>
+                        <div class="config-grid two-col">
+                            <div>
+                                <label for="paramTemperature">Temperature</label>
+                                <input id="paramTemperature" class="config-input" type="number" step="0.01" min="0" max="2" placeholder="0.7" />
+                                <p class="config-hint">越大越发散，建议 0.6 ~ 1.0。</p>
+                            </div>
+                            <div>
+                                <label for="paramTopP">Top P</label>
+                                <input id="paramTopP" class="config-input" type="number" step="0.01" min="0" max="1" placeholder="0.9" />
+                                <p class="config-hint">采样截断比例，默认 0.9 一般即可。</p>
+                            </div>
+                            <div>
+                                <label for="paramMaxTokens">Max Tokens</label>
+                                <input id="paramMaxTokens" class="config-input" type="number" step="1" min="1" placeholder="1024" />
+                                <p class="config-hint">单次回答最长 Token 数，过大会拖慢响应。</p>
+                            </div>
                         </div>
                     </div>
                 </div>
-                <div class="config-item">
-                    <label class="config-label">模型参数</label>
-                    <div class="config-grid two-col">
-                        <div>
-                            <label for="paramTemperature">Temperature</label>
-                            <input id="paramTemperature" class="config-input" type="number" step="0.01" min="0" max="2" placeholder="0.7" />
-                        </div>
-                        <div>
-                            <label for="paramTopP">Top P</label>
-                            <input id="paramTopP" class="config-input" type="number" step="0.01" min="0" max="1" placeholder="0.9" />
-                        </div>
-                        <div>
-                            <label for="paramMaxTokens">Max Tokens</label>
-                            <input id="paramMaxTokens" class="config-input" type="number" step="1" min="1" placeholder="1024" />
-                        </div>
-                    </div>
-                </div>
-                <div class="config-item">
-                    <label class="config-label">联网搜索设置</label>
-                    <div class="config-grid two-col">
-                        <div>
-                            <label for="webEngineSelectCfg">搜索引擎</label>
-                            <select id="webEngineSelectCfg" class="config-input">
-                                <option value="auto">auto（默认）</option>
-                                <option value="native">native</option>
-                                <option value="exa">exa</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label for="webMaxResultsInputCfg">最大结果数</label>
-                            <input type="number" id="webMaxResultsInputCfg" class="config-input" min="1" max="10" step="1" placeholder="默认 5" />
-                        </div>
-                        <div>
-                            <label for="webContextSizeSelectCfg">搜索上下文</label>
-                            <select id="webContextSizeSelectCfg" class="config-input">
-                                <option value="">不指定</option>
-                                <option value="low">low</option>
-                                <option value="medium">medium</option>
-                                <option value="high">high</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label for="webSearchPromptInputCfg">Search Prompt（可选）</label>
-                            <textarea id="webSearchPromptInputCfg" class="config-input" rows="3" placeholder="留空使用默认提示"></textarea>
+
+                <!-- 联网搜索设置 -->
+                <div class="config-section">
+                    <h2 class="config-section-title">联网搜索参数</h2>
+                    <p class="config-section-desc">为 Web 插件设置搜索引擎、结果数量与可选的 Search Prompt。</p>
+                    <div class="config-item">
+                        <label class="config-label">联网搜索设置</label>
+                        <div class="config-grid two-col">
+                            <div>
+                                <label for="webEngineSelectCfg">搜索引擎</label>
+                                <select id="webEngineSelectCfg" class="config-input">
+                                    <option value="auto">auto（默认）</option>
+                                    <option value="native">native</option>
+                                    <option value="exa">exa</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="webMaxResultsInputCfg">最大结果数</label>
+                                <input type="number" id="webMaxResultsInputCfg" class="config-input" min="1" max="10" step="1" placeholder="默认 5" />
+                            </div>
+                            <div>
+                                <label for="webContextSizeSelectCfg">搜索上下文</label>
+                                <select id="webContextSizeSelectCfg" class="config-input">
+                                    <option value="">不指定</option>
+                                    <option value="low">low</option>
+                                    <option value="medium">medium</option>
+                                    <option value="high">high</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="webSearchPromptInputCfg">Search Prompt（可选）</label>
+                                <textarea id="webSearchPromptInputCfg" class="config-input" rows="3" placeholder="留空使用默认提示"></textarea>
+                            </div>
                         </div>
                     </div>
                 </div>
-                <div class="config-item">
-                    <label for="globalSystemPrompt" class="config-label">全局 System 提示（可选）</label>
-                    <textarea id="globalSystemPrompt" class="config-input" rows="4" placeholder="为所有会话添加额外指令"></textarea>
+
+                <!-- System 提示与隐私 -->
+                <div class="config-section">
+                    <h2 class="config-section-title">System 提示与本地隐私</h2>
+                    <div class="config-item">
+                        <label for="globalSystemPrompt" class="config-label">全局 System 提示（可选）</label>
+                        <textarea id="globalSystemPrompt" class="config-input" rows="4" placeholder="为所有会话添加额外指令"></textarea>
+                    </div>
+                    <div class="privacy-panel">
+                        <strong>本地隐私与同步</strong>
+                        <p>所有设置存储在本地 LocalStorage，可随时清除浏览器数据以重置。</p>
+                        <p id="privacyStats">正在统计本地存储占用...</p>
+                    </div>
                 </div>
-                <div class="config-summary">
-                    <h3>配置总览</h3>
-                    <ul>
-                        <li>模型：<span id="summaryModel">未选择</span></li>
-                        <li>参数：<span id="summaryParams">默认</span></li>
-                        <li>联网搜索：<span id="summaryWeb">关闭</span></li>
-                        <li>System 提示：<span id="summarySystem">未设置</span></li>
-                    </ul>
+
+                <!-- 概览与保存 -->
+                <div class="config-section">
+                    <h2 class="config-section-title">配置总览与保存</h2>
+                    <div class="config-summary">
+                        <h3>当前配置快照</h3>
+                        <ul>
+                            <li>模型：<span id="summaryModel">未选择</span></li>
+                            <li>参数：<span id="summaryParams">默认</span></li>
+                            <li>联网搜索：<span id="summaryWeb">关闭</span></li>
+                            <li>System 提示：<span id="summarySystem">未设置</span></li>
+                        </ul>
+                    </div>
+                    <button id="saveConfigBtn" class="drawer-primary config-save-btn">保存设置</button>
+                    <div id="saveMessage" class="save-message"></div>
                 </div>
-                <div class="privacy-panel">
-                    <strong>本地隐私与同步</strong>
-                    <p>所有设置存储在本地 LocalStorage，可随时清除浏览器数据以重置。</p>
-                    <p id="privacyStats">正在统计本地存储占用...</p>
-                </div>
-                <button id="saveConfigBtn" class="save-btn">保存设置</button>
-                <div id="saveMessage" class="save-message"></div>
             </section>
         </main>
     </div>

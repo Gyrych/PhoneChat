@@ -1,7 +1,7 @@
 /* 引入 Inter 英文字体（英数优先），中文回退到系统字体 */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-/* 主题设计令牌（浅色 + 深色 + 玻璃质感） */
+/* 主题设计令牌（浅色 + 深色，统一实心卡片风格） */
 :root {
     /* 颜色与视觉令牌 */
     --bg: #f6f7fb; /* 页面背景（浅冷白） */
@@ -14,8 +14,8 @@
     --critical: #f97316; /* 重要提示色 */
     --success: #16a34a;
     --gloss: rgba(255,255,255,0.18); /* 光泽高光，用于按钮光效 */
-    --surface: rgba(255,255,255,0.65); /* 玻璃表面 */
-    --surface-strong: rgba(255,255,255,0.85); /* 玻璃降级表面 */
+    --surface: #ffffff;              /* 统一实心卡片背景 */
+    --surface-strong: #f4f6fb;       /* 稍强的实心卡片背景 */
     --border: rgba(20,40,80,0.12); /* 细边 */
     --shadow: 0 8px 24px rgba(16,38,84,0.08); /* 阴影 */
     --radius: 14px; /* 圆角 */
@@ -42,8 +42,8 @@
     --bg-soft: #161926;
     --fg: #f1f5f9;
     --muted: #a1acc4;
-    --surface: rgba(15,17,23,0.7);
-    --surface-strong: rgba(21,25,35,0.92);
+    --surface: #111827;
+    --surface-strong: #020617;
     --border: rgba(255,255,255,0.08);
     --shadow: 0 20px 45px rgba(3,7,18,0.65);
     --gradient-soft: linear-gradient(135deg, rgba(79,70,229,0.18), rgba(6,182,212,0.18));
@@ -476,14 +476,21 @@
     color: var(--muted);
 }
 
+.token-strip {
+    padding: 0 0 6px 0;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
 .token-meter {
     flex: 1;
-    height: 6px;
+    height: 3px;
     border-radius: 999px;
-    background: rgba(0,0,0,0.08);
+    background: rgba(0,0,0,0.06);
     position: relative;
     overflow: hidden;
-    margin-right: 10px;
 }
 
 .token-meter span {
@@ -493,11 +500,17 @@
     bottom: 0;
     border-radius: 999px;
     background: linear-gradient(90deg, var(--brand), var(--brand-2));
-    width: 12%;
+    width: 0%;
     transition: width 0.2s ease;
 }
 .token-meter span.critical {
     background: linear-gradient(90deg, var(--critical), #dc2626);
+}
+
+.token-count-label {
+    font-size: 0.78rem;
+    color: var(--muted);
+    white-space: nowrap;
 }
 
 .input-tools {
@@ -745,6 +758,35 @@
     flex-wrap: wrap;
 }
 
+/* 会话管理页：批量操作按钮风格，复用主界面胶囊风格 */
+.bulk-btn {
+    padding: 6px 14px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: #ffffff;
+    color: var(--fg);
+    font-size: 0.88rem;
+    cursor: pointer;
+    transition: background-color 0.16s ease, box-shadow 0.16s ease, transform 0.12s ease, border-color 0.16s ease;
+}
+.bulk-btn:hover:enabled {
+    background: linear-gradient(135deg, #f3f5ff, #f7f9ff);
+    box-shadow: 0 6px 14px rgba(16,38,84,0.12);
+    transform: translateY(-1px);
+}
+.bulk-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+    box-shadow: none;
+}
+.bulk-btn-danger {
+    border-color: rgba(255,107,107,0.5);
+    color: #c0392b;
+}
+.bulk-btn-danger:hover:enabled {
+    background: linear-gradient(135deg,#fff5f6,#fff7f8);
+}
+
 /* 设置页 Stepper */
 .config-shell {
     display: grid;
@@ -784,14 +826,12 @@
 }
 
 .config-panel {
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    background: var(--surface);
-    box-shadow: var(--shadow);
-    padding: 24px;
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 8px 0 24px 0;
     display: flex;
     flex-direction: column;
-    gap: 18px;
+    gap: var(--gutter);
 }
 
 .config-grid.two-col {
@@ -966,6 +1006,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
+    text-decoration: none;
     transition: transform 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
     -webkit-backdrop-filter: blur(var(--blur)) saturate(140%);
     backdrop-filter: blur(var(--blur)) saturate(140%);
@@ -1261,8 +1302,8 @@ body.drawer-open .conversations-fab {
 
 /* 输入区域 */
 .input-container {
-    /* 玻璃质感输入区域 */
-    background: var(--surface);
+    /* 输入区域改为不透明白底，避免半透明效果影响可读性 */
+    background: #ffffff;
     padding: 12px 16px;
     display: flex;
     gap: 12px;
@@ -1270,7 +1311,9 @@ body.drawer-open .conversations-fab {
     border-top: 1px solid var(--border);
     border-left: 1px solid var(--border);
     border-right: 1px solid var(--border);
-    position: relative;
+    position: sticky;
+    bottom: 0;
+    z-index: 500;
 }
 
 .message-input {
@@ -1482,6 +1525,32 @@ body.drawer-open .conversations-fab {
     gap: 24px;
 }
 
+.config-section {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    box-shadow: var(--shadow);
+    padding: 18px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.config-section + .config-section {
+    margin-top: 4px;
+}
+
+.config-section-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--fg);
+}
+
+.config-section-desc {
+    font-size: 0.86rem;
+    color: var(--muted);
+}
+
 .config-item {
     display: flex;
     flex-direction: column;
@@ -1489,6 +1558,12 @@ body.drawer-open .conversations-fab {
 }
 
 .config-label { font-size: 0.9rem; color: var(--muted); }
+
+.config-hint {
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-top: 2px;
+}
 
 .config-input {
     padding: 12px 16px;
@@ -1576,21 +1651,11 @@ body.drawer-open .conversations-fab {
   .custom-select__search { font-size: 0.95rem; padding: 8px; }
 }
 
-.save-btn {
-    background-color: #007aff;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    padding: 12px;
-    font-size: 1rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background-color 0.2s;
+.config-save-btn {
+    display: inline-block;
+    width: 100%;
     margin-top: 20px;
-}
-
-.save-btn:hover {
-    background-color: #0066cc;
+    text-align: center;
 }
 
 .save-message {
@@ -1972,21 +2037,10 @@ body.drawer-open .conversations-fab {
 }
 
 .save-current-btn {
-    background-color: #007aff;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    padding: 12px;
-    font-size: 1rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background-color 0.2s;
-    margin-top: 20px;
+    display: block;
     width: 100%;
-}
-
-.save-current-btn:hover {
-    background-color: #0066cc;
+    margin-top: 16px;
+    text-align: center;
 }
 
 .new-chat-btn {

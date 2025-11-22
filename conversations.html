@@ -15,19 +15,24 @@
     <div class="app-shell conversation-app">
         <header class="app-bar">
             <div class="app-brand">
-                <button id="backBtn" class="back-btn" title="返回">
+                <button id="backBtn" class="app-menu-btn back-btn" title="返回" aria-label="返回聊天">
                     <i class="fas fa-arrow-left"></i>
                 </button>
-                <div>
+                <img src="icon/logo.png" alt="FreeChat" class="welcome-logo" style="height:40px;width:40px;border-radius:10px;" />
+                <div class="brand-text">
                     <h1>FreeChat 会话管理</h1>
                     <span class="app-pill">本地存储 · 不上云</span>
                 </div>
             </div>
+            <div class="app-context">
+                <strong>整理历史对话与分组记忆</strong>
+                <span>批量移动、导出或删除 · 所有数据仅保存在本机</span>
+            </div>
             <div class="app-actions">
-                <button id="clearLogsBtn" class="settings-btn" title="清空日志">
+                <button id="clearLogsBtn" class="settings-btn" title="清空日志" aria-label="清空日志">
                     <i class="fas fa-trash"></i>
                 </button>
-                <button id="newChatBtn" class="settings-btn" title="开始新会话">
+                <button id="newChatBtn" class="settings-btn" title="开始新会话" aria-label="开始新会话">
                     <i class="fas fa-plus"></i>
                 </button>
             </div>
@@ -39,9 +44,9 @@
                         <label class="config-label">创建分组</label>
                         <div class="config-grid">
                             <input id="newGroupName" placeholder="新分组名" />
-                            <button id="createGroupBtn">创建分组</button>
+                            <button id="createGroupBtn" class="drawer-primary">创建分组</button>
                         </div>
-                        <button id="saveCurrentBtn" class="save-current-btn">保存当前会话</button>
+                        <button id="saveCurrentBtn" class="drawer-primary save-current-btn">保存当前会话</button>
                     </div>
                     <div id="groupListPanel" class="group-list-panel"></div>
                     <div class="privacy-panel">
@@ -58,9 +63,9 @@
                         </label>
                         <span id="selectedCountLabel">已选择 0 项</span>
                         <div class="bulk-buttons">
-                            <button id="bulkMoveBtn" disabled>移动到分组</button>
-                            <button id="bulkDeleteBtn" disabled>批量删除</button>
-                            <button id="bulkExportBtn" disabled>批量导出</button>
+                            <button id="bulkMoveBtn" class="bulk-btn" disabled>移动到分组</button>
+                            <button id="bulkDeleteBtn" class="bulk-btn bulk-btn-danger" disabled>批量删除</button>
+                            <button id="bulkExportBtn" class="bulk-btn" disabled>批量导出</button>
                         </div>
                     </div>
                     <div id="conversationsList" class="conversation-cards"></div>

@@ -1,11 +1,11 @@
 # FreeChat
 
 ## Project Overview
-FreeChat is a privacy-first chat surface built purely with static HTML/CSS/JavaScript. The refreshed interface ships a unified app shell (desktop dual-column + mobile drawer), inline toast/status feedback, multi-select conversation management, and a guided stepper-based settings center. All data—messages, groups, memories, logs, configuration—stays on the device (`localStorage`/IndexedDB), and the exact assets can be wrapped into an Android app through Capacitor.
+FreeChat is a privacy-first chat surface built purely with static HTML/CSS/JavaScript. The refreshed interface ships a unified app shell (desktop dual-column + mobile drawer), inline toast/status feedback, multi-select conversation management, and a simple single-page settings center. All data—messages, groups, memories, logs, configuration—stays on the device (`localStorage`/IndexedDB), and the exact assets can be wrapped into an Android app through Capacitor.
 
 ### Highlights
 - **On-device privacy** – no login or sync; a privacy banner and stats panel remind users that every bit stays local.
-- **Unified UX** – the chat page now combines an app bar, adaptive drawer, token meter, and contextual toasts; the conversation manager renders card-based sections with batch actions; the config center introduces a four-step flow with live summaries.
+- **Unified UX** – the chat page now combines an app bar, adaptive drawer, token meter, and contextual toasts; the conversation manager renders card-based sections with batch actions; the config center is a straightforward single-page form with live summaries.
 - **Mobile polish** – a single-row top bar (menu + title), swipe-friendly tool rows, safe-area aware composer, and full-screen drawer sheets keep the phone UI tidy and thumb-friendly.
 - **Memory pipeline** – session/group memories are generated asynchronously via worker jobs and injected ahead of prompts (web synthesis → group → session → history). Reasoning output and citations remain foldable.
 - **Android-ready** – `npm run build` + `npx cap copy` reproduces the same UI inside a WebView without bundlers.
@@ -18,7 +18,7 @@ flowchart LR
     A --> D[logger.js\nLocal log ring buffer]
     A --> E[script.js\nShared modals/storage helpers]
     F[conversations.html\nDual-pane manager] --> B
-    G[config.html\nStepper settings] --> B
+    G[config.html\nSettings form] --> B
     subgraph Mobile Packaging
         H[dist/\nstatic build] --> I[android/\nCapacitor wrapper]
     end
@@ -35,8 +35,9 @@ flowchart LR
 3. **Conversation manager (`conversations.html`)**
    - Left sidebar lists groups with rename/delete/regenerate buttons; the right column renders cards grouped by folder.
    - Enable “multi-select” to batch move/delete/export conversations; selected items highlight and update the counter/CTA state.
+   - When starting a brand-new chat from the drawer, the “New chat” modal lets you either pick an existing group from a dropdown or type a new group name; choosing an existing group no longer forces you to fill the name field again, and the “please enter group name” prompt only appears if neither a group is selected nor a new name is provided.
 4. **Settings center (`config.html`)**
-   - Stepper: pick a model → tune parameters → configure web search → manage system prompt & privacy notes.
+   - A single-page form to pick a model, tune parameters, configure web search, and manage the system prompt & privacy notes.
    - A live summary card mirrors saved values (model/params/web/system); a privacy panel reports local storage stats.
 5. **Android packaging**
    - `npm run build` → `npx cap copy` → open `android/` in Android Studio to run or build APK/AAB.
