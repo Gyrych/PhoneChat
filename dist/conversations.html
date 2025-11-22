@@ -39,39 +39,71 @@
         </header>
         <main>
             <section class="conversation-layout">
+                <!-- 左侧控制面板 -->
                 <aside class="conversation-sidebar">
-                    <div class="group-controls">
-                        <label class="config-label">创建分组</label>
-                        <div class="config-grid">
-                            <input id="newGroupName" placeholder="新分组名" />
-                            <button id="createGroupBtn" class="drawer-primary">创建分组</button>
+                    <!-- 分组管理区 -->
+                    <div class="sidebar-section">
+                        <div class="sidebar-section-header">
+                            <i class="fas fa-folder-tree"></i>
+                            <h3>分组管理</h3>
                         </div>
-                        <button id="saveCurrentBtn" class="drawer-primary save-current-btn">保存当前会话</button>
+                        <div class="sidebar-section-content">
+                            <div class="input-group">
+                                <input id="newGroupName" placeholder="输入新分组名称" />
+                                <button id="createGroupBtn" class="sidebar-btn sidebar-btn-primary">
+                                    <i class="fas fa-plus"></i> 创建
+                                </button>
+                            </div>
+                        </div>
                     </div>
-                    <div id="groupListPanel" class="group-list-panel"></div>
-                    <div class="privacy-panel">
-                        <strong>数据安全说明</strong>
-                        <p>所有会话、分组与记忆都保存在本地浏览器 / App 内，可随时导出或删除。</p>
-                        <button id="exportAllBtn" class="drawer-primary">导出全部会话</button>
+
+                    <!-- 分组列表区 -->
+                    <div class="sidebar-section sidebar-section-scroll">
+                        <div class="sidebar-section-header">
+                            <i class="fas fa-list"></i>
+                            <h3>全部分组</h3>
+                        </div>
+                        <div id="groupListPanel" class="group-list-panel"></div>
+                    </div>
+
+                    <!-- 快捷操作区 -->
+                    <div class="sidebar-section">
+                        <div class="sidebar-section-header">
+                            <i class="fas fa-bolt"></i>
+                            <h3>快捷操作</h3>
+                        </div>
+                        <div class="sidebar-section-content">
+                            <button id="saveCurrentBtn" class="sidebar-btn sidebar-btn-success">
+                                <i class="fas fa-save"></i> 保存当前会话
+                            </button>
+                            <button id="exportAllBtn" class="sidebar-btn sidebar-btn-info">
+                                <i class="fas fa-download"></i> 导出全部会话
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 数据安全说明 -->
+                    <div class="sidebar-section sidebar-footer">
+                        <div class="privacy-note">
+                            <i class="fas fa-shield-alt"></i>
+                            <p>所有数据仅保存在本地浏览器/App内，不会上传到任何服务器</p>
+                        </div>
                     </div>
                 </aside>
+
+                <!-- 右侧内容区 -->
                 <section class="conversation-content">
-                    <div class="bulk-actions">
-                        <label class="pill">
-                            <input type="checkbox" id="multiSelectToggle" />
-                            启用多选
-                        </label>
-                        <span id="selectedCountLabel">已选择 0 项</span>
-                        <div class="bulk-buttons">
-                            <button id="bulkMoveBtn" class="bulk-btn" disabled>移动到分组</button>
-                            <button id="bulkDeleteBtn" class="bulk-btn bulk-btn-danger" disabled>批量删除</button>
-                            <button id="bulkExportBtn" class="bulk-btn" disabled>批量导出</button>
-                        </div>
-                    </div>
+                    <!-- 会话卡片列表 -->
                     <div id="conversationsList" class="conversation-cards"></div>
+
+                    <!-- 空状态提示 -->
                     <div id="conversationsEmptyState" class="empty-state" style="display:none;">
-                        <img src="icon/logo.png" alt="FreeChat" />
-                        <p>暂未保存会话，立即开始新的私密对话吧。</p>
+                        <i class="fas fa-comments" style="font-size: 4rem; color: var(--muted); margin-bottom: 16px;"></i>
+                        <h3>暂无保存的会话</h3>
+                        <p>开始新的对话后，会话将自动保存到这里</p>
+                        <button id="startNewChatBtn" class="drawer-primary" style="margin-top: 16px;">
+                            <i class="fas fa-plus"></i> 开始新会话
+                        </button>
                     </div>
                 </section>
             </section>
@@ -233,6 +265,19 @@
                     }
                 } catch (e) { console.error('newChatBtn 异常：', e); }
             });
+
+            // 空状态的开始新会话按钮
+            const startNewChatBtn = document.getElementById('startNewChatBtn');
+            if (startNewChatBtn) {
+                startNewChatBtn.addEventListener('click', async () => {
+                    try {
+                        const confirmed = await showConfirmModal('确定要开始新会话吗？');
+                        if (confirmed) {
+                            openNewChatGroupModal();
+                        }
+                    } catch (e) { console.error('startNewChatBtn 异常：', e); }
+                });
+            }
 
             // 日志导出与清空按钮
             try {
