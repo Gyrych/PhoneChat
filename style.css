@@ -559,7 +559,7 @@
         overflow-y: auto;
     }
     .message-container {
-        padding-bottom: clamp(140px, 28vh, 220px);
+        padding-bottom: clamp(20px, 3vh, 30px);
     }
 }
 
@@ -2675,6 +2675,100 @@ body.drawer-open .conversations-fab {
 .group-rename-btn:active,
 .group-delete-btn:active,
 .group-regen-btn:active {
+    transform: translateY(0);
+}
+
+/* 会话操作按钮 - 统一复古风格（与分组按钮一致） */
+.conv-action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 6px;
+    border: 2px solid;
+    cursor: pointer;
+    font-size: 0.95rem;
+    transition: all 0.2s;
+}
+
+/* 加载按钮 - 蓝色 */
+.conv-action-load {
+    background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+    border-color: #2471a3;
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 2px 6px rgba(52, 152, 219, 0.3);
+}
+
+.conv-action-load:hover {
+    background: linear-gradient(135deg, #5dade2 0%, #3498db 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(52, 152, 219, 0.4);
+}
+
+/* 重命名按钮 - 米黄色（与分组重命名一致） */
+.conv-action-rename {
+    background: linear-gradient(135deg, #fefaf0 0%, #fdf5e6 100%);
+    border-color: rgba(139, 117, 77, 0.4);
+    color: #5a4a3a;
+    box-shadow: 0 2px 4px rgba(139, 117, 77, 0.2);
+}
+
+.conv-action-rename:hover {
+    background: linear-gradient(135deg, #fff9e6 0%, #fef5dc 100%);
+    border-color: #8b754d;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(139, 117, 77, 0.3);
+}
+
+/* 移动按钮 - 橙色 */
+.conv-action-move {
+    background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+    border-color: #d68910;
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 2px 6px rgba(243, 156, 18, 0.3);
+}
+
+.conv-action-move:hover {
+    background: linear-gradient(135deg, #f5b041 0%, #f39c12 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(243, 156, 18, 0.4);
+}
+
+/* 重新摘要按钮 - 绿色（与分组记忆重生成一致） */
+.conv-action-regen {
+    background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+    border-color: #1e8449;
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 2px 6px rgba(39, 174, 96, 0.3);
+}
+
+.conv-action-regen:hover {
+    background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(39, 174, 96, 0.4);
+}
+
+/* 删除按钮 - 红色（与分组删除一致） */
+.conv-action-delete {
+    background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+    border-color: #a93226;
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 2px 6px rgba(231, 76, 60, 0.3);
+}
+
+.conv-action-delete:hover {
+    background: linear-gradient(135deg, #ec7063 0%, #e74c3c 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(231, 76, 60, 0.4);
+}
+
+/* 会话按钮按下效果 */
+.conv-action-btn:active {
     transform: translateY(0);
 }
 

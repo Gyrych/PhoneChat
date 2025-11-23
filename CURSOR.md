@@ -124,5 +124,46 @@ FreeChat 是一个纯静态、本地存储的聊天界面：新版 UI 采用统�
     - **上部分组管理区域**：包含新建分组功能、分组列表展示，每个分组卡片显示分组名称、会话数量、记忆展示（可折叠）、重命名按钮、记忆重生成按钮，移除分组删除按钮。
     - **下部会话管理区域**：包含新建会话、保存当前会话、导出全部按钮，会话列表按分组归类并支持折叠，每个会话卡片显示会话名称、模型名称、时间戳、消息数量、记忆展示（可折叠）、加载按钮、重命名按钮、移动按钮、删除按钮、记忆重生成按钮。
     - 新增`.group-management-section`和`.conversation-management-section`样式类，统一按钮样式（`.section-btn-primary`、`.section-btn-success`、`.section-btn-info`），优化移动端响应式布局。
+- 2025-11-23：**历史会话加载与UI细节优化**
+  - **禁用历史会话打字机动画**：`renderMessages()` 函数新增 `skipTypewriterAnimation` 参数，在从会话管理页面加载历史会话时传入 `true`，避免历史消息重新播放打字机动画，提升用户体验。该参数同步传递给 `renderStickyNotePair()` 函数，仅在实时接收新消息时启用打字机动画。
+  - **优化便签纸底部间距**：将 `.message-container` 的 `padding-bottom` 从 `clamp(140px, 28vh, 220px)` 减小为 `clamp(60px, 15vh, 100px)`，减少最后一张便签纸与输入框之间的过大空白距离，使页面布局更紧凑合理。
+  - **简化会话管理页面按钮**：移除会话管理页面的"新建会话"、"保存当前会话"、"导出全部"按钮以及右上角的"新建"按钮，空状态下的"开始新会话"按钮改为直接跳转回主页面，避免功能重复，简化用户操作流程。
+  - **统一会话操作按钮样式**：为会话卡片中的操作按钮添加复古风格图标按钮，与分组管理按钮UI风格一致：加载（蓝色、`fa-download`）、重命名（米黄色、`fa-edit`）、移动（橙色、`fa-folder-open`）、重新摘要（绿色、`fa-sync-alt`）、删除（红色、`fa-trash`），所有按钮采用 36×36px 圆角方形、渐变背景、立体阴影，悬停时上浮2px并加深阴影，提升视觉一致性和交互反馈。
+
+- 2025-11-23：**用户体验优化（问题修复）**
+  - **修复加载会话时的打字机动画问题**：加载历史会话时，所有历史消息不再播放打字机动画，而是直接显示完整内容。通过在`loadConversation()`函数中设置`window._justLoadedConversation`标志，并在`renderMessages()`和`renderStickyNotePair()`函数中检查此标志来跳过打字机动画。
+  - **优化便签纸底部间距**：将`.message-container`的`padding-bottom`从`clamp(60px, 15vh, 100px)`调整为`clamp(20px, 3vh, 30px)`，减少最后一张便签纸与输入框之间的空白距离，使界面更紧凑。
+  - **统一会话管理页面新建会话按钮逻辑**：会话管理页面的新建会话按钮现在与主页面侧边栏的新建会话按钮逻辑保持一致，直接打开分组选择模态框，不再显示确认对话框。修改了`newConversationBtn`和`startNewChatBtn`的事件处理，去掉了`showConfirmModal`步骤，直接调用`openNewChatGroupModal()`。
+  - **简化会话管理页面按钮**：移除了会话管理页面右上角的"新建会话"按钮、"保存当前会话"按钮和"导出全部"按钮，只保留会话管理区域内的"新建会话"按钮，使界面更简洁明了。
+
+- 2025-11-23：**完善会话管理页面新建会话功能**
+  - **问题原因**：会话管理页面的`openNewChatGroupModal()`函数实现与主页面不一致，缺少完整的模态框HTML和相关逻辑，导致新建会话功能不完整。
+  - **解决方案**：从主页面（index.html）完整复制新建会话模态框的HTML结构和所有相关JavaScript函数到会话管理页面（conversations.html），确保两个页面的新建会话功能完全一致。
+  - **新增内容**：
+    - 添加完整的新建会话模态框HTML，包含：已有分组下拉选择、新建分组名称输入框、会话名称输入框、模型选择下拉、确认和取消按钮
+    - 添加`openNewChatGroupModal()`函数：显示模态框并填充分组和模型下拉列表
+    - 添加`closeNewChatGroupModal()`函数：关闭模态框
+    - 添加`populateNewChatModelSelect()`函数：从localStorage缓存读取模型列表并填充到下拉框
+    - 添加`populateExistingGroupSelect()`函数：读取已有分组并填充到下拉框，根据用户选择显示/隐藏新建分组输入框
+    - 添加模态框确认按钮事件：处理用户输入，创建或选择分组，创建新会话条目并保存到localStorage，最后跳转到主页面
+  - **效果**：现在会话管理页面的"新建会话"按钮与主页面侧边栏的"新建会话"按钮功能完全一致，用户体验统一。
+
+- 2025-11-23：**完善历史会话加载时的打字机动画禁用**
+  - **问题**：在Markdown库加载完成后重新渲染历史消息时，没有传递`skipTypewriterAnimation`参数，导致历史消息可能会再次播放打字机动画。
+  - **修复**：在`ensureMarkdownLibs().then()`回调中调用`renderMessages(true)`，确保Markdown库加载完成后重新渲染历史消息时也跳过打字机动画。
+  - **效果**：现在所有加载历史会话的场景（页面初始化、从抽屉加载会话、新建会话）都完全禁用打字机动画，历史消息直接显示完整内容，提升用户体验。
+
+- 2025-11-23：**修复流式输出时历史消息闪烁和重新加载问题**
+  - **问题原因**：
+    1. 在`sendMessage()`函数中多次调用`renderMessages()`，每次调用都会清空整个消息容器（`messageContainer.innerHTML = ''`）并重新渲染所有消息，导致历史消息闪烁或重新播放打字机动画
+    2. `doUpdateLastAssistantMessage()`函数查找的是`.message.ai-message`元素，但在便签纸模式下AI回复在`.sticky-answer`中，找不到元素时会调用`renderMessages()`导致历史消息被清空
+    3. 存在重复的`doUpdateLastAssistantMessage()`函数定义
+    4. `renderStickyNotePair()`函数中的打字机动画判断逻辑不完善：只判断`!isLastMessage`导致在流式输出时重新渲染历史消息会应用打字机动画
+  - **解决方案**：
+    1. 优化`sendMessage()`函数中的渲染逻辑：合并两次`renderMessages()`调用为一次，在添加用户消息和空AI消息后只渲染一次；流式输出结束后注释掉`renderMessages()`调用，因为内容已通过`doUpdateLastAssistantMessage()`实时更新
+    2. 修改`doUpdateLastAssistantMessage()`函数，优先查找便签纸模式的`.sticky-answer`元素，找不到时静默返回而不是调用`renderMessages()`
+    3. 删除重复的`doUpdateLastAssistantMessage()`函数定义
+    4. 修改`renderStickyNotePair()`函数中的打字机动画判断逻辑，增加`!isStreaming`条件（检查`window._sendingInProgress`标志），确保在流式输出过程中重新渲染时所有历史消息都不应用打字机动画
+  - **效果**：流式输出过程中，历史消息保持可见且不会重新加载或重新播放打字机动画，只有最后一条AI消息实时更新，用户体验大幅提升。
 
 

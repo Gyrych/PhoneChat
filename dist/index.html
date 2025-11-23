@@ -521,8 +521,9 @@
             // 后台预加载 Markdown 库以降低首次渲染延迟（非阻塞）
             try {
                 // 非阻塞加载；为保证历史消息能正确渲染 Markdown，加载完成后再尝试重渲染一次历史消息
+                // 注意：这里也要传递 true 跳过打字机动画，因为是重新渲染历史消息
                 ensureMarkdownLibs()
-                    .then(() => { try { renderMessages(); } catch(_) {} })
+                    .then(() => { try { renderMessages(true); } catch(_) {} })
                     .catch(() => {});
             } catch (_) {}
             try { updateCurrentModelBadge(); } catch (e) { /* 忽略徽标更新异常 */ }
@@ -563,7 +564,7 @@
                 });
             }
             loadConversation();
-            renderMessages();
+            renderMessages(true); // 加载历史会话时禁用打字机动画
             renderWelcomeIfEmpty();
             try {
                 autoResizeTextarea(messageInput);
@@ -893,7 +894,7 @@
                             localStorage.setItem('deepseekConversationId', c.id);
                             if (c.model) localStorage.setItem('chatModel', c.model);
                             // 将 deepseekConversation 写入内存并更新 UI
-                            loadConversation(); renderMessages(); renderWelcomeIfEmpty();
+                            loadConversation(); renderMessages(true); renderWelcomeIfEmpty();
                             try { renderSessionTitle(); } catch (_) {}
                             closeDrawer();
                         } catch (e) { console.error('加载会话失败：', e); }
@@ -1959,16 +1960,19 @@
         /**
          * 渲染消息列表（复古便签纸风格，问答配对）
          * 功能：将当前会话中的消息渲染为便签纸样式，用户问题和AI回复配对显示在同一张便签上
-         * 参数：无
+         * 参数：skipTypewriterAnimation - 是否跳过打字机动画（加载历史会话时应为true）
          * 返回值：无
          */
-        function renderMessages() {
+        function renderMessages(skipTypewriterAnimation = false) {
             // 取消所有进行中的打字动画
             cancelAllTypingAnimations();
             messageContainer.innerHTML = '';
             // 为了减少移动端 DOM 节点数量，限制一次渲染的消息数
             const maxRender = Math.max(20, Number(localStorage.getItem('freechat.ui.maxRenderedMessages') || 200));
             const start = Math.max(0, currentConversation.length - maxRender);
+
+            // 如果刚加载会话，跳过打字机动画
+            const skipAnimation = skipTypewriterAnimation || !!window._justLoadedConversation;
 
             // 问答配对逻辑：遍历消息，识别user-assistant对
             let i = start;
@@ -1978,7 +1982,7 @@
 
                 // 情况1：user消息后紧跟assistant消息 -> 配对为一张便签
                 if (message.role === 'user' && nextMessage && nextMessage.role === 'assistant') {
-                    renderStickyNotePair(message, i, nextMessage, i + 1);
+                    renderStickyNotePair(message, i, nextMessage, i + 1, skipAnimation);
                     i += 2; // 跳过已配对的两条消息
                 }
                 // 情况2：单独的消息（未配对）-> 使用传统样式
@@ -1987,6 +1991,12 @@
                     i += 1;
                 }
             }
+
+            // 渲染完成后清除标志
+            if (window._justLoadedConversation) {
+                delete window._justLoadedConversation;
+            }
+
             scrollToBottom();
         }
 
@@ -1996,8 +2006,9 @@
          * @param {Number} userIdx - 用户消息索引
          * @param {Object} assistantMsg - AI回复消息对象
          * @param {Number} assistantIdx - AI回复消息索引
+         * @param {Boolean} skipTypewriterAnimation - 是否跳过打字机动画
          */
-        function renderStickyNotePair(userMsg, userIdx, assistantMsg, assistantIdx) {
+        function renderStickyNotePair(userMsg, userIdx, assistantMsg, assistantIdx, skipTypewriterAnimation = false) {
             // 创建便签卡片容器
             const stickyCard = document.createElement('div');
             stickyCard.className = 'sticky-note-card';
@@ -2052,10 +2063,15 @@
                 const contentHolder = document.createElement('div');
                 answerDiv.appendChild(contentHolder);
 
-                // 应用打字机动画（仅对历史消息，不对最后一条正在生成的消息）
+                // 应用打字机动画逻辑：
+                // 1. 加载历史会话时（skipTypewriterAnimation=true）：所有消息都不应用打字机动画
+                // 2. 正在流式输出时（window._sendingInProgress=true）：所有消息都不应用打字机动画，避免历史消息重新播放
+                // 3. 正常渲染时：除了最后一条消息外，其他历史消息可以应用打字机动画（如果用户启用了该功能）
                 const isLastMessage = assistantIdx === currentConversation.length - 1;
                 const enableTyping = localStorage.getItem('freechat.ui.typewriterAnimation') !== 'false'; // 默认启用
-                const shouldAnimate = enableTyping && !isLastMessage; // 不对最后一条应用动画
+                const isStreaming = !!window._sendingInProgress; // 是否正在流式输出
+                // 只有在非加载、非流式输出、非最后一条消息时才应用打字机动画
+                const shouldAnimate = enableTyping && !isLastMessage && !skipTypewriterAnimation && !isStreaming;
 
                 if (shouldAnimate) {
                     // 使用打字机动画显示内容
@@ -2325,8 +2341,6 @@
                 } catch (e) {
                     console.error('自动创建持久会话失败：', e);
                 }
-                renderMessages();
-                renderWelcomeIfEmpty();
                 // 节流写回持久会话
                 scheduleUpsertSavedConversation();
 
@@ -2344,7 +2358,9 @@
                 currentConversation.push(aiMsgObj);
                 saveConversation();
                 scheduleUpsertSavedConversation();
+                // 只渲染一次：添加用户消息和空的AI消息后统一渲染，避免重复渲染导致历史消息闪烁
                 renderMessages();
+                renderWelcomeIfEmpty();
 
                 // 记录日志：开始一个聊天请求事件（请求体稍后在 fetch 中补全）
                 let _chatEvtId = null;
@@ -2366,7 +2382,8 @@
                     if (sendBtn) sendBtn.style.display = 'flex';
                     hideStatus();
                     saveConversation();
-                    renderMessages();
+                    // 流式输出结束后不需要再次全量渲染，因为内容已经通过 doUpdateLastAssistantMessage 实时更新
+                    // renderMessages(); // 注释掉，避免重新渲染导致历史消息闪烁
                     renderWelcomeIfEmpty();
                 } catch (_) {}
                 if (sendBtn) sendBtn.disabled = false;
@@ -2899,10 +2916,23 @@
         window._pendingAssistantUpdate = null;
         window._pendingAssistantUpdateScheduled = false;
         function doUpdateLastAssistantMessage(content) {
-            const nodes = messageContainer.querySelectorAll('.message.ai-message');
-            const last = nodes && nodes.length ? nodes[nodes.length - 1] : null;
+            // 优先查找便签纸模式下的最后一条AI回复
+            const stickyCards = messageContainer.querySelectorAll('.sticky-note-card');
+            let last = null;
+
+            if (stickyCards && stickyCards.length > 0) {
+                // 便签纸模式：找到最后一张便签的 .sticky-answer
+                const lastCard = stickyCards[stickyCards.length - 1];
+                last = lastCard.querySelector('.sticky-answer');
+            } else {
+                // 传统模式：查找 .message.ai-message
+                const nodes = messageContainer.querySelectorAll('.message.ai-message');
+                last = nodes && nodes.length ? nodes[nodes.length - 1] : null;
+            }
+
             if (!last) {
-                renderMessages();
+                // 如果找不到最后一条消息，可能是渲染还未完成，静默返回不重新渲染
+                console.warn('doUpdateLastAssistantMessage: 未找到最后一条AI消息元素');
                 return;
             }
             try {
@@ -3013,149 +3043,7 @@
             scrollToBottom();
         }
 
-        // 执行实际的最后一条助手消息更新（可被 requestAnimationFrame 调度）
-        function doUpdateLastAssistantMessage(content) {
-            const nodes = messageContainer.querySelectorAll('.message.ai-message');
-            const last = nodes && nodes.length ? nodes[nodes.length - 1] : null;
-            if (!last) {
-                renderMessages();
-                return;
-            }
-            try {
-                const rawHtml = (window.marked ? marked.parse(content || '') : (content || ''));
-                last.innerHTML = (window.DOMPurify ? DOMPurify.sanitize(rawHtml) : rawHtml);
-            } catch (e) {
-                last.textContent = content;
-            }
-
-            const existingActions = last.querySelector('.message-actions');
-            if (existingActions) existingActions.remove();
-
-            // 若已存在思考过程容器，移除以避免重复追加
-            const existingReasoning = last.querySelector('.reasoning-block');
-            if (existingReasoning) existingReasoning.remove();
-            // 若已存在引用容器，移除以避免重复追加
-            const existingCitations = last.querySelector('.citations');
-            if (existingCitations) existingCitations.remove();
-
-            const actionsDiv = document.createElement('div');
-            actionsDiv.className = 'message-actions';
-
-            // 在更新最后一条助手消息时，查找该消息对象的 model 字段用于显示（回退到全局 MODEL_NAME）
-            try {
-                let lastAssistantIndexTemp = -1;
-                for (let i = currentConversation.length - 1; i >= 0; i--) {
-                    if (currentConversation[i] && currentConversation[i].role === 'assistant') { lastAssistantIndexTemp = i; break; }
-                }
-                if (lastAssistantIndexTemp !== -1) {
-                    const m = currentConversation[lastAssistantIndexTemp];
-                    const modelLabel = document.createElement('div');
-                    modelLabel.className = 'message-model';
-                    modelLabel.textContent = (m && m.model) ? m.model : (window.MODEL_NAME || 'minimax/minimax-m2:free');
-                    actionsDiv.appendChild(modelLabel);
-                }
-            } catch (_) {}
-
-            const copyBtn = document.createElement('button');
-            copyBtn.className = 'action-btn';
-            copyBtn.innerHTML = '<i class="fas fa-copy"></i>';
-            copyBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                copyToClipboard(content);
-            });
-
-            const deleteBtn = document.createElement('button');
-            deleteBtn.className = 'action-btn';
-            deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
-            deleteBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                // 计算当前会话中最后一个 assistant 消息的索引并删除，避免依赖外部闭包变量导致引用错误
-                let lastAssistantIndex = -1;
-                for (let i = currentConversation.length - 1; i >= 0; i--) {
-                    if (currentConversation[i] && currentConversation[i].role === 'assistant') {
-                        lastAssistantIndex = i;
-                        break;
-                    }
-                }
-                if (lastAssistantIndex !== -1) deleteMessage(lastAssistantIndex);
-            });
-
-            actionsDiv.appendChild(copyBtn);
-            actionsDiv.appendChild(deleteBtn);
-            last.appendChild(actionsDiv);
-            // 将实时更新的 assistant 内容保存到 localStorage，防止在生成过程中页面刷新/跳转导致内容丢失
-            try { saveConversation(); } catch (e) { console.error('保存会话失败：', e); }
-            // 节流写回持久会话
-            try { scheduleUpsertSavedConversation(); } catch (e) { /* 忽略上报 */ }
-
-            // 渲染思考过程（仅当存在思考内容时显示，默认展开，置于正文前）
-            try {
-                const rText = (window._currentAssistantReasoning || '').trim();
-                const showReasoning = (window._reasoningEnabledSend !== false);
-                if (rText && showReasoning) {
-                    const reasoningBlock = document.createElement('div');
-                    reasoningBlock.className = 'reasoning-block';
-
-                    const toggleBtn = document.createElement('button');
-                    toggleBtn.className = 'reasoning-toggle';
-                    const collapsed = !!window._reasoningCollapsed;
-                    toggleBtn.textContent = collapsed ? '展开思考过程' : '收起思考过程';
-
-                    const contentDiv = document.createElement('div');
-                    contentDiv.className = 'reasoning-content';
-                    try {
-                        const rHtml = (window.marked ? marked.parse(rText) : rText);
-                        contentDiv.innerHTML = (window.DOMPurify ? DOMPurify.sanitize(rHtml) : rHtml);
-                    } catch (_) {
-                        contentDiv.textContent = rText;
-                    }
-                    contentDiv.style.display = collapsed ? 'none' : 'block';
-
-                    toggleBtn.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        const willShow = (contentDiv.style.display === 'none');
-                        contentDiv.style.display = willShow ? 'block' : 'none';
-                        window._reasoningCollapsed = !willShow;
-                        toggleBtn.textContent = willShow ? '收起思考过程' : '展开思考过程';
-                    });
-
-                    reasoningBlock.appendChild(toggleBtn);
-                    reasoningBlock.appendChild(contentDiv);
-                    // 插入到消息内容最前面（位于正文之前）
-                    last.insertBefore(reasoningBlock, last.firstChild);
-                }
-            } catch (_) { /* 忽略思考过程渲染异常 */ }
-            // 渲染引用来源（若有）
-            try {
-                // 取出会话中最后一个 assistant 对象的 citations（仅在消息内部追加，且避免模型正文包含“参考来源”时重复）
-                let lastAssistantIndex = -1;
-                for (let i = currentConversation.length - 1; i >= 0; i--) {
-                    if (currentConversation[i] && currentConversation[i].role === 'assistant') { lastAssistantIndex = i; break; }
-                }
-                if (lastAssistantIndex !== -1) {
-                    const msg = currentConversation[lastAssistantIndex];
-                    const anns = (msg.citations || []).filter(x => x && x.type === 'url_citation' && x.url_citation && x.url_citation.url);
-                    try {
-                        const citeBlock = buildCitationsElement(anns);
-                        if (citeBlock) {
-                            try {
-                                const contentText = (last && last.innerText) ? last.innerText : '';
-                                if (/参考来源/.test(contentText)) {
-                                    // 如果模型正文已经包含参考来源，跳过追加结构化引用
-                                } else {
-                                    if (!last.querySelector('.citations')) {
-                                        last.appendChild(citeBlock);
-                                    }
-                                }
-                            } catch (_) {
-                                try { last.appendChild(citeBlock); } catch (_) {}
-                            }
-                        }
-                    } catch(_) {}
-                }
-            } catch (_) { /* 忽略引用渲染异常 */ }
-            scrollToBottom();
-        }
+        // 重复的函数定义已删除，使用上面的 doUpdateLastAssistantMessage 函数
 
         function updateLastAssistantMessage(content) {
             // 合并到下一帧执行，防止流式高频更新触发多次重绘
@@ -3648,7 +3536,7 @@
                             } catch (_) {}
                         } catch (_) {}
                         // 刷新界面与抽屉列表
-                        loadConversation(); renderMessages(); renderWelcomeIfEmpty();
+                        loadConversation(); renderMessages(true); renderWelcomeIfEmpty();
                         try { renderSessionTitle(); } catch (_) {}
                         renderDrawerConversationsList();
                         closeNewChatGroupModal(); closeDrawer();
