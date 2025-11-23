@@ -38,74 +38,54 @@
             </div>
         </header>
         <main>
-            <section class="conversation-layout">
-                <!-- 左侧控制面板 -->
-                <aside class="conversation-sidebar">
-                    <!-- 分组管理区 -->
-                    <div class="sidebar-section">
-                        <div class="sidebar-section-header">
-                            <i class="fas fa-folder-tree"></i>
-                            <h3>分组管理</h3>
-                        </div>
-                        <div class="sidebar-section-content">
-                            <div class="input-group">
-                                <input id="newGroupName" placeholder="输入新分组名称" />
-                                <button id="createGroupBtn" class="sidebar-btn sidebar-btn-primary">
-                                    <i class="fas fa-plus"></i> 创建
-                                </button>
-                            </div>
-                        </div>
+            <!-- 上部：分组管理区域 -->
+            <section class="group-management-section">
+                <header class="section-header">
+                    <div class="section-title">
+                        <i class="fas fa-folder-tree"></i>
+                        <h2>分组管理</h2>
                     </div>
-
-                    <!-- 分组列表区 -->
-                    <div class="sidebar-section sidebar-section-scroll">
-                        <div class="sidebar-section-header">
-                            <i class="fas fa-list"></i>
-                            <h3>全部分组</h3>
-                        </div>
-                        <div id="groupListPanel" class="group-list-panel"></div>
-                    </div>
-
-                    <!-- 快捷操作区 -->
-                    <div class="sidebar-section">
-                        <div class="sidebar-section-header">
-                            <i class="fas fa-bolt"></i>
-                            <h3>快捷操作</h3>
-                        </div>
-                        <div class="sidebar-section-content">
-                            <button id="saveCurrentBtn" class="sidebar-btn sidebar-btn-success">
-                                <i class="fas fa-save"></i> 保存当前会话
-                            </button>
-                            <button id="exportAllBtn" class="sidebar-btn sidebar-btn-info">
-                                <i class="fas fa-download"></i> 导出全部会话
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- 数据安全说明 -->
-                    <div class="sidebar-section sidebar-footer">
-                        <div class="privacy-note">
-                            <i class="fas fa-shield-alt"></i>
-                            <p>所有数据仅保存在本地浏览器/App内，不会上传到任何服务器</p>
-                        </div>
-                    </div>
-                </aside>
-
-                <!-- 右侧内容区 -->
-                <section class="conversation-content">
-                    <!-- 会话卡片列表 -->
-                    <div id="conversationsList" class="conversation-cards"></div>
-
-                    <!-- 空状态提示 -->
-                    <div id="conversationsEmptyState" class="empty-state" style="display:none;">
-                        <i class="fas fa-comments" style="font-size: 4rem; color: var(--muted); margin-bottom: 16px;"></i>
-                        <h3>暂无保存的会话</h3>
-                        <p>开始新的对话后，会话将自动保存到这里</p>
-                        <button id="startNewChatBtn" class="drawer-primary" style="margin-top: 16px;">
-                            <i class="fas fa-plus"></i> 开始新会话
+                    <div class="section-actions">
+                        <input id="newGroupName" placeholder="输入新分组名称" class="section-input" />
+                        <button id="createGroupBtn" class="section-btn section-btn-primary">
+                            <i class="fas fa-plus"></i> 新建分组
                         </button>
                     </div>
-                </section>
+                </header>
+                <div id="groupListPanel" class="group-list"></div>
+            </section>
+
+            <!-- 下部：会话管理区域 -->
+            <section class="conversation-management-section">
+                <header class="section-header">
+                    <div class="section-title">
+                        <i class="fas fa-comments"></i>
+                        <h2>会话管理</h2>
+                    </div>
+                    <div class="section-actions">
+                        <button id="newChatBtn" class="section-btn section-btn-primary">
+                            <i class="fas fa-plus"></i> 新建会话
+                        </button>
+                        <button id="saveCurrentBtn" class="section-btn section-btn-success">
+                            <i class="fas fa-save"></i> 保存当前会话
+                        </button>
+                        <button id="exportAllBtn" class="section-btn section-btn-info">
+                            <i class="fas fa-download"></i> 导出全部
+                        </button>
+                    </div>
+                </header>
+                <!-- 会话列表（按分组归类） -->
+                <div id="conversationsList" class="conversation-list"></div>
+
+                <!-- 空状态提示 -->
+                <div id="conversationsEmptyState" class="empty-state" style="display:none;">
+                    <i class="fas fa-comments" style="font-size: 4rem; color: var(--muted); margin-bottom: 16px;"></i>
+                    <h3>暂无保存的会话</h3>
+                    <p>开始新的对话后，会话将自动保存到这里</p>
+                    <button id="startNewChatBtn" class="section-btn section-btn-primary" style="margin-top: 16px;">
+                        <i class="fas fa-plus"></i> 开始新会话
+                    </button>
+                </div>
             </section>
         </main>
     </div>
@@ -798,13 +778,24 @@
             });
             const buildGroupSection = (groupMeta, convs) => {
                 if (!convs.length && groupMeta) return;
-                const section = document.createElement('div');
+                const section = document.createElement('details');
                 section.className = 'group-panel';
-                const header = document.createElement('header');
+                section.open = true;
+
+                const summary = document.createElement('summary');
+                summary.style.cursor = 'pointer';
+                summary.style.display = 'flex';
+                summary.style.justifyContent = 'space-between';
+                summary.style.alignItems = 'center';
+                summary.style.padding = '8px 0';
+                summary.style.fontWeight = '600';
+                summary.style.color = '#2a2520';
+
                 const info = document.createElement('div');
-                info.innerHTML = `<strong>${groupMeta ? groupMeta.name : '未分组'}</strong><small>${convs.length} 个会话</small>`;
-                header.appendChild(info);
-                section.appendChild(header);
+                info.innerHTML = `<i class="fas fa-folder"></i> ${groupMeta ? groupMeta.name : '未分组'} <small style="color: #666;">(${convs.length} 个会话)</small>`;
+                summary.appendChild(info);
+                section.appendChild(summary);
+
                 if (!convs.length) {
                     const empty = document.createElement('div');
                     empty.className = 'empty-state';
@@ -813,7 +804,14 @@
                     section.appendChild(empty);
                     return section;
                 }
-                convs.forEach(conv => section.appendChild(createConversationCard(conv)));
+
+                const convList = document.createElement('div');
+                convList.style.display = 'flex';
+                convList.style.flexDirection = 'column';
+                convList.style.gap = '10px';
+                convList.style.marginTop = '10px';
+                convs.forEach(conv => convList.appendChild(createConversationCard(conv)));
+                section.appendChild(convList);
                 return section;
             };
             groups.forEach(group => {
@@ -932,11 +930,15 @@
                 info.innerHTML = `<strong>${group.name}</strong><small>${convCount} 个会话</small>`;
                 header.appendChild(info);
                 const btnBox = document.createElement('div');
+                btnBox.style.display = 'flex';
+                btnBox.style.gap = '8px';
+
                 const renameBtn = document.createElement('button');
                 renameBtn.className = 'group-rename-btn';
                 renameBtn.innerHTML = '<i class="fas fa-edit"></i>';
                 renameBtn.title = '重命名';
                 renameBtn.addEventListener('click', () => renameGroup(group));
+
                 const regenBtn = document.createElement('button');
                 regenBtn.className = 'group-regen-btn';
                 regenBtn.innerHTML = '<i class="fas fa-sync-alt"></i>';
@@ -947,20 +949,36 @@
                     await updateGroupMemory(group.id);
                     renderConversationsList();
                 });
-                const deleteBtn = document.createElement('button');
-                deleteBtn.className = 'group-delete-btn';
-                deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
-                deleteBtn.title = '删除分组';
-                deleteBtn.addEventListener('click', () => deleteGroupAndMove(group));
+
+                const toggleMemoryBtn = document.createElement('button');
+                toggleMemoryBtn.className = 'group-rename-btn';
+                toggleMemoryBtn.innerHTML = '<i class="fas fa-eye"></i>';
+                toggleMemoryBtn.title = '查看记忆';
+
+                btnBox.appendChild(toggleMemoryBtn);
                 btnBox.appendChild(renameBtn);
                 btnBox.appendChild(regenBtn);
-                btnBox.appendChild(deleteBtn);
                 header.appendChild(btnBox);
                 panel.appendChild(header);
+
                 const summary = document.createElement('div');
                 summary.className = 'conversation-summary-content';
-                summary.textContent = group.memorySummary ? summarizeText(group.memorySummary, 200) : '暂无分组记忆';
+                summary.style.display = 'none';
+                summary.textContent = group.memorySummary ? group.memorySummary : '暂无分组记忆';
                 panel.appendChild(summary);
+
+                toggleMemoryBtn.addEventListener('click', () => {
+                    if (summary.style.display === 'none') {
+                        summary.style.display = 'block';
+                        toggleMemoryBtn.innerHTML = '<i class="fas fa-eye-slash"></i>';
+                        toggleMemoryBtn.title = '隐藏记忆';
+                    } else {
+                        summary.style.display = 'none';
+                        toggleMemoryBtn.innerHTML = '<i class="fas fa-eye"></i>';
+                        toggleMemoryBtn.title = '查看记忆';
+                    }
+                });
+
                 groupListPanel.appendChild(panel);
             });
         }

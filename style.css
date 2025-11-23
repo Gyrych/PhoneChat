@@ -61,7 +61,7 @@
     min-height: 100vh;
     display: flex;
     flex-direction: column;
-    background: radial-gradient(circle at 20% 20%, rgba(79,70,229,0.08), transparent 55%), var(--bg);
+    background: #ffffff;
 }
 
 .app-shell main {
@@ -227,29 +227,16 @@
 }
 
 .chat-drawer {
-    border: 2px solid #7f8c8d;
+    border: 2px solid rgba(200, 200, 200, 0.3);
     border-radius: var(--radius);
-    /* 复古木质纹理背景 */
-    background: linear-gradient(135deg, #8b7355 0%, #6b5846 100%);
-    box-shadow:
-        0 8px 24px rgba(0, 0, 0, 0.4),
-        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    background: #ffffff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
     padding: 18px;
     display: flex;
     flex-direction: column;
     gap: 18px;
     max-height: calc(100vh - 140px);
     position: sticky;
-    /* 木纹纹理 */
-    background-image:
-        repeating-linear-gradient(
-            90deg,
-            transparent,
-            transparent 3px,
-            rgba(0, 0, 0, 0.08) 3px,
-            rgba(0, 0, 0, 0.08) 6px
-        ),
-        linear-gradient(135deg, #8b7355 0%, #6b5846 100%);
     top: 90px;
     overflow: hidden;
 }
@@ -386,27 +373,17 @@
 }
 
 .drawer-item {
-    border: 1px solid rgba(139, 117, 77, 0.3);
+    border: 1px solid rgba(200, 200, 200, 0.3);
     border-radius: 8px;
     padding: 12px;
-    background: linear-gradient(135deg, #fefaf0 0%, #fdf5e6 100%);
+    background: #ffffff;
     display: flex;
     flex-direction: column;
     gap: 6px;
     transition: all 0.2s;
-    box-shadow: 0 2px 4px rgba(139, 117, 77, 0.15);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
     color: #2a2520;
     font-family: 'Georgia', serif;
-    /* 纸张纹理 */
-    background-image:
-        repeating-linear-gradient(
-            0deg,
-            transparent,
-            transparent 2px,
-            rgba(139, 117, 77, 0.02) 2px,
-            rgba(139, 117, 77, 0.02) 4px
-        ),
-        linear-gradient(135deg, #fefaf0 0%, #fdf5e6 100%);
 }
 
 .drawer-item.active {
@@ -428,47 +405,24 @@
 }
 
 .chat-body {
-    border: 2px solid rgba(139, 117, 77, 0.3);
+    border: 2px solid rgba(200, 200, 200, 0.3);
     border-radius: var(--radius);
-    background: linear-gradient(135deg, #fefaf0 0%, #fdf5e6 100%);
-    box-shadow: 0 8px 24px rgba(139, 117, 77, 0.2);
+    background: #ffffff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
     display: flex;
-    /* 纸张纹理 */
-    background-image:
-        repeating-linear-gradient(
-            0deg,
-            transparent,
-            transparent 2px,
-            rgba(139, 117, 77, 0.02) 2px,
-            rgba(139, 117, 77, 0.02) 4px
-        ),
-        linear-gradient(135deg, #fefaf0 0%, #fdf5e6 100%);
     flex-direction: column;
     min-height: 0;
 }
 
 .chat-header {
     padding: 16px 20px;
-    border-bottom: 2px solid rgba(139, 117, 77, 0.3);
+    border-bottom: 2px solid rgba(200, 200, 200, 0.3);
     display: flex;
     justify-content: space-between;
     gap: 16px;
     flex-wrap: wrap;
-    /* 复古便签纸风格 */
-    background: linear-gradient(135deg, #fefaf0 0%, #fdf5e6 100%);
-    box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.5),
-        0 2px 4px rgba(139, 117, 77, 0.1);
-    /* 纸张纹理 */
-    background-image:
-        repeating-linear-gradient(
-            0deg,
-            transparent,
-            transparent 2px,
-            rgba(139, 117, 77, 0.02) 2px,
-            rgba(139, 117, 77, 0.02) 4px
-        ),
-        linear-gradient(135deg, #fefaf0 0%, #fdf5e6 100%);
+    background: #ffffff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 .chat-header .session-meta {
@@ -834,6 +788,127 @@
 }
 
 /* 会话管理两栏布局 */
+/* 新的上下布局样式 */
+.group-management-section,
+.conversation-management-section {
+    border: 1px solid rgba(200, 200, 200, 0.3);
+    border-radius: var(--radius);
+    background: #ffffff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    padding: 20px;
+    margin-bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding-bottom: 16px;
+    border-bottom: 2px solid rgba(200, 200, 200, 0.2);
+}
+
+.section-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: #2a2520;
+}
+
+.section-title h2 {
+    font-size: 1.3rem;
+    font-weight: 600;
+    margin: 0;
+    font-family: 'Georgia', serif;
+}
+
+.section-title i {
+    font-size: 1.5rem;
+    color: #3498db;
+}
+
+.section-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.section-input {
+    padding: 8px 12px;
+    border: 1px solid rgba(200, 200, 200, 0.5);
+    border-radius: 6px;
+    font-size: 0.95rem;
+    font-family: 'Inter', sans-serif;
+    min-width: 200px;
+}
+
+.section-input:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
+.section-btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.section-btn-primary {
+    background: #3498db;
+    color: #ffffff;
+}
+
+.section-btn-primary:hover {
+    background: #2980b9;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(52, 152, 219, 0.3);
+}
+
+.section-btn-success {
+    background: #27ae60;
+    color: #ffffff;
+}
+
+.section-btn-success:hover {
+    background: #229954;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(39, 174, 96, 0.3);
+}
+
+.section-btn-info {
+    background: #3498db;
+    color: #ffffff;
+}
+
+.section-btn-info:hover {
+    background: #2980b9;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(52, 152, 219, 0.3);
+}
+
+.group-list,
+.conversation-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-height: 400px;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
 .conversation-layout {
     display: grid;
     grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
@@ -841,7 +916,7 @@
     min-height: 0;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 768px) {
     .conversation-layout {
         grid-template-columns: 1fr;
     }
@@ -871,55 +946,58 @@
     .conversation-card {
         padding: 14px;
         gap: 12px;
+        max-width: 100%;
     }
     .conversation-card .card-actions {
         justify-content: flex-start;
+        flex-wrap: wrap;
+    }
+    .group-panel {
+        max-width: 100%;
+    }
+    /* 新布局移动端适配 */
+    .section-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .section-actions {
+        width: 100%;
+        flex-direction: column;
+    }
+    .section-input {
+        width: 100%;
+    }
+    .section-btn {
+        width: 100%;
+        justify-content: center;
+    }
+    .group-list,
+    .conversation-list {
+        max-height: 300px;
     }
 }
 
 .conversation-sidebar,
 .conversation-content {
-    border: 2px solid #7f8c8d;
+    border: 2px solid rgba(200, 200, 200, 0.3);
     border-radius: var(--radius);
-    /* 木质背景 */
-    background: linear-gradient(135deg, #8b7355 0%, #6b5846 100%);
-    box-shadow:
-        0 8px 24px rgba(0, 0, 0, 0.4),
-        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    background: #ffffff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
     padding: 20px;
     display: flex;
     flex-direction: column;
     gap: 16px;
-    /* 木纹纹理 */
-    background-image:
-        repeating-linear-gradient(
-            90deg,
-            transparent,
-            transparent 3px,
-            rgba(0, 0, 0, 0.08) 3px,
-            rgba(0, 0, 0, 0.08) 6px
-        ),
-        linear-gradient(135deg, #8b7355 0%, #6b5846 100%);
+    overflow-x: hidden;
+    max-width: 100%;
 }
 
 .group-panel {
-    border: 1px solid rgba(139, 117, 77, 0.3);
+    border: 1px solid rgba(200, 200, 200, 0.3);
     border-radius: 10px;
     padding: 14px;
-    background: linear-gradient(135deg, #fefaf0 0%, #fdf5e6 100%);
-    box-shadow: 0 2px 6px rgba(139, 117, 77, 0.2);
+    background: #ffffff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
     transition: all 0.2s;
-    /* 纸张纹理 */
-    background-image:
-        repeating-linear-gradient(
-            0deg,
-            transparent,
-            transparent 2px,
-            rgba(139, 117, 77, 0.02) 2px,
-            rgba(139, 117, 77, 0.02) 4px
-        ),
-        linear-gradient(135deg, #fefaf0 0%, #fdf5e6 100%);
-    background: rgba(255,255,255,0.5);
 }
 
 .group-panel header {
@@ -930,25 +1008,15 @@
 }
 
 .conversation-card {
-    border: 1px solid rgba(139, 117, 77, 0.3);
+    border: 1px solid rgba(200, 200, 200, 0.3);
     border-radius: 12px;
     padding: 16px;
     display: flex;
     flex-direction: column;
     gap: 10px;
-    background: linear-gradient(135deg, #fefaf0 0%, #fdf5e6 100%);
-    box-shadow: 0 2px 6px rgba(139, 117, 77, 0.2);
+    background: #ffffff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
     transition: all 0.2s;
-    /* 纸张纹理 */
-    background-image:
-        repeating-linear-gradient(
-            0deg,
-            transparent,
-            transparent 2px,
-            rgba(139, 117, 77, 0.02) 2px,
-            rgba(139, 117, 77, 0.02) 4px
-        ),
-        linear-gradient(135deg, #fefaf0 0%, #fdf5e6 100%);
 }
 
 .conversation-card .card-top {
@@ -959,14 +1027,14 @@
 }
 
 .conversation-card.active {
-    border-color: #f39c12;
-    background: linear-gradient(135deg, #fff9e6 0%, #fef5dc 100%);
-    box-shadow: 0 4px 10px rgba(243, 156, 18, 0.3);
+    border-color: #3498db;
+    background: #f0f8ff;
+    box-shadow: 0 2px 6px rgba(52, 152, 219, 0.3);
 }
 
 .conversation-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(139, 117, 77, 0.3);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12);
 }
 
 .conversation-card h3,
@@ -1357,25 +1425,20 @@
     font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", "Open Sans", "Helvetica Neue", sans-serif;
 }
 
+html, body {
+    /* 禁用滚动弹性效果 */
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: touch;
+}
+
 body {
-    /* 复古办公桌背景 */
-    background: linear-gradient(135deg, #d4b896 0%, #c4a882 100%);
+    background: #ffffff;
     color: var(--fg);
     height: 100vh;
     display: flex;
     flex-direction: column;
     font-size: var(--fs-body);
     line-height: var(--lh);
-    /* 桌面纹理 */
-    background-image:
-        repeating-linear-gradient(
-            90deg,
-            transparent,
-            transparent 4px,
-            rgba(0, 0, 0, 0.05) 4px,
-            rgba(0, 0, 0, 0.05) 8px
-        ),
-        linear-gradient(135deg, #d4b896 0%, #c4a882 100%);
 }
 
 /* 刘海/打孔屏安全区适配：为顶部预留安全区，避免品牌标题被摄像头/状态栏遮挡（Android/iOS WebView） */
@@ -1571,7 +1634,10 @@ body.drawer-open .conversations-fab {
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 4px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
 }
 
 /* 消息样式（优化视觉，提升可读性） */
@@ -1672,70 +1738,22 @@ body.drawer-open .conversations-fab {
 .sticky-note-card {
     max-width: 100%;
     width: 100%;
-    margin: 12px 0;
+    margin: 6px 0;
     padding: 24px 28px;
-    background: linear-gradient(135deg, #fefaf0 0%, #fdf5e6 100%);
+    background: #ffffff;
+    border: 1px solid rgba(200, 200, 200, 0.3);
     border-radius: 4px;
-    box-shadow:
-        0 2px 4px rgba(139, 117, 77, 0.15),
-        0 8px 16px rgba(139, 117, 77, 0.12),
-        0 16px 32px rgba(139, 117, 77, 0.08),
-        inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
     position: relative;
-    transform-origin: center top;
-    animation: stickySlideIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
-    /* 纸张纹理效果 */
-    background-image:
-        repeating-linear-gradient(
-            0deg,
-            transparent,
-            transparent 2px,
-            rgba(139, 117, 77, 0.02) 2px,
-            rgba(139, 117, 77, 0.02) 4px
-        ),
-        repeating-linear-gradient(
-            90deg,
-            transparent,
-            transparent 2px,
-            rgba(139, 117, 77, 0.015) 2px,
-            rgba(139, 117, 77, 0.015) 4px
-        ),
-        linear-gradient(135deg, #fefaf0 0%, #fdf5e6 100%);
+    /* GPU加速优化渲染性能 */
+    transform: translateZ(0);
+    will-change: transform;
 }
 
-/* 交替旋转效果：增加真实感 */
-.sticky-note-card:nth-child(odd) {
-    transform: rotate(-0.5deg);
-}
-
-.sticky-note-card:nth-child(even) {
-    transform: rotate(0.5deg);
-}
-
+/* 简化hover效果，避免跳动 */
 .sticky-note-card:hover {
-    transform: rotate(0deg) translateY(-2px);
-    box-shadow:
-        0 4px 8px rgba(139, 117, 77, 0.18),
-        0 12px 24px rgba(139, 117, 77, 0.15),
-        0 20px 40px rgba(139, 117, 77, 0.10),
-        inset 0 1px 0 rgba(255, 255, 255, 0.6);
-    transition: all 0.3s ease;
-}
-
-/* 便签进入动画：从底部打印出来 */
-@keyframes stickySlideIn {
-    0% {
-        opacity: 0;
-        transform: translateY(40px) scale(0.95);
-    }
-    60% {
-        opacity: 0.8;
-        transform: translateY(-4px) scale(1.01);
-    }
-    100% {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-    }
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+    transition: box-shadow 0.2s ease;
 }
 
 /* 便签纸左上角折叠效果（装饰） */
@@ -1769,15 +1787,8 @@ body.drawer-open .conversations-fab {
 /* 分隔线：虚线 */
 .sticky-divider {
     height: 1px;
-    background: repeating-linear-gradient(
-        90deg,
-        #8b754d,
-        #8b754d 6px,
-        transparent 6px,
-        transparent 12px
-    );
+    background: rgba(200, 200, 200, 0.4);
     margin: 16px 0;
-    opacity: 0.4;
 }
 
 /* AI回复区域：便签主要内容 */
@@ -1945,7 +1956,7 @@ body.drawer-open .conversations-fab {
         max-width: 100%;
         width: 100%;
         padding: 18px 20px;
-        margin: 10px 0;
+        margin: 6px 0;
     }
 
     .sticky-question {
@@ -1963,14 +1974,15 @@ body.drawer-open .conversations-fab {
         gap: 6px;
     }
 
-    /* 移动端取消旋转效果，避免内容被裁切 */
-    .sticky-note-card:nth-child(odd),
-    .sticky-note-card:nth-child(even) {
-        transform: rotate(0deg);
+    /* 移动端保持GPU加速 */
+    .sticky-note-card {
+        transform: translateZ(0);
     }
 
     .sticky-note-card:hover {
-        transform: rotate(0deg) translateY(-1px);
+        box-shadow:
+            0 3px 6px rgba(139, 117, 77, 0.18),
+            0 10px 20px rgba(139, 117, 77, 0.15);
     }
 }
 
@@ -2310,40 +2322,19 @@ body.drawer-open .conversations-fab {
     display: flex;
     flex-direction: column;
     gap: 24px;
-    /* 复古办公桌背景 */
-    background: linear-gradient(135deg, #d4b896 0%, #c4a882 100%);
+    background: #ffffff;
     min-height: 100vh;
-    /* 桌面纹理 */
-    background-image:
-        repeating-linear-gradient(
-            90deg,
-            transparent,
-            transparent 4px,
-            rgba(0, 0, 0, 0.05) 4px,
-            rgba(0, 0, 0, 0.05) 8px
-        ),
-        linear-gradient(135deg, #d4b896 0%, #c4a882 100%);
 }
 
 .config-section {
-    border: 1px solid rgba(139, 117, 77, 0.3);
+    border: 1px solid rgba(200, 200, 200, 0.3);
     border-radius: var(--radius);
-    background: linear-gradient(135deg, #fefaf0 0%, #fdf5e6 100%);
-    box-shadow: 0 4px 12px rgba(139, 117, 77, 0.2);
+    background: #ffffff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
     padding: 20px 24px;
     display: flex;
     flex-direction: column;
     gap: 16px;
-    /* 纸张纹理 */
-    background-image:
-        repeating-linear-gradient(
-            0deg,
-            transparent,
-            transparent 2px,
-            rgba(139, 117, 77, 0.02) 2px,
-            rgba(139, 117, 77, 0.02) 4px
-        ),
-        linear-gradient(135deg, #fefaf0 0%, #fdf5e6 100%);
 }
 
 .config-section-title {
@@ -3406,7 +3397,6 @@ body.drawer-open .conversations-fab {
     stroke: #007aff;
     stroke-width: 2;
 }
-.drawer-section { /* 兼容：保持抽屉内 section 默认样式 */ }
 .drawer-primary {
     background: linear-gradient(135deg, #e67e22 0%, #d35400 100%);
     color: #fff;

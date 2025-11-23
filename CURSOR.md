@@ -114,4 +114,15 @@ FreeChat 是一个纯静态、本地存储的聊天界面：新版 UI 采用统�
 - 2025-11-18：重写 `CURSOR.md` / `README.md` / `README_zh.md`，确保文档与当前代码实现一致，记录记忆队列、注入顺序、localStorage 键与 Android 打包说明（文档对齐，不修改代码）。
 - （历史记录请参见项目仓库中原有条目，变更记录区保留以便追溯）
 
+- 2025-11-23：**UI优化与会话管理页面重构**
+  - **修复便签跳动与闪烁**：移除`.sticky-note-card`的滑入动画和交替旋转效果，简化hover效果，添加GPU加速（`transform: translateZ(0)`和`will-change: transform`），避免大模型输出时的屏幕抖动。
+  - **统一背景为白色**：移除所有页面的纹理背景（包括主页面、配置页面、会话管理页面），将`.app-shell`、`.chat-body`、`.chat-header`、`.conversation-sidebar`、`.conversation-content`、`.group-panel`、`.drawer-item`、`.config-section`、body等元素的背景统一改为`#ffffff`纯白色，移除纸张纹理和木纹效果，保持简洁清爽的视觉风格。
+  - **优化便签间距**：将`.sticky-note-card`的margin从`12px 0`减小为`6px 0`，`.message-container`的gap从`8px`减小为`4px`，使便签之间更紧凑，提升阅读连贯性。
+  - **固定标题栏并移除滚动弹性**：为`html`和`body`添加`overscroll-behavior: none`禁用滚动弹性效果，为`.message-container`添加`overflow-y: auto`、`overflow-x: hidden`和`overscroll-behavior: contain`实现独立滚动容器，确保标题栏固定，滚动平滑无弹性。
+  - **修复会话管理页面移动端适配**：将`.conversation-layout`的媒体查询断点从`900px`调整为`768px`，为`.conversation-sidebar`和`.conversation-content`添加`overflow-x: hidden`和`max-width: 100%`，确保在移动端无左右滚动，所有内容自适应屏幕宽度。
+  - **重组会话管理页面布局**：将`conversations.html`从左右布局改为上下布局，分为两个明确区域：
+    - **上部分组管理区域**：包含新建分组功能、分组列表展示，每个分组卡片显示分组名称、会话数量、记忆展示（可折叠）、重命名按钮、记忆重生成按钮，移除分组删除按钮。
+    - **下部会话管理区域**：包含新建会话、保存当前会话、导出全部按钮，会话列表按分组归类并支持折叠，每个会话卡片显示会话名称、模型名称、时间戳、消息数量、记忆展示（可折叠）、加载按钮、重命名按钮、移动按钮、删除按钮、记忆重生成按钮。
+    - 新增`.group-management-section`和`.conversation-management-section`样式类，统一按钮样式（`.section-btn-primary`、`.section-btn-success`、`.section-btn-info`），优化移动端响应式布局。
+
 
